@@ -883,19 +883,13 @@ class sql extends database
 
 
 $properties = [
-    "serverName" => "localhost",
-    "username" => "root",
+    "serverName" => "",
+    "username" => "",
     "password" => "",
-    "DB" => "organizar"
+    "DB" => ""
 ];
 
 
-$skylanders_db = new mysql($properties);
-// print_r($biblioteca->tables);
+$database_object = new mysql($properties);
 
-
-//print_r($skylanders_db->countFromTable("tareas"));
-//print_r($skylanders_db->select_stmt("SELECT * FROM tareas where inicio = :inicio", ['inicio' => "08:30", "prueba"=>"hola"], false));
-//$skylanders_db->insert_stmt("tareas", ["2", 4, 4, "08:30", "11:23:59", "hola"]);
-//$skylanders_db->update_stmt("tareas", ["2", 4, 4, "08:30", "11:23:59", "actualizado"], 2);
 ?>
