@@ -20,3 +20,14 @@ $properties = [
 
 $mysql_object = new mysql($properties);
 $sql_object = new sql($properties);
+```
+
+## Select statement
+
+* **Normal select**:
+    * **query**: The query of the select. Is a string.
+    * **variables**: There are the variables of the query, if you dont have, pass an empty array.
+    * **json_encode**: Is a boolean, if you mark false or not expecify this method it will return the asociative array of the result.
+```php
+$result_select = $database_object->select_stmt("SELECT * from people where name = :nameVar and surname = :surnameVar", ["name"=> "David", "surname"=> "Perez"], true);
+```
