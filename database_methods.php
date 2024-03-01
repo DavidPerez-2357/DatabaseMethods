@@ -365,7 +365,7 @@ class database {
      * @param array $variables variables que contiene la consulta, key => value, en la consulta se pondria :key
      * @return object
      */
-    function execute_query($query, $variables)
+    function execute_query($query, $variables=[])
     {
         // El formato de $variables debe ser ['lastname' => 'Perez', 'name' => 'Jose']
         // El formato de $query debe ser "SELECT * FROM MyGuests WHERE lastname = :lastname and name = :name"
@@ -398,7 +398,7 @@ class database {
      * @param bool $return_json Si quieres que te lo devuelva en json. Por defecto es true
      * @return array
      */
-    function select_stmt($query, $variables, $return_json=true)
+    function select_stmt($query, $variables=[], $return_json=true)
     {
         $result = $this->execute_query($query, $variables)->fetchAll(PDO::FETCH_ASSOC);
 
