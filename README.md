@@ -113,7 +113,7 @@ $limit = $database_object->generatePagination(1, 50);
     * **table**: Is the table which is going to be counted the records.
     * **conditions**: Is a atring with the conditions, its not obligatory. **You dont have to write the "where"**.
 ```php
-$numberOfRecords = $database_object->countFromTable("people", "nombre like '%Da%' and surname = 'Perez');
+$numberOfRecords = $database_object->countFromTable("people", "nombre like '%Da%' and surname = 'Perez'");
 ```
 
 
