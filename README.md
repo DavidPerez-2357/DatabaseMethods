@@ -21,6 +21,14 @@ $properties = [
 $mysql_object = new mysql($properties);
 $sql_object = new sql($properties);
 ```
+## Executing a query
+If you dont want the especific methods that are below, you can execute a query with this method, which has this parameters:
+* **query**: Is a string.
+* **variables**: here are the variables of the query, this field is not requiered.
+
+```php
+$result_query = $database_object->execute_query("SELECT * from people where name = :nameVar and surname = :surnameVar", ["nameVar"=> "David", "surnameVar"=> "Perez"]);
+```
 
 ## Select statement
 
