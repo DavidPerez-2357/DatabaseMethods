@@ -73,6 +73,15 @@ This method will update all the columns of the table except the primary key. **T
 $database_object->update_stmt("people", ["David", "Perez", "3284873T", "Spain", "Man", "2005-4-24"], 37);
 ```
 
+## Delete statement
+This method will delete the record that you specify.
+* **table**: The table which is going to be deleted the record.
+* **ID**: The ID of the record that you want to delete.
+```php
+$database_object->delete_stmt("people", 37);
+```
+
+
 ## Transactions
 Transactions are a chain of queries that are going to be executed. If one of them fails in the process, all those executed before return to the original state as if they had never been executed. It has these parameters:
 * **queries**: Is an array of queries.
@@ -113,9 +122,13 @@ $limit = $database_object->generatePagination(1, 50);
     * **table**: Is the table which is going to be counted the records.
     * **conditions**: Is a atring with the conditions, its not obligatory. **You dont have to write the "where"**.
 ```php
-$numberOfRecords = $database_object->countFromTable("people", "nombre like '%Da%' and surname = 'Perez'");
+$numberOfRecords = $database_object->countFromTable("people", "name like '%Da%' and surname = 'Perez'");
 ```
 
+* **Get last insert ID**: It will return the last insert ID.
+```php
+$lastID = $database_object->getLastInsertId();
+```
 
 
 
