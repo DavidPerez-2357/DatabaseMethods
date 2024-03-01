@@ -24,7 +24,7 @@ $sql_object = new sql($properties);
 ## Executing a query
 If you dont want the especific methods that are below, you can execute a query with this method, which has this parameters:
 * **query**: Is a string.
-* **variables**: There are the variables of the query in a asociative array, this field is not requiered.
+* **variables**: There are the variables of the query in a asociative array, this field is not requiered. **In the query a variable need to go behind ":"**.
 
 ```php
 $result_query = $database_object->execute_query("SELECT * from people where name = :nameVar and surname = :surnameVar", ["nameVar"=> "David", "surnameVar"=> "Perez"]);
@@ -109,6 +109,12 @@ if ($database_object->executeTransaction($queries, $variables)) {
 $limit = $database_object->generatePagination(1, 50);
 ```
 
+* **Count from table**: It will count the records of a table, you can specify conditions. It has these parameters:
+    * **table**: Is the table which is going to be counted the records.
+    * **conditions**: Is a atring with the conditions, its not obligatory. **You dont have to write the "where"**.
+```php
+$numberOfRecords = $database_object->countFromTable("people", "nombre like '%Da%' and surname = "Perez");
+```
 
 
 
