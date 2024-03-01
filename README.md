@@ -24,7 +24,7 @@ $sql_object = new sql($properties);
 ## Executing a query
 If you dont want the especific methods that are below, you can execute a query with this method, which has this parameters:
 * **query**: Is a string.
-* **variables**: here are the variables of the query, this field is not requiered.
+* **variables**: There are the variables of the query in a asociative array, this field is not requiered.
 
 ```php
 $result_query = $database_object->execute_query("SELECT * from people where name = :nameVar and surname = :surnameVar", ["nameVar"=> "David", "surnameVar"=> "Perez"]);
@@ -34,7 +34,7 @@ $result_query = $database_object->execute_query("SELECT * from people where name
 
 * **Normal select**:
     * **query**: The query of the select. Is a string.
-    * **variables**: There are the variables of the query, this field is not requiered.
+    * **variables**: There are the variables of the query in a asociative array, this field is not requiered.
     * **json_encode**: Is a boolean, if you mark false, this method it will return the asociative array of the result. If you dont specify this variable, it will be true.
 ```php
 $result_select = $database_object->select_stmt("SELECT * from people where name = :nameVar and surname = :surnameVar", ["nameVar"=> "David", "surnameVar"=> "Perez"], false);
@@ -52,6 +52,29 @@ $result_select = $database_object->select_one("people", 37, false);
 ```php
 $result_select = $database_object->simple_select("people", false);
 ```
+
+## Insert statement
+This method will insert all the columns of the table except the primary key. It has these parameters:
+* **table**: The selected table which is going to be inserted the records.
+* **variables**: The values which are going to be inserted in the table, it need to be order on the same order of the table.
+
+```php
+// The order of the variables is important.
+$database_object->insert_stmt("people", ["David", "Perez", "3284873T", "Spain", "Man", "2005-4-24"]);
+```
+
+
+## Other methods
+
+* **Generate pagination**: It will generate the limit part with this parameters:
+    * **pageNumber**: The number of the page you want to obtain.
+    * **stepNumber**: The number of records which are in one page.
+```php
+// This will return limit 50 offset 0 beacuse is the first page it will return the first 50 records.
+$limit = $database_object->generatePagination(1, 50);
+```
+
+
 
 
 
