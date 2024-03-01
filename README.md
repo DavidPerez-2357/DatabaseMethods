@@ -54,7 +54,7 @@ $result_select = $database_object->simple_select("people", false);
 ```
 
 ## Insert statement
-This method will insert all the columns of the table except the primary key. It has these parameters:
+This method will insert all the columns of the table except the primary key. **The values will be validated before executing the query**. It has these parameters:
 * **table**: The selected table which is going to be inserted the records.
 * **variables**: The values which are going to be inserted in the table, it need to be order on the same order of the table.
 
@@ -63,6 +63,15 @@ This method will insert all the columns of the table except the primary key. It 
 $database_object->insert_stmt("people", ["David", "Perez", "3284873T", "Spain", "Man", "2005-4-24"]);
 ```
 
+## Update statement
+This method will update all the columns of the table except the primary key. **The values will be validated before executing the query**. It has these parameters:
+* **table**: The selected table which the records are going to be updated.
+* **variables**: The values which are going to be updated, it need to be order on the same order of the table.
+* **ID**: The ID of the record you want to update.
+```php
+// The order of the variables is important.
+$database_object->update_stmt("people", ["David", "Perez", "3284873T", "Spain", "Man", "2005-4-24"], 37);
+```
 
 ## Other methods
 
@@ -70,7 +79,7 @@ $database_object->insert_stmt("people", ["David", "Perez", "3284873T", "Spain", 
     * **pageNumber**: The number of the page you want to obtain.
     * **stepNumber**: The number of records which are in one page.
 ```php
-// This will return limit 50 offset 0 beacuse is the first page it will return the first 50 records.
+// This will return "limit 50 offset 0" beacuse is the first page it will return the first 50 records.
 $limit = $database_object->generatePagination(1, 50);
 ```
 
