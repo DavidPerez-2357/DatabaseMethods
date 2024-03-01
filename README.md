@@ -26,8 +26,25 @@ $sql_object = new sql($properties);
 
 * **Normal select**:
     * **query**: The query of the select. Is a string.
-    * **variables**: There are the variables of the query, if you dont have, pass an empty array.
-    * **json_encode**: Is a boolean, if you mark false or not expecify this method it will return the asociative array of the result.
+    * **variables**: There are the variables of the query, this field is not requiered.
+    * **json_encode**: Is a boolean, if you mark false, this method it will return the asociative array of the result. If you dont specify this variable, it will be true.
 ```php
-$result_select = $database_object->select_stmt("SELECT * from people where name = :nameVar and surname = :surnameVar", ["name"=> "David", "surname"=> "Perez"], true);
+$result_select = $database_object->select_stmt("SELECT * from people where name = :nameVar and surname = :surnameVar", ["nameVar"=> "David", "surnameVar"=> "Perez"], false);
 ```
+* **Select one**: Return all the fields of the record you select by its Id and table.
+    * **table**: The selected table.
+    * **Id**: The Id of the record.
+    * **json_encode**: Is a boolean, if you mark false, this method it will return the asociative array of the result. If you dont specify this variable, it will be true.
+```php
+$result_select = $database_object->select_one("people", 37, false);
+```
+* **Simple select**: Select all the fields and if there are any foreign keys it will be replaced with the first field of the referenced table which is not a key. (PK or FK)
+    * **table**: The selected table.
+    * **json_encode**: Is a boolean, if you mark false, this method it will return the asociative array of the result.  If you dont specify this variable, it will be true.
+```php
+$result_select = $database_object->simple_select("people", false);
+```
+
+
+
+
