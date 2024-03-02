@@ -105,7 +105,7 @@ $variables = [
     "name" => "David",
     "surname" => "Perez",
     "id_clothe" => 2,
-    "id_person" => @lastInsertID
+    "id_person" => "@lastInsertID"
 ];
 
 if ($database_object->executeTransaction($queries, $variables)) {
