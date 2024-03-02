@@ -133,6 +133,20 @@ function check_with_mask($cadena, $mascara) {
     return preg_match($expresion, $cadena);
 }
 
+/**
+ * Función para quitar una subcadena de todos los valores en un array.
+ *
+ * @param array $array El array de entrada.
+ * @param string $substring La subcadena que se desea eliminar de los valores.
+ * @return void No devuelve ningún valor, ya que modifica el array directamente.
+ */
+function removeSubstringFromArray(&$array, $substring) {
+    foreach ($array as &$value) {
+        $value = str_replace($substring, '', $value);
+    }
+}
+
+
 
 /**
  * Esta funcion es para intercalar 2 arrays en una string
@@ -176,24 +190,16 @@ function combine_arrays($array1, $array2, $separador1, $separador2) {
  * @param string $prefijo Prefijo por el que tienen que empezar las palabras para que se extraigan
  * @return array Con las palabras que contenian el prefijo pero te las devuelve sin el prefijo
  */
-function extract_words_with_prefix($cadena, $prefijo) {
-    // Dividir la cadena en palabras
-    $palabras = explode(" ", $cadena);
-    $palabrasConPrefijo = [];
+function extract_words_with_prefix($consulta) {
+    // Patrón de expresión regular para extraer variables que comienzan con ":"
+    $patron = '/:(\w+)/';
 
-    // Iterar sobre las palabras
-    foreach ($palabras as $palabra) {
-        // Comprobar si la palabra comienza con el prefijo dado
-        if (strpos($palabra, $prefijo) === 0) {
-            // Agregar la palabra al arreglo de palabras con prefijo
-            $palabrasConPrefijo[] = substr($palabra, strlen($prefijo));
-        }
-    }
+    // Encuentra todas las coincidencias del patrón en la consulta
+    preg_match_all($patron, $consulta, $coincidencias);
 
-    // Retornar el arreglo de palabras con prefijo
-    return $palabrasConPrefijo;
+    // Retorna los nombres de las variables encontradas (sin el prefijo ':')
+    return $coincidencias[1];
 }
-
 
 /**
  * Obtiene las coincidencias de claves con la array de claves, sino encuentra una da error
@@ -369,8 +375,18 @@ class database {
     {
         // El formato de $variables debe ser ['lastname' => 'Perez', 'name' => 'Jose']
         // El formato de $query debe ser "SELECT * FROM MyGuests WHERE lastname = :lastname and name = :name"
-        $variables_in_query = extract_words_with_prefix($query, ":");
+        $variables_in_query = extract_words_with_prefix($query);
+
+        removeSubstringFromArray($variables_in_query, ",");
+        removeSubstringFromArray($variables_in_query, ")");
+
         $variables = keys_in_array($variables_in_query, $variables);
+
+        if (in_array("@lastInsertId", $variables)) {
+            $indiceElemento = array_search("@lastInsertId", $variables);
+            $variables[$indiceElemento] = $this->getLastInsertId();
+        }
+
 
         try {
             $stmt = $this->conn->prepare($query);
@@ -824,7 +840,7 @@ class mysql extends database
 {
     public function __construct($ppt)
     {
-        parent::setTypes( array(
+        parent::setTypes(array(
             'texto' => array('char', 'varchar', 'text', 'tinytext', 'mediumtext', 'longtext'),
             'numero' => array('int', 'float', 'decimal', 'double'),
             'tiempo' => array('date', 'datetime', 'timestamp', 'time')
