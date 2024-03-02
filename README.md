@@ -30,6 +30,8 @@ If you dont want the especific methods that are below, you can execute a query w
 $result_query = $database_object->execute_query("SELECT * from people where name = :nameVar and surname = :surnameVar", ["nameVar"=> "David", "surnameVar"=> "Perez"]);
 ```
 
+*If you put @lastInsertId in the value of a variable it will be replaced with the last insert ID at the moment of the execution of the query*.
+
 ## Select statement
 
 * **Normal select**:
@@ -68,6 +70,9 @@ This method will update all the columns of the table except the primary key. **T
 * **table**: The selected table which the records are going to be updated.
 * **variables**: The values which are going to be updated, it need to be order on the same order of the table.
 * **ID**: The ID of the record you want to update.
+
+*If you put @lastInsertId in the value of a variable it will be replaced with the last insert ID at the moment of the execution of the query*.
+
 ```php
 // The order of the variables is important.
 $database_object->update_stmt("people", ["David", "Perez", "3284873T", "Spain", "Man", "2005-4-24"], 37);
@@ -86,6 +91,8 @@ $database_object->delete_stmt("people", 37);
 Transactions are a chain of queries that are going to be executed. If one of them fails in the process, all those executed before return to the original state as if they had never been executed. It has these parameters:
 * **queries**: Is an array of queries.
 * **variables**: Is an array of variables of the queries.
+
+*If you put @lastInsertId in the value of a variable it will be replaced with the last insert ID at the moment of the execution of the query*.
 
 ```php
 $queries = [
