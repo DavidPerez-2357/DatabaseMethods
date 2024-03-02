@@ -97,15 +97,15 @@ Transactions are a chain of queries that are going to be executed. If one of the
 ```php
 $queries = [
     "INSERT INTO people (name, surname) values (:name, :surname)",
-    "INSERT INTO clothe_person (id_clothe, id_person) values (:id_clothe, :id_person)",
-    "UPDATE people set name = :name where id = :id_person"
+    "UPDATE people set name = :name where id = :id_person",
+    "INSERT INTO clothe_person (id_clothe, id_person) values (:id_clothe, :id_person)"
 ];
 
 $variables = [
     "name" => "David",
     "surname" => "Perez",
     "id_clothe" => 2,
-    "id_person" => 37
+    "id_person" => @lastInsertID
 ];
 
 if ($database_object->executeTransaction($queries, $variables)) {
