@@ -16,7 +16,7 @@ $properties = [
     "username" => "root",
     "password" => "",
     "DB" => "your_database",
-    "codification" => "utf-8"
+    "codification" => "utf8"
 ];
 
 $mysql_object = new mysql($properties);
