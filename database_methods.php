@@ -850,9 +850,10 @@ class mysql extends database
         $username = $ppt["username"];
         $password = $ppt["password"];
         $DB = $ppt["DB"];
+        $codification = $ppt["codification"];
 
         try {
-            $conn = new PDO("mysql:host=$servername;dbname=$DB;charset=utf8", $username, $password);
+            $conn = new PDO("mysql:host=$servername;dbname=$DB;charset=$codification", $username, $password);
             // set the PDO error mode to exception
             $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
@@ -880,10 +881,11 @@ class sql extends database
         $username = $ppt["username"];
         $password = $ppt["password"];
         $DB = $ppt["DB"];
+        $codification = $ppt["codification"];
 
         try {
             // Modifica la cadena de conexión para SQL
-            $conn = new PDO("sqlsrv:Server=$servername;Database=$DB", $username, $password);
+            $conn = new PDO("sqlsrv:Server=$servername;Database=$DB;charset=$codification", $username, $password);
             // Establece el modo de error PDO en excepción
             $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
@@ -899,10 +901,11 @@ class sql extends database
 
 
 $properties = [
-    "serverName" => "",
-    "username" => "",
+    "serverName" => "localhost",
+    "username" => "root",
     "password" => "",
-    "DB" => ""
+    "DB" => "your_database",
+    "codification" => "utf-8"
 ];
 
 
