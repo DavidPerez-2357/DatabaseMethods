@@ -15,7 +15,8 @@ $properties = [
     "serverName" => "localhost",
     "username" => "root",
     "password" => "",
-    "DB" => "your_database"
+    "DB" => "your_database",
+    "codification" => "utf-8"
 ];
 
 $mysql_object = new mysql($properties);
@@ -121,7 +122,7 @@ if ($database_object->executeTransaction($queries, $variables)) {
     * **pageNumber**: The number of the page you want to obtain.
     * **stepNumber**: The number of records which are in one page.
 ```php
-// This will return "limit 50 offset 0" beacuse is the first page it will return the first 50 records.
+// This will return "limit 50 offset 0" because is the first page it will return the first 50 records.
 $limit = $database_object->generatePagination(1, 50);
 ```
 
