@@ -9,6 +9,7 @@ To create a SQL/MySQL object is needed to specify some properties:
 * **userName**: The userName that is going to be used for the operations.
 * **password**: The password of the username.
 * **DB**: The database that you are going to use.
+* **codification**: The codification you want to use.
 
 ```php
 $properties = [
