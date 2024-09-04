@@ -1,15 +1,12 @@
 <?php
 /**
- * Esta funcion devuelve solo una lista con la key $key
+ * This function returns only a list with the key $key
  *
- * @param array $fetch Debe ser bidimensional
- * @param string $key La clave que se quiere sacar
- * @return array Array con los valores de la $key en la array
+ * @param array $fetch must be bidimensional
+ * @param string $key The key that you want to extract
+ * @return array Array with the values ​​of the $key in the array
  */
 function extract_from_array($fetch, $key) {
-    // La lista pasada debe ser bidimensional y la $key el nombre del campo
-    // Esta funcion devuelve solo una lista con la key $key
-
     $result = [];
 
     foreach ($fetch as $element) {
@@ -21,17 +18,14 @@ function extract_from_array($fetch, $key) {
 
 
 /**
- * Esta funcion devuelve una lista con todos los elementos que la key $field coincida con lo pasado en $goal
+ * This function returns a list of all the elements whose key $field matches what is passed in $goal
  *
- * @param array $array Una array bidimensional
- * @param string $goal Es el valor que queremos buscar
- * @param string $field Es el campo de la array por el que queremos buscar
- * @return array Array con los elementos encontrados
+ * @param array $array A bidimensional array
+ * @param string $goal It is the value we want to find
+ * @param string $field It is the field of the array by which we want to search
+ * @return array Array with the found elements
  */
 function search_in_array ($array, $goal, $field) {
-    // La array debe ser bidimensional
-    // Esta funcion devuelve una lista con todos los elementos que la key $field coincida con lo pasado en $goal
-
     $result = [];
 
     foreach ($array as $key => $element) {
@@ -45,18 +39,14 @@ function search_in_array ($array, $goal, $field) {
 }
 
 /**
- * Esta funcion necesita una array y un nombre de una key que este en esa array y
- * tiene como objetivo sustituir la key actual de la array bidimensional por el valor de la key seleccionada
+ * This function needs an array and the name of a key that is in that array and its objective
+ * is to replace the current key of the two-dimensional array with the value of the selected key
  *
- * @param array $array debera contener otros arrays adentro que contengan un campo con la key nombrada antes
- * @param string $key La key que quieres que se convierta en la key principal
- * @return array Array ya formateada
+ * @param array $array must contain other arrays inside that contain a field with the key named before
+ * @param string $key The key you want to become the primary key
+ * @return array Array already formatted
  */
 function reindex_array_by_key($array, $key) {
-    // Esta funcion necesita una array y un nombre de una key que este en esa array
-    // La array debera contener otras array adentro que contengan un campo con la key nombrada antes
-    // Esta funcion tiene como objetivo sustituir la key actual de la array bidimensional por el valor de la key seleccionada
-
     $result = [];
 
     foreach ($array as $item) {
