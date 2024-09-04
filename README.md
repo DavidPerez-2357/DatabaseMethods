@@ -1,4 +1,4 @@
-# database_methods
+# Database methods
 File with useful methods to work with SQL/MySQL database made in PHP. **Inside the file is explained every method in spanish**.
 
 ## Creating a database object
