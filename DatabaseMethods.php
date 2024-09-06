@@ -61,14 +61,12 @@ function reindex_array_by_key($array, $key) {
 
 
 /**
- * Espera string como varchar(500) o date y devuelve un array bidimesional separando el nombre de la longitud
+ * Expects a string like 'varchar(500)' or 'date' and returns a two-dimensional array separating the name from the length
  *
- * @param string $string string como varchar(500)
- * @return array array bidimesional separando el nombre de la longitud. con las keys type y length
+ * @param string $string like 'varchar(500)'
+ * @return array Two-dimensional array separating the name from the length. with the keys 'type' and 'length'
  */
 function extract_type_and_length($string) {
-    // Espera string como varchar(500) o date y devuelve un array bidimesional separando el nombre de la longitud
-
     $result = [];
 
     $pos = strpos($string, '(');
@@ -77,14 +75,14 @@ function extract_type_and_length($string) {
         $end = strpos($string, ')', $pos + 1);
 
         if ($end !== false) {
-            $result['length'] = substr($string, $pos + 1, $end - $pos - 1); // Contenido dentro de los paréntesis
-            $result['type'] = substr($string, 0, $pos); // Contenido fuera de los paréntesis antes del primer paréntesis
+            $result['length'] = substr($string, $pos + 1, $end - $pos - 1); // Content inside the parentheses
+            $result['type'] = substr($string, 0, $pos); // Content outside the parentheses before the first parenthesis
         } else {
-            $result['type'] = $string; // No se encontró el paréntesis de cierre, el string completo es 'type'
+            $result['type'] = $string; // Closing parenthesis not found, full string is 'type'
             $result['length'] = '';
         }
     } else {
-        $result['type'] = $string; // No hay paréntesis, el string completo es 'type'
+        $result['type'] = $string; // Parenthesis not found, full string is 'type'
         $result['length'] = '';
     }
 
@@ -93,14 +91,14 @@ function extract_type_and_length($string) {
 
 
 /**
- * Comprueba si la string pasada cumple con la masacra pasada
+ * Checks if the passed string matches the passed mask
  *
- * @param string $cadena Cdena que se va a comprobar
- * @param string $mascara Mascara, se le puede pasar YYYY, MM, DD, hh, mm, ss
- * @return boolean Si cumple con la mascara
+ * @param string $string to be checked
+ * @param string $mask It can be YYYY, MM, DD, hh, mm, ss
+ * @return boolean If it complies with the mask
  */
-function check_with_mask($cadena, $mascara) {
-    // Definimos patrones de expresiones regulares para diferentes máscaras
+function check_with_mask($string, $mask) {
+    // Define regular expression patterns for different masks
     $patterns = [
         'YYYY' => '(19|20)\d\d',
         'MM' => '(0[1-9]|1[0-2])',
@@ -110,17 +108,12 @@ function check_with_mask($cadena, $mascara) {
         'ss' => '([0-5][0-9])'
     ];
 
-    // Escapamos los caracteres especiales de la máscara para usarlos en una expresión regular
-    $expresion = preg_quote($mascara, '/');
+    $expression = preg_quote($mask, '/');
+    $expression = strtr($expresion, $patterns);
+    $expression = '/^' . $expression . '$/';
 
-    // Reemplazamos los caracteres de la máscara por expresiones regulares que coincidan
-    $expresion = strtr($expresion, $patterns);
-
-    // Agregamos marcadores de inicio y fin para asegurarnos de que la cadena coincida completamente
-    $expresion = '/^' . $expresion . '$/';
-
-    // Verificamos si la cadena coincide con la expresión regular
-    return preg_match($expresion, $cadena);
+    // Check if the string matches the regular expression
+    return preg_match($expression, $string);
 }
 
 /**
