@@ -51,8 +51,12 @@ $result_select = $database_object->select_stmt("SELECT * from people where name 
 $result_select = $database_object->select_one("people", 37, false);
 ```
 * **Select all**: Return all the records of a table, conditions can be added.
+    * **table**: The selected table.
+    * **where**: The conditions of the query, this field is not required. Is a string.
+    * **variables**: There are the variables of the *where* variable in a asociative array, this field is not requiered.
+    * **json_encode**: Is a boolean, if you mark false, this method it will return the asociative array of the result. If you dont specify this variable, it will be true.
 ```php
-$result_select = $database_object->select_all("people", "name = :nameVar", ["nameVar"=> "David"], true)
+$result_select = $database_object->select_all("people", "name = :nameVar", ["nameVar"=> "David"], false)
 ```
 * **Simple select**: Select all the fields and if there are any foreign keys it will be replaced with the first field of the referenced table which is not a key. (PK or FK)
     * **table**: The selected table.
