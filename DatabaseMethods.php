@@ -385,8 +385,8 @@ class database {
      * Ejecuta la consulta que le pase y te devuelve el resultado
      *
      * @param string $query Numero de pagina que se quiere obtener
-     * @param array $variables variables que contiene la consulta, key => value, en la consulta se pondria :key
-     * @param bool $return_json Si quieres que te lo devuelva en json. Por defecto es true
+     * @param array $variables variables that the query contains, key => value, in the query you would put :key
+     * @param bool $return_json If you want it returned in json. By default it is true
      * @return array
      */
     function select_stmt($query, $variables=[], $return_json=true)
@@ -403,6 +403,26 @@ class database {
         }
 
         return $result;
+    }
+
+    /**
+     * Returns all fields from a table with conditions
+     *
+     * @param string $table The table you want to select the data
+     * @param string $where The conditions of the select
+     * @param array $variables variables that the query contains, key => value, in the query you would put :key
+     * @param bool $return_json If you want it returned in json. By default it is true
+     * @return array
+     */
+    function select_all($table, $where="", $variables=[], $return_json=true)
+    {
+        $query = "SELECT * FROM " . $table;
+        
+        if ($where !== "") {
+            $query .= " WHERE " . $where;
+        }
+        
+        return select_stmt($query, $variables, $return_json);
     }
 
     /**
