@@ -117,13 +117,12 @@ function check_with_mask($string, $mask) {
 }
 
 /**
- * Función para quitar una subcadena de todos los valores en un array.
+ * Function to remove a substring from all values ​​in an array. It modifies directly the array.
  *
- * @param array $array El array de entrada.
- * @param string $substring La subcadena que se desea eliminar de los valores.
- * @return void No devuelve ningún valor, ya que modifica el array directamente.
+ * @param array $array The input array.
+ * @param string $substring The substring to remove from the values.
  */
-function removeSubstringFromArray(&$array, $substring) {
+function remove_substring_from_array(&$array, $substring) {
     foreach ($array as &$value) {
         $value = str_replace($substring, '', $value);
     }
@@ -132,56 +131,49 @@ function removeSubstringFromArray(&$array, $substring) {
 
 
 /**
- * Esta funcion es para intercalar 2 arrays en una string
+ * This function interleave 2 arrays in a string
  *
  * @param array $array1
  * @param array $array2
- * @param string $separador1 es el que sepaar un elemento de la array de otro
- * @param string $separador2 es el que separa combinaciones de los arrays
- * @return string quedaria asi (por cada elemento del array) array1[0] separador1 array2[0] separador2 array1[1] separador1 array2[1]
+ * @param string $separator1 It is what separates one element of the array from another
+ * @param string $separator2 It is the one that separates combinations of the arrays
+ * @return string It would look like this (for each element of the array) array1[0] separator1 array2[0] separator2 array1[1] separator1 array2[1]
  */
-function combine_arrays($array1, $array2, $separador1, $separador2) {
-    // Esta funcion es para intercalar 2 arrays en una string
-    // El separador 1 es el que sepaar un elemento de la array de otro
-    // El separador 2 es el que separa combinaciones de los arrays
-    // El resultado quedaria asi (por cada elemento del array) array1[0] separador1 array2[0] separador2 array1[1] separador1 array2[1]
-
+function combine_arrays($array1, $array2, $separator1, $separator2) {
     $resultado = '';
 
-    // Determina la cantidad de elementos a iterar, tomando el mínimo entre la longitud de ambos arrays
+    // Determines the number of elements to iterate, taking the minimum between the length of both arrays
     $count = min(count($array1), count($array2));
 
-    // Itera sobre los arrays para combinar sus valores
+    // Iterates over arrays to combine their values
     for ($i = 0; $i < $count; $i++) {
-        // Agrega el valor del primer array seguido del separador1 y el valor del segundo array
-        $resultado .= $array1[$i] . $separador1 . $array2[$i];
+        // Adds the value of the first array followed by separator1 and the value of the second array
+        $resultado .= $array1[$i] . $separator1 . $array2[$i];
 
-        // Si no es el último par de valores, agrega el separador2 entre los pares
+        // If it is not the last pair of values, add separator2 between the pairs
         if ($i < $count - 1) {
-            $resultado .= $separador2;
+            $resultado .= $separator2;
         }
     }
 
-    // Devuelve la cadena combinada
     return $resultado;
 }
 
 /**
- * Exctrae las palabras de la cadena que empiezen por el prefijo dado
+ * Extracts words from the string that start with the given prefix
+ * @param string $query The SQL query with variables like :name
  *
- * @param string $cadena Cadena de la que se quiere extraer las palabras
- * @param string $prefijo Prefijo por el que tienen que empezar las palabras para que se extraigan
- * @return array Con las palabras que contenian el prefijo pero te las devuelve sin el prefijo
+ * @return array With words that contain the prefix but returns them without the prefix
  */
-function extract_words_with_prefix($consulta) {
-    // Patrón de expresión regular para extraer variables que comienzan con ":"
-    $patron = '/:(\w+)/';
+function extract_words_with_prefix($query) {
+    // Regular expression pattern to extract variables that start with ":"
+    $pattern = '/:(\w+)/';
 
-    // Encuentra todas las coincidencias del patrón en la consulta
-    preg_match_all($patron, $consulta, $coincidencias);
+    // Find all matches of the pattern in the query
+    preg_match_all($pattern, $query, $matches);
 
-    // Retorna los nombres de las variables encontradas (sin el prefijo ':')
-    return $coincidencias[1];
+    // Returns the names of the variables found (without the ':' prefix)
+    return $matches[1];
 }
 
 /**
@@ -360,8 +352,8 @@ class database {
         // El formato de $query debe ser "SELECT * FROM MyGuests WHERE lastname = :lastname and name = :name"
         $variables_in_query = extract_words_with_prefix($query);
 
-        removeSubstringFromArray($variables_in_query, ",");
-        removeSubstringFromArray($variables_in_query, ")");
+        remove_substring_from_array($variables_in_query, ",");
+        remove_substring_from_array($variables_in_query, ")");
 
         $variables = keys_in_array($variables_in_query, $variables);
 
