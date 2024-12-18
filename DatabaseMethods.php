@@ -177,11 +177,11 @@ function extract_words_with_prefix($query) {
 }
 
 /**
- * Obtiene las coincidencias de claves con la array de claves, sino encuentra una da error
+ * Gets the matching keys from the array of keys, throws an error if any key is missing
  *
- * @param array $keys Claves que quieres que esten presentes en el array pasado
- * @param array $array Array con clave, valor
- * @return array elementos del array cuyas claves coincidan
+ * @param array $keys Keys that must be present in the given array
+ * @param array $array Array with key-value pairs
+ * @return array Elements of the array whose keys match
  */
 function keys_in_array($keys, $array) {
     $coincidencias = [];
@@ -199,14 +199,14 @@ function keys_in_array($keys, $array) {
 
 
 class database {
-    private $properties; // Array con las propiedades iniciales de la clase
-    private $conn; // variable de conexion
-    private $tables; // Array con la key el nombre de la tabla y valores los nombres de las columnas
-    private $tables_names; // Solo una array con los nombres de las tablas
-    private $tables_with_column_details; // Array igual que $tables pero con  mas informacion de sus columnas
-    private $tables_PK; // Las tablas con su primary key
-    private $tables_FK; // Las tablas con sus foreigns keys con la tabla a la que hacen referencia como value. columna => tabla_referencia
-    private $sql_types; // Tipos de datos de mysql para la validacion
+    private $properties; // Array with the initial properties of the class
+    private $conn; // conection variable
+    private $tables; // array with table name as the key and the column values as value
+    private $tables_names; // An array with all tables names
+    private $tables_with_column_details; // Array with extra information about tables
+    private $tables_PK; // Array with the primary key of each table
+    private $tables_FK; // Array with the foreigns key of each table: table_name => [column => reference_table]
+    private $sql_types; // Array with database types
 
     function __construct ($ppt) {
         $this->properties = $ppt;
@@ -215,33 +215,31 @@ class database {
 
 
     /**
-     * Setter de sql_types, que son los tipos de BBDD
+     * Setter for sql_types, which are the database types
      *
-     * @param array $types Es la array de los tipos
+     * @param array $types The array of types
      * @return void
      */
-    function setTypes($types)
-    {
+    function setTypes($types) {
         $this->sql_types = $types;
     }
 
 
     /**
-     * Setter de conn, que es la conexion a la BBDD
+     * Setter for conn, which is the database connection
      *
-     * @param object $conn Es la conexion a la BBDD
+     * @param object $conn The database connection
      * @return void
      */
-    function setConection($conn)
-    {
+    function setConection($conn) {
         $this->conn = $conn;
     }
 
 
     /**
-     * Devuelve las tablas de la base de datos actual
+     * Returns the tables of the current database
      *
-     * @return array Las tablas de la BBDD
+     * @return array The database tables
      */
     function get_tables () {
         $stmt = $this->conn->query("SHOW TABLES");
@@ -249,20 +247,19 @@ class database {
     }
 
     /**
-     * Devuelve las columnas de la tabla que le pases
+     * Returns the columns of the specified table
      *
-     * @param string $table_name es el nombre de la tabla de la que se quiere sacar las columnas
-     * @param boolean $ignore_primary_key Si quieres sacar todas las columnas menos la primary key
-     * @return array tiene la key como el nombre de la columna y como valores la configuracion de ellas (tipo, null...)
+     * @param string $table_name The name of the table whose columns you want to retrieve
+     * @param boolean $ignore_primary_key Whether to exclude the primary key from the columns
+     * @return array An associative array with column names as keys and their configurations (type, nullability, etc.) as values
      */
-    function get_columns($table_name, $ignore_primary_key=true)
-    {
-        // Obtener los detalles de las columnas de la tabla
+    function get_columns($table_name, $ignore_primary_key=true) {
+        // Obtain column details of a table
         $stmt = $this->conn->prepare("SHOW COLUMNS FROM $table_name");
         $stmt->execute();
         $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Si se debe ignorar la clave primaria y existe, eliminarla de la lista
+        // If ignore primary key is true, delete it from column array
         if ($ignore_primary_key) {
             foreach ($columns as $key => $column) {
                 if ($column['Key'] == 'PRI') {
@@ -275,14 +272,13 @@ class database {
     }
 
     /**
-     * Devuelve las columnas de la tabla que le pases y cuya key coincida con la pasada (foreign o primary)
+     * Returns the columns of the specified table that match the given key type (foreign or primary)
      *
-     * @param string $table_name es el nombre de la tabla de la que se quiere sacar las columnas
-     * @param string $key Es el tipo de key que se quiere sacar de la tabla, que puede ser primary (PRI) o foreign (MUL)
-     * @return array tiene la key como el nombre de la columna y como valores la configuracion de ellas (tipo, null...)
+     * @param string $table_name The name of the table whose columns you want to retrieve
+     * @param string $key The type of key to retrieve from the table, which can be primary (PRI) or foreign (MUL)
+     * @return array An associative array with column names as keys and their configurations (type, nullability, etc.) as values
      */
-    function get_columns_by_key($table_name, $key)
-    {
+    function get_columns_by_key($table_name, $key) {
         if ($key == "primary") {
             $key = "PRI";
         }
@@ -320,7 +316,7 @@ class database {
     }
 
     /**
-     * Mete la informacion sobre las tablas de la base de datos en las variables
+     * Fill the variables with information about the database tables
      *
      * @return void
      */
@@ -332,24 +328,21 @@ class database {
 
         foreach ($table_list as $table_element) {
             $column_details = $this->get_columns($table_element);
-            $this->tables_with_column_details[$table_element] = reindex_array_by_key($column_details, "Field"); // Paso a hacer que el nombre de la columna sea el nuevo indice
+            $this->tables_with_column_details[$table_element] = reindex_array_by_key($column_details, "Field"); // Make column_name index
             $this->tables[$table_element] = extract_from_array($column_details, "Field");
             $this->tables_PK[$table_element] = $this->get_columns_by_key($table_element, "primary");
             $this->tables_FK[$table_element] = $this->get_columns_by_key($table_element, "foreign");
         }
     }
 
-    /**
-     * Ejecuta la consulta que le pase y te devuelve el resultado
+   /**
+     * Executes the given query and returns the result
      *
-     * @param string $query Numero de pagina que se quiere obtener
-     * @param array $variables variables que contiene la consulta, key => value, en la consulta se pondria :key
-     * @return object
+     * @param string $query The query string to execute
+     * @param array $variables Variables used in the query as key => value pairs, where the query uses :key as placeholders
+     * @return object The result of the query execution
      */
-    function execute_query($query, $variables=[])
-    {
-        // El formato de $variables debe ser ['lastname' => 'Perez', 'name' => 'Jose']
-        // El formato de $query debe ser "SELECT * FROM MyGuests WHERE lastname = :lastname and name = :name"
+    function execute_query($query, $variables=[]) {
         $variables_in_query = extract_words_with_prefix($query);
 
         remove_substring_from_array($variables_in_query, ",");
@@ -382,15 +375,14 @@ class database {
 
 
     /**
-     * Ejecuta la consulta que le pase y te devuelve el resultado
+     * Executes the given query and returns the result
      *
-     * @param string $query Numero de pagina que se quiere obtener
-     * @param array $variables variables that the query contains, key => value, in the query you would put :key
-     * @param bool $return_json If you want it returned in json. By default it is true
-     * @return array
+     * @param string $query The query string to execute
+     * @param array $variables Variables that the query contains as key => value pairs, where the query uses :key as placeholders
+     * @param bool $return_json Whether to return the result in JSON format. Default is true
+     * @return array The query result
      */
-    function select_stmt($query, $variables=[], $return_json=true)
-    {
+    function select_stmt($query, $variables=[], $return_json=true) {
         $result = $this->execute_query($query, $variables)->fetchAll(PDO::FETCH_ASSOC);
 
         if ($return_json) {
@@ -426,15 +418,14 @@ class database {
     }
 
     /**
-     * Genera el limit de la paginacion
+     * Generates the limit for pagination
      *
-     * @param int $pageNumber Numero de pagina que se quiere obtener
-     * @param int $step Numero de registros que se obtienen por pagina
-     * @return String
+     * @param int $pageNumber The page number to retrieve
+     * @param int $step The number of records to retrieve per page
+     * @return string The pagination limit
      */
-    function generatePagination($pageNumber, $step)
-    {
-        // Si $step es 100 y $pageNumber es 1 (esta en la 1º pagina) entonces $end seria 100 y $start 0
+    function generatePagination($pageNumber, $step) {
+        // If $step is 100 and $pageNumber is 1 (Is in 1º page) then $end would be 100 and $start 0
         $end = $pageNumber * $step;
         $start = $end - $step;
 
@@ -442,18 +433,17 @@ class database {
     }
 
     /**
-     * Esta funcion valida las columnas para que cumplan con el tipo, longitud y si puede ser null
+     * This function validates the columns to ensure they meet the type, length, and nullability requirements
      *
-     * @param array $variables Son las variables su formato es el nombre de la columna como key y el valor que queremos validar. columna => valor
-     * @param array $config La configuracion de las columnas, es bidimensional y contiene como key el nombre de la columna y como valor otro array con Type (el tipo. Ej: varchar(500) o text) y Null que contiene YES o NO
-     * @return array Si todas las columnas estan bien devuelve true en la key "validation" y si es false en la key reason esta el motivo
+     * @param array $variables The variables to validate, with the column name as the key and the value to be validated. Example: column => value
+     * @param array $config The column configuration, which is a multidimensional array containing the column name as the key and an array with 'Type' (e.g., varchar(500) or text) and 'Null' (YES or NO) as values
+     * @return array If all columns are valid, it returns true in the "validation" key; if not, the "reason" key contains the validation failure reason
      */
-    function validate_column_constraints($variables, $config)
-    {
-        // Esta funcion valida las columlnas para que cumplan con el tipo, longitud y si puede ser null
-        // El tipo tiene de nombre Type y pueden ser valores como varchar(500) o text
-        // La longitud se saca del tipo segun tenga en el parentesis
-        // El NULL tiene por nombre Null en la configuracion y puede ser YES o NO
+    function validate_column_constraints($variables, $config) {
+        // This function validates the columns to ensure they meet the type, length, and nullability requirements
+        // The type is labeled as "Type" and can have values like varchar(500) or text.
+        // The length is extracted from the type based on the value inside the parentheses.
+        // The "Null" key indicates whether the column can be null, with possible values of YES or NO.
 
         $everything_correct = true;
         $reason = "";
@@ -462,18 +452,18 @@ class database {
             $type = extract_type_and_length($config[$key]["Type"])["type"];
             $length = extract_type_and_length($config[$key]["Type"])["length"];
 
-            // Establecer la longitud
+            // Check length
             if (!is_numeric($length) and $length != "") {
-                $reason = "Error, la longitud del campo $key en $config[$key]['Type'] debe ser numerica";
+                $reason = "Error, the length of the field $key in $config[$key]['Type'] must be numeric";
                 $everything_correct = false;
                 break;
             }else {
                 $length = intval($length);
             }
 
-            // Comprobar el Null
+            // Check null
             if (empty($value) and $value != 0 and $config[$key]["Null"] != "YES") {
-                $reason =  "Error, el campo $key no puede estar vacio";
+                $reason =  "Error, the field $key cannot be empty";
                 $everything_correct = false;
                 break;
 
@@ -481,36 +471,35 @@ class database {
                 continue;
             }
 
-
-            // COmprobar si supera la longitud
+            // Check max length
             if ($length != 0 and $length < strlen($value)) {
                 $length = strval($length);
-                $reason = "Error, el campo $key supera la longitud maxima de $length caracteres";
+                $reason = "Error, the field $key exceeds the maximum length of $length characters";
                 $everything_correct = false;
                 break;
             }
 
+            $types = $this->sql_types;
 
-            $tipos = $this->sql_types;
-
-            if (in_array($type, $tipos["texto"])) {
+            // Checks per type
+            if (in_array($type, $types["texto"])) {
 
                 if (!is_string($value)) {
-                    $reason = "El campo $key se esperaba como texto";
+                    $reason = "The field $key was expected to be text";
                     $everything_correct = false;
                     break;
                 }
 
-            }elseif (in_array($type, $tipos["numero"])) {
+            }elseif (in_array($types, $tipos["numero"])) {
 
                 if (!is_numeric($value)) {
-                    $reason = "El campo $key se esperaba como numero";
+                    $reason = "The field $key was expected to be a number";
                     $everything_correct = false;
                     break;
                 }
 
                 if ($type == "int" && strpos($value, '.')) {
-                    $reason = "El campo $key no puede tener decimales";
+                    $reason = "The field $key cannot have decimals";
                     $everything_correct = false;
                     break;
                 }
@@ -529,7 +518,7 @@ class database {
                 }
 
                 if (!$result) {
-                    $reason = "El campo $key no cumple con el formato $type";
+                    $reason = "The field $key does not meet the $type format";
                     $everything_correct = false;
                     break;
                 }
@@ -537,32 +526,32 @@ class database {
 
         }
 
-        return ["validation"=> $everything_correct, "reason"=>$reason];
+        return ["validation"=> $everything_correct, "reason"=> $reason];
     }
 
+
     /**
-     * Inserta el registro que le indiques despues de validar sus campos
+     * Inserts the record you specify after validating its fields
      *
-     * @param String $table Es la tabla seleccionada
-     * @param array $variables Es la array de variables que se van a poner en la consulta en el orden que esten en la BBDD (no hay que poner claves)
+     * @param string $table The selected table
+     * @param array $variables The array of variables that will be used in the query in the same order as they appear in the database (no need to include column names)
      * @return void
      */
-    function insert_stmt($table, $variables)
-    {
-        // Esta funcion se usa si se quiere insertar todos los campos a excepcion de la primary key
+    function insert_stmt($table, $variables) {
+        // This function inserts all columns except primary key
         $columns_variables = ":" . implode(", :" ,$this->tables[$table]);
 
         $column_names = implode(', ' ,$this->tables[$table]);
 
         if (!in_array($table, $this->tables_names)) {
-            throw new PDOException("No existe la tabla $table");
+            throw new PDOException("The table $table doesnt exist");
         }
 
         if (count($this->tables[$table]) != count($variables)) {
             throw new PDOException("Error, se le deben pasar todos los campos a excepcion de la PK en $table");
         }
 
-        $values = array_combine($this->tables[$table], $variables); // Hago que esta variable tenga como keys $column_names y como valores $variables
+        $values = array_combine($this->tables[$table], $variables); // This variable has columns names as key and $variables values
 
         $validation = $this->validate_column_constraints($values, $this->tables_with_column_details[$table]);
 
@@ -574,39 +563,38 @@ class database {
         }
     }
 
-    /**
-     * Edita el registro que le indiques despues de validar sus campos
+   /**
+     * Edits the record you specify after validating its fields
      *
-     * @param String $table Es la tabla seleccionada
-     * @param array $variables Es la array de variables que se van a poner en la consulta en el orden que esten en la BBDD (no hay que poner claves)
-     * @param Int $ID Es el Id del registo que se quiere editar
+     * @param string $table The selected table
+     * @param array $variables The array of variables that will be used in the query in the same order as they appear in the database (no need to include column names)
+     * @param int $ID The ID of the record you want to edit
      * @return void
      */
-    function update_stmt($table, $variables, $ID)
-    {
-        // Esta funcion se usa si se quiere actualizar todos los campos a excepcion de la primary key, que pasaremos por $ID (el valor)
-        $columns_variables = ":" . implode(", :" ,$this->tables[$table]);
+    function update_stmt($table, $variables, $ID) {
+        // This function is used to update all fields except the primary key, which will be passed via $ID (the value)
+        $columns_variables = ":" . implode(", :", $this->tables[$table]);
 
         if (!in_array($table, $this->tables_names)) {
-            throw new PDOException("No existe la tabla $table");
+            throw new PDOException("Table $table does not exist");
         }
 
         if (!is_numeric($ID)) {
-            throw new PDOException("El id $ID tiene que ser numerico");
+            throw new PDOException("The ID $ID must be numeric");
         }
 
         if (count($this->select_one($table, $ID)) != 1) {
-            throw new PDOException("Error, no se ha encontrado ningun registro en $table");
+            throw new PDOException("Error, no record found in $table");
         }
 
         if (count($this->tables[$table]) != count($variables)) {
-            throw new PDOException("Error, se le deben pasar todos los campos a excepcion de la PK en $table");
+            throw new PDOException("Error, all fields must be provided except the PK in $table");
         }
 
         $columns_variables = explode(", ", $columns_variables);
 
         $content = combine_arrays($this->tables[$table], $columns_variables, " = ", ", ");
-        $values = array_combine($this->tables[$table], $variables); // Hago que esta variable tenga como keys $column_names y como valores $variables
+        $values = array_combine($this->tables[$table], $variables); // This makes the variable have the column names as keys and variables as values
 
         $validation = $this->validate_column_constraints($values, $this->tables_with_column_details[$table]);
 
@@ -614,20 +602,19 @@ class database {
 
             $query = "UPDATE $table set $content where {$this->tables_PK[$table][0]} = $ID";
             $this->execute_query($query, $values);
-        }else {
+        } else {
             throw new PDOException($validation["reason"]);
         }
     }
 
-    /**
-     * Ejecuta una transaccion SQL
+   /**
+     * Executes an SQL transaction
      *
-     * @param array $queries Lista de consultas a ejecutar
-     * @param array $variables Lista de parametros de las consultas (array unidimensional)
-     * @return bool Si se ha ejecutado todo correctamente
+     * @param array $queries List of queries to execute
+     * @param array $variables List of query parameters (one-dimensional array)
+     * @return bool Whether the transaction was executed successfully
      */
     public function executeTransaction($queries, $variables=null) {
-
         if (empty($queries)) {
             return false;
         }
@@ -651,46 +638,41 @@ class database {
     }
 
     /**
-     * Devuelve el numero de registros de una tabla
+     * Returns the number of records in a table
      *
-     * @param String $table Es la tabla seleccionada
-     * @param String $conditions Son las condiciones para la cuenta, no es obligatorio ponerla
-     * @return Int
+     * @param string $table The selected table
+     * @param string $conditions The conditions for the count, it's not mandatory to provide it
+     * @return int The number of records
      */
-    public function countFromTable($table, $conditions=1)
-    {
+    public function countFromTable($table, $conditions=1) {
         if ($conditions == 1) {
             $stmt = "SELECT COUNT(*) as cuenta FROM " . $table;
         }else {
             $stmt = "SELECT COUNT(*) as cuenta FROM " . $table . " WHERE ". $conditions;
         }
 
-
         $result = $this->select_stmt($stmt, [], false);
-
         return $result[0]["cuenta"];
     }
 
     /**
-     * Devuelve el ultimo id insertado
+     * Returns the last inserted ID
      *
-     * @return Int
+     * @return int The last inserted ID
      */
-    function getLastInsertId()
-    {
+    function getLastInsertId() {
         return $this->conn->lastInsertId();
     }
 
 
     /**
-     * Elimina el registro que le indiques
+     * Deletes the specified record
      *
-     * @param String $table Es la tabla seleccionada
-     * @param String $id Es el id (la primary key) del registro que quieres eliminar
+     * @param string $table The selected table
+     * @param string $id The ID (primary key) of the record you want to delete
      * @return void
      */
-    function delete_stmt($table, $id)
-    {
+    function delete_stmt($table, $id) {
         if (!in_array($table, $this->tables_names)) {
             throw new PDOException("No existe la tabla $table");
         }
@@ -699,7 +681,6 @@ class database {
             throw new PDOException("El id $id tiene que ser numerico");
         }
 
-        // Funcion para eliminar por id, solo sirve si la tabla tiene primary key
         $sql = "DELETE FROM $table where {$this->tables_PK[$table][0]} = :id";
         $variables = [
             "id" => $id
@@ -710,12 +691,12 @@ class database {
 
 
     /**
-     * Realiza una consulta SELECT para recuperar datos de una tabla, incluyendo las columnas que no son claves primarias ni claves externas.
-     * Si encuentra una clave externa, realiza un LEFT JOIN con la tabla referenciada y selecciona el primer campo que no sea una clave primaria ni una clave externa.
+     * Performs a SELECT query to retrieve data from a table, including columns that are not primary or foreign keys.
+     * If a foreign key is found, it performs a LEFT JOIN with the referenced table and selects the first field that is not a primary or foreign key.
      *
-     * @param string $table_name Nombre de la tabla desde la cual se recuperarán los datos.
-     * @param bool $return_json Si quieres que te lo devuelva en json. Por defecto es true
-     * @return array Resultado de la consulta SELECT.
+     * @param string $table_name The name of the table from which data will be retrieved.
+     * @param bool $return_json Whether to return the result in JSON format. Default is true.
+     * @return array The result of the SELECT query.
      */
     function simple_select($table_name, $return_json=true) {
         $columns = $this->tables_with_column_details[$table_name];
@@ -731,7 +712,7 @@ class database {
                 $selected_columns[] = $key;
 
             } elseif ($column['Key'] == 'MUL') {
-                // Si es una clave externa, agrega un LEFT JOIN y selecciona el primer campo que no sea PK ni FK
+                // If a foreign key is found, it adds a LEFT JOIN with the referenced table and selects the first field that is neither a primary key (PK) nor a foreign key (FK)
                 $referenced_table = $this->tables_FK[$table_name][$key];
                 $selected_columns[] = "$referenced_table." . $this->get_first_non_key_column($referenced_table);
             }
@@ -762,10 +743,10 @@ class database {
 
 
     /**
-     * Busca y devuelve el nombre de la primera columna que no es una clave primaria ni una clave externa en la tabla especificada.
+     * Searches and returns the name of the first column that is neither a primary key nor a foreign key in the specified table.
      *
-     * @param string $table_name Nombre de la tabla en la que se buscará la primera columna no clave.
-     * @return string|null Nombre de la primera columna no clave encontrada o null si no se encuentra ninguna.
+     * @param string $table_name The name of the table in which to search for the first non-key column.
+     * @return string|null The name of the first non-key column found, or null if none is found.
      */
     function get_first_non_key_column($table_name) {
         $columns = $this->tables_with_column_details[$table_name];
@@ -775,47 +756,45 @@ class database {
                 return $key;
             }
         }
-        return null; // No se encontró ninguna columna que no sea PK ni FK
+        return null; // Not found any PK or FK in table
     }
 
 
     /**
-     * Obtiene el nombre de la tabla a la que hace referencia una columna de clave externa en una tabla dada.
+     * Retrieves the name of the table that a foreign key column references in a given table.
      *
-     * @param string $table_name Nombre de la tabla que contiene la columna de clave externa.
-     * @param string $column_name Nombre de la columna de clave externa.
-     * @return string|null Nombre de la tabla referenciada por la columna de clave externa o null si no se encuentra ninguna tabla referenciada.
+     * @param string $table_name The name of the table containing the foreign key column.
+     * @param string $column_name The name of the foreign key column.
+     * @return string|null The name of the table referenced by the foreign key column, or null if no referenced table is found.
      */
-    function get_referenced_table($table_name, $column_name)
-    {
+    function get_referenced_table($table_name, $column_name) {
         $stmt = $this->conn->prepare("SHOW CREATE TABLE $table_name");
         $stmt->execute();
         $table_info = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Obtener la definición de la tabla
+        // Obtain table definition
         $table_definition = $table_info['Create Table'];
 
-        // Buscar la definición de la columna
+        // Search column definition
         preg_match_all('/CONSTRAINT `[^`]+` FOREIGN KEY \(`' . $column_name . '`\) REFERENCES `([^`]+)` \(`[^`]+`\)/', $table_definition, $matches);
 
-        // Si se encontraron coincidencias, la tabla referenciada es el primer elemento capturado en la expresión regular
+        // If matches are found, the referenced table is the first captured element in the regular expression
         if (isset($matches[1][0])) {
             return $matches[1][0];
         } else {
-            // Si no se encuentra ninguna referencia, devuelve null o algún valor que indique que no hay una tabla referenciada
+            // If no reference is found, return null or a value indicating no referenced table
             return null;
         }
     }
 
     /**
-     * Obtiene 1 registro de la tabla seleccionada segun el id pasado
+     * Retrieves 1 record from the selected table based on the passed id
      *
-     * @param string $table Nombre de la tabla
-     * @param string|int $id Id del registro que se quiere obtener
-     * @return array registro resultado
+     * @param string $table Name of the table
+     * @param string|int $id Id of the record to be retrieved
+     * @return array The resulting record
      */
-    function select_one($table, $id, $json_encode=false)
-    {
+    function select_one($table, $id, $json_encode=false) {
         if (!in_array($table, $this->tables_names)) {
             throw new PDOException("No existe la tabla $table");
         }
@@ -879,9 +858,7 @@ class sql extends database
         $codification = $ppt["codification"];
 
         try {
-            // Modifica la cadena de conexión para SQL
             $conn = new PDO("sqlsrv:Server=$servername;Database=$DB;charset=$codification", $username, $password);
-            // Establece el modo de error PDO en excepción
             $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
             parent::setConection($conn);
