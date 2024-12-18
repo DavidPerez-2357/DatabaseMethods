@@ -1,5 +1,5 @@
 # Database methods
-File with useful methods to work with SQL/MySQL database made in PHP. **Inside the file is explained every method in spanish**.
+File with useful methods to work with SQL/MySQL database made in PHP.
 
 ## Creating a database object
 The classes **sql** and **mysql** extends of the parent class **database** who own the methods that the two child classes have in commun.
