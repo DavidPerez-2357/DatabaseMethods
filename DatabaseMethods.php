@@ -1,886 +1,857 @@
 <?php
 /**
- * This function returns only a list with the key $key
+ * DatabaseMethods.php
  *
- * @param array $fetch must be bidimensional
- * @param string $key The key that you want to extract
- * @return array Array with the values ​​of the $key in the array
- */
-function extract_from_array($fetch, $key) {
-    $result = [];
-
-    foreach ($fetch as $element) {
-        $result[] = $element[$key];
-    }
-
-    return $result;
-}
+ * This file contains methods for database management and manipulation.
+ * It provides reusable functions for common operations such as querying, inserting,
+ * updating, and deleting records in databases.
+ *
+ * @author DavidPerez-2357
+ * @link https://github.com/DavidPerez-2357/DatabaseMethods
+*/
 
 
 /**
- * This function returns a list of all the elements whose key $field matches what is passed in $goal
- *
- * @param array $array A bidimensional array
- * @param string $goal It is the value we want to find
- * @param string $field It is the field of the array by which we want to search
- * @return array Array with the found elements
+ * Query class to build SQL queries based on provided data.
+ * Supports SELECT, INSERT, UPDATE, and DELETE methods.
+ * 
+ * @package DatabaseMethods
  */
-function search_in_array ($array, $goal, $field) {
-    $result = [];
+class Query
+{
+    private array $data;
+    private string $query;
 
-    foreach ($array as $key => $element) {
-        if ($element[$field] == $goal) {
-            $element["array_index"] = $key;
-            $result[] = $element;
+    public function __construct(array $queryData)
+    {
+        $this->data = $queryData;
+        $this->query = $this->buildQuery();
+    }
+
+    public function __tostring(): string
+    {
+        return $this->query;
+    }
+
+    public function buildQuery(): string
+    {
+        switch (strtoupper($this->data['method'] ?? '')) {
+            case 'SELECT':
+                return $this->buildSelectQuery();
+            case 'INSERT':
+                return $this->buildPDOInsertQuery();
+            case 'UPDATE':
+                return $this->buildPDOUpdateQuery();
+            case 'DELETE':
+                return $this->buildDeleteQuery();
+            default:
+                throw new InvalidArgumentException("Unsupported query method: " . $this->data['method']);
         }
     }
 
-    return $result;
-}
-
-/**
- * This function needs an array and the name of a key that is in that array and its objective
- * is to replace the current key of the two-dimensional array with the value of the selected key
- *
- * @param array $array must contain other arrays inside that contain a field with the key named before
- * @param string $key The key you want to become the primary key
- * @return array Array already formatted
- */
-function reindex_array_by_key($array, $key) {
-    $result = [];
-
-    foreach ($array as $item) {
-        if (isset($item[$key])) {
-            $result[$item[$key]] = $item;
-            unset($result[$item[$key]][$key]);
+    /**
+     * Builds a SELECT SQL query based on the provided data.
+     * @throws InvalidArgumentException if the method is not SELECT or required fields are missing.
+     * @return string The constructed SQL SELECT query.
+     * @example
+     * ```php
+     * $query = new Query([
+     *    'method' => 'SELECT',
+     *    'fields' => ['id', 'name'],
+     *    'table' => 'users',
+     *    'joins' => ['LEFT JOIN orders ON users.id = orders.user_id'],
+     *    'where' => 'users.active = 1',
+     *    'group_by' => 'users.id',
+     *    'having' => 'COUNT(orders.id) > 0',
+     *    'order_by' => 'users.name ASC',
+     *    'limit' => 10,
+     *    'offset' => 0
+     * * ]);
+     * 
+     */
+    public function buildSelectQuery(): string
+    {
+        if (strtoupper($this->data['method'] ?? '') !== 'SELECT') {
+            throw new InvalidArgumentException("Only SELECT queries are supported.");
         }
-    }
 
-    return $result;
-}
+        $fields = isset($this->data['fields']) ? implode(", ", $this->data['fields']) : "*";
+        $table = $this->data['table'] ?? throw new InvalidArgumentException("Table is required.");
 
+        $sql = "SELECT {$fields} FROM {$table}";
 
-/**
- * Expects a string like 'varchar(500)' or 'date' and returns a two-dimensional array separating the name from the length
- *
- * @param string $string like 'varchar(500)'
- * @return array Two-dimensional array separating the name from the length. with the keys 'type' and 'length'
- */
-function extract_type_and_length($string) {
-    $result = [];
-
-    $pos = strpos($string, '(');
-
-    if ($pos !== false) {
-        $end = strpos($string, ')', $pos + 1);
-
-        if ($end !== false) {
-            $result['length'] = substr($string, $pos + 1, $end - $pos - 1); // Content inside the parentheses
-            $result['type'] = substr($string, 0, $pos); // Content outside the parentheses before the first parenthesis
-        } else {
-            $result['type'] = $string; // Closing parenthesis not found, full string is 'type'
-            $result['length'] = '';
+        // Joins
+        if (!empty($this->data['joins'])) {
+            foreach ($this->data['joins'] as $join) {
+                $sql .= " {$join}";
+            }
         }
-    } else {
-        $result['type'] = $string; // Parenthesis not found, full string is 'type'
-        $result['length'] = '';
-    }
 
-    return $result;
-}
-
-
-/**
- * Checks if the passed string matches the passed mask
- *
- * @param string $string to be checked
- * @param string $mask It can be YYYY, MM, DD, hh, mm, ss
- * @return boolean If it complies with the mask
- */
-function check_with_mask($string, $mask) {
-    // Define regular expression patterns for different masks
-    $patterns = [
-        'YYYY' => '(19|20)\d\d',
-        'MM' => '(0[1-9]|1[0-2])',
-        'DD' => '(0[1-9]|[12][0-9]|3[01])',
-        'hh' => '([01][0-9]|2[0-3])',
-        'mm' => '([0-5][0-9])',
-        'ss' => '([0-5][0-9])'
-    ];
-
-    $expression = preg_quote($mask, '/');
-    $expression = strtr($expresion, $patterns);
-    $expression = '/^' . $expression . '$/';
-
-    // Check if the string matches the regular expression
-    return preg_match($expression, $string);
-}
-
-/**
- * Function to remove a substring from all values ​​in an array. It modifies directly the array.
- *
- * @param array $array The input array.
- * @param string $substring The substring to remove from the values.
- */
-function remove_substring_from_array(&$array, $substring) {
-    foreach ($array as &$value) {
-        $value = str_replace($substring, '', $value);
-    }
-}
-
-
-
-/**
- * This function interleave 2 arrays in a string
- *
- * @param array $array1
- * @param array $array2
- * @param string $separator1 It is what separates one element of the array from another
- * @param string $separator2 It is the one that separates combinations of the arrays
- * @return string It would look like this (for each element of the array) array1[0] separator1 array2[0] separator2 array1[1] separator1 array2[1]
- */
-function combine_arrays($array1, $array2, $separator1, $separator2) {
-    $resultado = '';
-
-    // Determines the number of elements to iterate, taking the minimum between the length of both arrays
-    $count = min(count($array1), count($array2));
-
-    // Iterates over arrays to combine their values
-    for ($i = 0; $i < $count; $i++) {
-        // Adds the value of the first array followed by separator1 and the value of the second array
-        $resultado .= $array1[$i] . $separator1 . $array2[$i];
-
-        // If it is not the last pair of values, add separator2 between the pairs
-        if ($i < $count - 1) {
-            $resultado .= $separator2;
+        // Where
+        if (!empty($this->data['where'])) {
+            $sql .= " WHERE {$this->data['where']}";
         }
-    }
 
-    return $resultado;
-}
-
-/**
- * Extracts words from the string that start with the given prefix
- * @param string $query The SQL query with variables like :name
- *
- * @return array With words that contain the prefix but returns them without the prefix
- */
-function extract_words_with_prefix($query) {
-    // Regular expression pattern to extract variables that start with ":"
-    $pattern = '/:(\w+)/';
-
-    // Find all matches of the pattern in the query
-    preg_match_all($pattern, $query, $matches);
-
-    // Returns the names of the variables found (without the ':' prefix)
-    return $matches[1];
-}
-
-/**
- * Gets the matching keys from the array of keys, throws an error if any key is missing
- *
- * @param array $keys Keys that must be present in the given array
- * @param array $array Array with key-value pairs
- * @return array Elements of the array whose keys match
- */
-function keys_in_array($keys, $array) {
-    $coincidencias = [];
-
-    foreach ($keys as $clave) {
-        if (array_key_exists($clave, $array)) {
-            $coincidencias[$clave] = $array[$clave];
-        } else {
-            throw new PDOException("Error de PDO: Clave '$clave' no encontrada en el array.");
+        // Group by
+        if (!empty($this->data['group_by'])) {
+            $sql .= " GROUP BY {$this->data['group_by']}";
         }
+
+        // Having
+        if (!empty($this->data['having'])) {
+            $sql .= " HAVING {$this->data['having']}";
+        }
+
+        // Order by
+        if (!empty($this->data['order_by'])) {
+            $sql .= " ORDER BY {$this->data['order_by']}";
+        }
+
+        // Limit
+        if (!empty($this->data['limit']) && is_numeric($this->data['limit'])) {
+            $sql .= " LIMIT {$this->data['limit']}";
+        }
+
+        // Offset
+        if (!empty($this->data['offset']) && is_numeric($this->data['offset'])) {
+            $sql .= " OFFSET {$this->data['offset']}";
+        }
+
+        return $sql;
     }
 
-    return $coincidencias;
+    /**
+     * Builds an INSERT SQL query based on the provided data.
+     * @throws InvalidArgumentException if the method is not INSERT or required fields are missing.
+     * @return string The constructed SQL INSERT query.
+     * @example
+     * ```php
+     * $query = new Query([
+     *     'method' => 'INSERT',
+     *     'table' => 'users',
+     *     'fields' => ['name', 'email'],
+     *     'values_to_insert' => 3
+     * * ]);
+     * */
+    public function buildPDOInsertQuery(): string
+    {
+        if (strtoupper($this->data['method'] ?? '') !== 'INSERT') {
+            throw new InvalidArgumentException("Only INSERT method is supported.");
+        }
+
+        $table = $this->data['table'] ?? throw new InvalidArgumentException("Table is required.");
+        $fields = $this->data['fields'] ?? throw new InvalidArgumentException("Fields are required.");
+        $values = $this->data['values_to_insert'] ?? 1;
+
+        if (!is_array($fields) || empty($fields)) {
+            throw new InvalidArgumentException("Fields must be a non-empty array.");
+        }
+
+        // Prepare placeholders for the query
+        for ($i = 0; $i < $values; $i++) {
+            $rowPlaceholders = [];
+            foreach ($fields as $col) {
+                $paramKey = ":{$col}_{$i}";
+                $rowPlaceholders[] = $paramKey;
+            }
+            $placeholders[] = '(' . implode(', ', $rowPlaceholders) . ')';
+        }
+
+        $placeholders = implode(', ', $placeholders);
+        $fieldsList = implode(', ', $fields);
+
+        $sql = "INSERT INTO {$table} ({$fieldsList}) VALUES {$placeholders}";
+
+        return $sql;
+    }
+
+    /**
+     * Builds an UPDATE SQL query based on the provided data.
+     * @throws InvalidArgumentException if the method is not UPDATE or required fields are missing.
+     * @return array The constructed SQL UPDATE query and parameters.
+     * @example
+     * ```php
+     * $query = new Query([
+     *   'method' => 'UPDATE',
+     *   'table' => 'users',
+     *   'fields' => ['name', 'email'],
+     *   'where' => 'id = 1',
+     *   'joins' => ['LEFT JOIN orders ON users.id = orders.user_id']
+     * ]);
+     * */
+    public function buildPDOUpdateQuery(): string
+    {
+        if (strtoupper($this->data['method'] ?? '') !== 'UPDATE') {
+            throw new InvalidArgumentException("Only UPDATE method is supported.");
+        }
+
+        $table = $this->data['table'] ?? throw new InvalidArgumentException("Table is required.");
+        $fields = $this->data['fields'] ?? throw new InvalidArgumentException("Fields are required.");
+
+        if (!is_array($fields) || empty($fields)) {
+            throw new InvalidArgumentException("Fields must be a non-empty array.");
+        }
+
+        // Prepare SET clause
+        $setClauses = [];
+        foreach ($fields as $col) {
+            $paramKey = ":{$col}";
+            $setClauses[] = "{$col} = {$paramKey}";
+        }
+        $setClause = implode(', ', $setClauses);
+
+        $sql = "UPDATE {$table} SET {$setClause}";
+
+        if (!empty($this->data['joins'])) {
+            foreach ($this->data['joins'] as $join) {
+                $sql .= " {$join}";
+            }
+        }
+
+        // Prepare WHERE clause
+        if (!empty($this->data['where'])) {
+            $sql .= " WHERE {$this->data['where']}";
+        }
+
+        return $sql;
+    }
+
+    /**
+     * Builds a DELETE SQL query based on the provided data.
+     * @throws InvalidArgumentException if the method is not DELETE or required fields are missing.
+     * @return string The constructed SQL DELETE query.
+     * @example
+     * ```php
+     * $query = new Query([
+     *    'method' => 'DELETE',
+     *    'table' => 'users',
+     *    'where' => 'id = 1',
+     *    'order_by' => 'created_at DESC',
+     *    'limit' => 10
+     * ]);
+     * */
+    public function buildDeleteQuery(): string
+    {
+        if (strtoupper($this->data['method'] ?? '') !== 'DELETE') {
+            throw new InvalidArgumentException("Only DELETE method is supported.");
+        }
+
+        $table = $this->data['table'] ?? throw new InvalidArgumentException("Table is required.");
+
+        $sql = "DELETE FROM {$table}";
+
+        // Where
+        if (!empty($this->data['where'])) {
+            $sql .= " WHERE {$this->data['where']}";
+        }
+
+        if (!empty($this->data["order_by"])) {
+            $sql .= " ORDER BY {$this->data['order_by']}";
+        }
+
+        if (!empty($this->data["limit"])) {
+            $limit = (int)$this->data["limit"];
+            if ($limit > 0) {
+                $sql .= " LIMIT {$limit}";
+            }
+        }
+
+        return $sql;
+    }
 }
 
-
-class database {
+/**
+ * Database class to handle database operations using PDO.
+ * Provides methods for executing queries, inserting, updating, deleting, and selecting records.
+ * 
+ * @package DatabaseMethods
+ */
+class Database
+{
     private $properties; // Array with the initial properties of the class
     private $conn; // conection variable
-    private $tables; // array with table name as the key and the column values as value
-    private $tables_names; // An array with all tables names
-    private $tables_with_column_details; // Array with extra information about tables
-    private $tables_PK; // Array with the primary key of each table
-    private $tables_FK; // Array with the foreigns key of each table: table_name => [column => reference_table]
-    private $sql_types; // Array with database types
 
-    function __construct ($ppt) {
+    function __construct($ppt)
+    {
         $this->properties = $ppt;
-        $this->save_tables();
     }
 
-
-    /**
-     * Setter for sql_types, which are the database types
-     *
-     * @param array $types The array of types
-     * @return void
-     */
-    function setTypes($types) {
-        $this->sql_types = $types;
-    }
-
-
-    /**
-     * Setter for conn, which is the database connection
-     *
-     * @param object $conn The database connection
-     * @return void
-     */
-    function setConection($conn) {
+    protected function setConnection($conn)
+    {
         $this->conn = $conn;
     }
 
-
     /**
-     * Returns the tables of the current database
-     *
-     * @return array The database tables
+     * Executes a plain SQL query.
+     * @param string $query The SQL query to execute.
+     * @throws RuntimeException if the connection is not set or the query execution fails.
+     * @return bool True on success, false on failure.
      */
-    function get_tables () {
-        $stmt = $this->conn->query("SHOW TABLES");
-        return $stmt->fetchAll(PDO::FETCH_COLUMN);
-    }
-
-    /**
-     * Returns the columns of the specified table
-     *
-     * @param string $table_name The name of the table whose columns you want to retrieve
-     * @param boolean $ignore_primary_key Whether to exclude the primary key from the columns
-     * @return array An associative array with column names as keys and their configurations (type, nullability, etc.) as values
-     */
-    function get_columns($table_name, $ignore_primary_key=true) {
-        // Obtain column details of a table
-        $stmt = $this->conn->prepare("SHOW COLUMNS FROM $table_name");
-        $stmt->execute();
-        $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        // If ignore primary key is true, delete it from column array
-        if ($ignore_primary_key) {
-            foreach ($columns as $key => $column) {
-                if ($column['Key'] == 'PRI') {
-                    unset($columns[$key]);
-                }
-            }
-        }
-
-        return $columns;
-    }
-
-    /**
-     * Returns the columns of the specified table that match the given key type (foreign or primary)
-     *
-     * @param string $table_name The name of the table whose columns you want to retrieve
-     * @param string $key The type of key to retrieve from the table, which can be primary (PRI) or foreign (MUL)
-     * @return array An associative array with column names as keys and their configurations (type, nullability, etc.) as values
-     */
-    function get_columns_by_key($table_name, $key) {
-        if ($key == "primary") {
-            $key = "PRI";
-        }
-
-        if ($key == "foreign") {
-            $key = "MUL";
-        }
-
-        $stmt = $this->conn->prepare("SHOW COLUMNS FROM $table_name");
-        $stmt->execute();
-
-        $stmt->setFetchMode(PDO::FETCH_ASSOC);
-        $fetch = $stmt->fetchAll();
-
-
-        $filtered_columns = array_filter($fetch, function($column) use ($key) {
-            return $column['Key'] == $key;
-        });
-
-        $columns = array_column($filtered_columns, 'Field');
-        $result = array();
-
-        if ($key == "MUL") {
-
-            foreach ($columns as $column) {
-                $referenced_table = $this->get_referenced_table($table_name, $column);
-                $result[$column] = $referenced_table;
-            }
-
-        }else {
-            $result = $columns;
-        }
-
-        return $result;
-    }
-
-    /**
-     * Fill the variables with information about the database tables
-     *
-     * @return void
-     */
-    function save_tables() {
-        $table_list = $this->get_tables();
-
-        $this->tables_names = $table_list;
-        $this->tables_with_column_details = array();
-
-        foreach ($table_list as $table_element) {
-            $column_details = $this->get_columns($table_element);
-            $this->tables_with_column_details[$table_element] = reindex_array_by_key($column_details, "Field"); // Make column_name index
-            $this->tables[$table_element] = extract_from_array($column_details, "Field");
-            $this->tables_PK[$table_element] = $this->get_columns_by_key($table_element, "primary");
-            $this->tables_FK[$table_element] = $this->get_columns_by_key($table_element, "foreign");
-        }
-    }
-
-   /**
-     * Executes the given query and returns the result
-     *
-     * @param string $query The query string to execute
-     * @param array $variables Variables used in the query as key => value pairs, where the query uses :key as placeholders
-     * @return object The result of the query execution
-     */
-    function execute_query($query, $variables=[]) {
-        $variables_in_query = extract_words_with_prefix($query);
-
-        remove_substring_from_array($variables_in_query, ",");
-        remove_substring_from_array($variables_in_query, ")");
-
-        $variables = keys_in_array($variables_in_query, $variables);
-
-        if (in_array("@lastInsertId", $variables)) {
-            $indiceElemento = array_search("@lastInsertId", $variables);
-            $variables[$indiceElemento] = $this->getLastInsertId();
-        }
-
-
-        try {
-            $stmt = $this->conn->prepare($query);
-
-            if ($stmt->execute($variables)) {
-                return $stmt;
-
-            } else {
-                throw new PDOException("Error en la ejecución de la consulta: " . print_r($stmt->errorInfo(), true));
-            }
-
-        } catch (PDOException $e) {
-            throw new PDOException("Error de PDO en $query: " . $e->getMessage());
-        }
-
-    }
-
-
-
-    /**
-     * Executes the given query and returns the result
-     *
-     * @param string $query The query string to execute
-     * @param array $variables Variables that the query contains as key => value pairs, where the query uses :key as placeholders
-     * @param bool $return_json Whether to return the result in JSON format. Default is true
-     * @return array The query result
-     */
-    function select_stmt($query, $variables=[], $return_json=true) {
-        $result = $this->execute_query($query, $variables)->fetchAll(PDO::FETCH_ASSOC);
-
-        if ($return_json) {
-
-            $result =  json_encode($result);
-
-            if ($result === false) {
-                throw new PDOException("Error en json_encode: " . json_last_error_msg());
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * Returns all fields from a table with conditions
-     *
-     * @param string $table The table you want to select the data
-     * @param string $where The conditions of the select
-     * @param array $variables variables that the query contains, key => value, in the query you would put :key
-     * @param bool $return_json If you want it returned in json. By default it is true
-     * @return array
-     */
-    function select_all($table, $where="", $variables=[], $return_json=true)
+    public function executePlainQuery(string $query, array $params = []): bool
     {
-        $query = "SELECT * FROM " . $table;
+        if (!$this->conn) {
+            throw new RuntimeException("Database connection is not set.");
+        }
+
+        $stmt = $this->conn->prepare($query);
+
+        if (!$stmt) {
+            // Use errorInfo for PDO
+            $errorInfo = $this->conn->errorInfo();
+            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        $result = $stmt->execute($params);
+
+        if (!$result) {
+            $errorInfo = $stmt->errorInfo();
+            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        return true;
+    }
+
+    /**
+     * Executes a plain SELECT SQL query and returns the results.
+     * @param string $query The SQL SELECT query to execute.
+     * @throws RuntimeException if the connection is not set or the query execution fails.
+     * @return array The result set as an associative array.
+     */
+    public function executePlainSelectQuery(string $query, array $params = []): array
+    {
+        if (!$this->conn) {
+            throw new RuntimeException("Database connection is not set.");
+        }
+
+        $stmt = $this->conn->prepare($query);
+
+        if (!$stmt) {
+            // Use errorInfo for PDO
+            $errorInfo = $this->conn->errorInfo();
+            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        $result = $stmt->execute($params);
+
+        if (!$result) {
+            $errorInfo = $stmt->errorInfo();
+            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Executes a SELECT query using the Query class and returns a single row.
+     * @param Query $query The Query object containing the SQL query.
+     * @param array $params Optional parameters for the query.
+     * @throws RuntimeException if the connection is not set or the query execution fails.
+     * @return array The result row as an associative array.
+     */
+    public function selectOne(Query $query, array $params = []): array
+    {
+        if (!$this->conn) {
+            throw new RuntimeException("Database connection is not set.");
+        }
+
+        $stmt = $this->conn->prepare((string) $query);
+
+        if (!$stmt) {
+            $errorInfo = $this->conn->errorInfo();
+            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        if (!$stmt->execute($params)) {
+            $errorInfo = $stmt->errorInfo();
+            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
         
-        if ($where !== "") {
-            $query .= " WHERE " . $where;
+        // Fetch a single row as an associative array
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function select(Query $query, array $params = []): array
+    {
+        if (!$this->conn) {
+            throw new RuntimeException("Database connection is not set.");
         }
-        
-        return select_stmt($query, $variables, $return_json);
+
+        $stmt = $this->conn->prepare((string) $query);
+
+        if (!$stmt) {
+            $errorInfo = $this->conn->errorInfo();
+            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        if (!$stmt->execute($params)) {
+            $errorInfo = $stmt->errorInfo();
+            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        // Fetch all results as an associative array
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**
-     * Generates the limit for pagination
-     *
-     * @param int $pageNumber The page number to retrieve
-     * @param int $step The number of records to retrieve per page
-     * @return string The pagination limit
+     * Inserts records into the specified table using the Query class.
+     * This method detects if the data is a single record or multiple records and calls the appropriate method.
+     * @param string $table The name of the table to insert into.
+     * @param array $data An associative array of column names and values to insert, or an array of such arrays for multiple records.
+     * @throws RuntimeException if the connection is not set or the query execution fails.
+     * @return int The ID of the last inserted row or the number of affected rows for multiple inserts.
      */
-    function generatePagination($pageNumber, $step) {
-        // If $step is 100 and $pageNumber is 1 (Is in 1º page) then $end would be 100 and $start 0
-        $end = $pageNumber * $step;
-        $start = $end - $step;
-
-        return "LIMIT $step OFFSET $start";
-    }
-
-    /**
-     * This function validates the columns to ensure they meet the type, length, and nullability requirements
-     *
-     * @param array $variables The variables to validate, with the column name as the key and the value to be validated. Example: column => value
-     * @param array $config The column configuration, which is a multidimensional array containing the column name as the key and an array with 'Type' (e.g., varchar(500) or text) and 'Null' (YES or NO) as values
-     * @return array If all columns are valid, it returns true in the "validation" key; if not, the "reason" key contains the validation failure reason
-     */
-    function validate_column_constraints($variables, $config) {
-        // This function validates the columns to ensure they meet the type, length, and nullability requirements
-        // The type is labeled as "Type" and can have values like varchar(500) or text.
-        // The length is extracted from the type based on the value inside the parentheses.
-        // The "Null" key indicates whether the column can be null, with possible values of YES or NO.
-
-        $everything_correct = true;
-        $reason = "";
-
-        foreach ($variables as $key => $value) {
-            $type = extract_type_and_length($config[$key]["Type"])["type"];
-            $length = extract_type_and_length($config[$key]["Type"])["length"];
-
-            // Check length
-            if (!is_numeric($length) and $length != "") {
-                $reason = "Error, the length of the field $key in $config[$key]['Type'] must be numeric";
-                $everything_correct = false;
-                break;
-            }else {
-                $length = intval($length);
-            }
-
-            // Check null
-            if (empty($value) and $value != 0 and $config[$key]["Null"] != "YES") {
-                $reason =  "Error, the field $key cannot be empty";
-                $everything_correct = false;
-                break;
-
-            }else if ((empty($value) or $value == null) and $value != 0 and $config[$key]["Null"] == "YES") {
-                continue;
-            }
-
-            // Check max length
-            if ($length != 0 and $length < strlen($value)) {
-                $length = strval($length);
-                $reason = "Error, the field $key exceeds the maximum length of $length characters";
-                $everything_correct = false;
-                break;
-            }
-
-            $types = $this->sql_types;
-
-            // Checks per type
-            if (in_array($type, $types["texto"])) {
-
-                if (!is_string($value)) {
-                    $reason = "The field $key was expected to be text";
-                    $everything_correct = false;
-                    break;
-                }
-
-            }elseif (in_array($types, $tipos["numero"])) {
-
-                if (!is_numeric($value)) {
-                    $reason = "The field $key was expected to be a number";
-                    $everything_correct = false;
-                    break;
-                }
-
-                if ($type == "int" && strpos($value, '.')) {
-                    $reason = "The field $key cannot have decimals";
-                    $everything_correct = false;
-                    break;
-                }
-
-            }elseif (in_array($type, $tipos["tiempo"])) {
-                $result = true;
-
-                if ($type == "date") {
-                    $result = check_with_mask($value, "YYYY-MM-DD");
-
-                }elseif ($type == "time" and !(check_with_mask($value, "hh:mm") || check_with_mask($value, "hh:mm:ss"))) {
-                    $result = false;
-
-                }elseif ($type == "datetime" || $type == "timestamp") {
-                    $result = check_with_mask($value, "YYYY-MM-DD hh:mm:ss");
-                }
-
-                if (!$result) {
-                    $reason = "The field $key does not meet the $type format";
-                    $everything_correct = false;
-                    break;
-                }
-            }
-
-        }
-
-        return ["validation"=> $everything_correct, "reason"=> $reason];
-    }
-
-
-    /**
-     * Inserts the record you specify after validating its fields
-     *
-     * @param string $table The selected table
-     * @param array $variables The array of variables that will be used in the query in the same order as they appear in the database (no need to include column names)
-     * @return void
-     */
-    function insert_stmt($table, $variables) {
-        // This function inserts all columns except primary key
-        $columns_variables = ":" . implode(", :" ,$this->tables[$table]);
-
-        $column_names = implode(', ' ,$this->tables[$table]);
-
-        if (!in_array($table, $this->tables_names)) {
-            throw new PDOException("The table $table doesnt exist");
-        }
-
-        if (count($this->tables[$table]) != count($variables)) {
-            throw new PDOException("Error, se le deben pasar todos los campos a excepcion de la PK en $table");
-        }
-
-        $values = array_combine($this->tables[$table], $variables); // This variable has columns names as key and $variables values
-
-        $validation = $this->validate_column_constraints($values, $this->tables_with_column_details[$table]);
-
-        if ($validation["validation"]) {
-            $query = "INSERT INTO $table ($column_names) VALUES ($columns_variables)";
-            $this->execute_query($query, $values);
-        }else {
-            throw new PDOException($validation["reason"]);
-        }
-    }
-
-   /**
-     * Edits the record you specify after validating its fields
-     *
-     * @param string $table The selected table
-     * @param array $variables The array of variables that will be used in the query in the same order as they appear in the database (no need to include column names)
-     * @param int $ID The ID of the record you want to edit
-     * @return void
-     */
-    function update_stmt($table, $variables, $ID) {
-        // This function is used to update all fields except the primary key, which will be passed via $ID (the value)
-        $columns_variables = ":" . implode(", :", $this->tables[$table]);
-
-        if (!in_array($table, $this->tables_names)) {
-            throw new PDOException("Table $table does not exist");
-        }
-
-        if (!is_numeric($ID)) {
-            throw new PDOException("The ID $ID must be numeric");
-        }
-
-        if (count($this->select_one($table, $ID)) != 1) {
-            throw new PDOException("Error, no record found in $table");
-        }
-
-        if (count($this->tables[$table]) != count($variables)) {
-            throw new PDOException("Error, all fields must be provided except the PK in $table");
-        }
-
-        $columns_variables = explode(", ", $columns_variables);
-
-        $content = combine_arrays($this->tables[$table], $columns_variables, " = ", ", ");
-        $values = array_combine($this->tables[$table], $variables); // This makes the variable have the column names as keys and variables as values
-
-        $validation = $this->validate_column_constraints($values, $this->tables_with_column_details[$table]);
-
-        if ($validation["validation"]) {
-
-            $query = "UPDATE $table set $content where {$this->tables_PK[$table][0]} = $ID";
-            $this->execute_query($query, $values);
+    public function insert(string $table, array $data): int
+    {
+        // Detect if the data is a single record or multiple records
+        if (isset($data[0]) && is_array($data[0])) {
+            // Multiple records
+            return $this->insertMany($table, $data);
         } else {
-            throw new PDOException($validation["reason"]);
+            // Single record
+            return $this->insertOne($table, $data);
         }
     }
 
-   /**
-     * Executes an SQL transaction
-     *
-     * @param array $queries List of queries to execute
-     * @param array $variables List of query parameters (one-dimensional array)
-     * @return bool Whether the transaction was executed successfully
+    /**
+     * Inserts a single record into the specified table using the Query class.
+     * @param string $table The name of the table to insert into.
+     * @param array $data An associative array of column names and values to insert.
+     * @throws RuntimeException if the connection is not set or the query execution fails.
+     * @return int The ID of the last inserted row.
      */
-    public function executeTransaction($queries, $variables=null) {
-        if (empty($queries)) {
-            return false;
+    public function insertOne(string $table, array $data): int
+    {
+        if (!$this->conn) {
+            throw new RuntimeException("Database connection is not set.");
+        }
+
+        $fields = array_keys($data);
+
+        // Use the Query class to build the insert query
+        $query = new Query([
+            'method' => 'INSERT',
+            'table' => $table,
+            'fields' => $fields,
+            'values_to_insert' => 1
+        ]);
+
+        $placeholders = [];
+        foreach ($fields as $field) {
+            $placeholders[":{$field}_0"] = $data[$field];
+        }
+
+        $stmt = $this->conn->prepare((string) $query);
+
+        if (!$stmt) {
+            $errorInfo = $this->conn->errorInfo();
+            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        if (!$stmt->execute($placeholders)) {
+            $errorInfo = $stmt->errorInfo();
+            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        return (int) $this->conn->lastInsertId();
+    }
+
+    /**
+     * Inserts multiple records into the specified table using the Query class.
+     * @param string $table The name of the table to insert into.
+     * @param array $data An array of associative arrays, each representing a row to insert.
+     * @throws RuntimeException if the connection is not set or the query execution fails.
+     * @return int The ID of the last inserted row.
+     */
+    public function insertMany(string $table, array $data): int
+    {
+        if (!$this->conn) {
+            throw new RuntimeException("Database connection is not set.");
+        }
+
+        if (empty($data) || !is_array($data[0])) {
+            throw new InvalidArgumentException("Data must be a non-empty array of associative arrays.");
+        }
+
+        $fields = array_keys($data[0]);
+
+        // Use the Query class to build the insert query
+        $query = new Query([
+            'method' => 'INSERT',
+            'table' => $table,
+            'fields' => $fields,
+            'values_to_insert' => count($data)
+        ]);
+
+        $placeholders = [];
+        foreach ($data as $i => $row) {
+            foreach ($fields as $field) {
+                $placeholders[":{$field}_{$i}"] = $row[$field];
+            }
+        }
+
+        $stmt = $this->conn->prepare((string) $query);
+
+        if (!$stmt) {
+            $errorInfo = $this->conn->errorInfo();
+            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        if (!$stmt->execute($placeholders)) {
+            $errorInfo = $stmt->errorInfo();
+            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        return (int) $this->conn->lastInsertId();
+    }
+
+    /**
+     * Updates records in the specified table using the Query class.
+     * @param string $table The name of the table to update.
+     * @param array $data An associative array of column names and values to update.
+     * @param string $where The WHERE clause to specify which records to update.
+     * @param array $joins Optional joins for the query.
+     * @throws RuntimeException if the connection is not set or the query execution fails.
+     * @return int The number of affected rows.
+     */
+    public function update($table, array $data, string $where, array $joins = []): int {
+        if (!$this->conn) {
+            throw new RuntimeException("Database connection is not set.");
+        }
+
+        if (empty($data) || !is_array($data)) {
+            throw new InvalidArgumentException("Data must be a non-empty associative array.");
+        }
+
+        $fields = array_keys($data);
+
+        // Use the Query class to build the update query
+        $query = new Query([
+            'method' => 'UPDATE',
+            'table' => $table,
+            'fields' => $fields,
+            'where' => $where,
+            'joins'=> $joins,
+        ]);
+
+        $placeholders = [];
+        foreach ($data as $field => $value) {
+            $placeholders[":{$field}"] = $value;
+        }
+
+        $stmt = $this->conn->prepare((string) $query);
+
+        if (!$stmt) {
+            $errorInfo = $this->conn->errorInfo();
+            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        if (!$stmt->execute($placeholders)) {
+            $errorInfo = $stmt->errorInfo();
+            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        return (int) $stmt->rowCount(); // Return the number of affected rows
+    }
+
+    /**
+     * Deletes records from the specified table using the Query class.
+     * @param string $table The name of the table to delete from.
+     * @param array $data Optional data for the query.
+     * @param string $where The WHERE clause to specify which records to delete.
+     * @param string $orderBy Optional ORDER BY clause.
+     * @param int $limit Optional limit for the deletion.
+     * @throws RuntimeException if the connection is not set or the query execution fails.
+     * @return int The number of affected rows.
+     */
+    public function delete(string $table, array $data = [], string $where, string $orderBy = "", int $limit = 0): int {
+        if (!$this->conn) {
+            throw new RuntimeException('Database connection is not set.');
+        }
+
+        if (empty($table) || empty($where)) {
+            throw new InvalidArgumentException('Table and where clause are required.');
+        }
+
+        $query = new Query([
+            'method'=> 'DELETE',
+            'table' => $table,
+            'where'=> $where,
+            'order_by'=> $orderBy,
+            'limit'=> $limit
+        ]);
+
+        $stmt = $this->conn->prepare((string) $query);
+
+        if (!$stmt) {
+            $errorInfo = $this->conn->errorInfo();
+            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        if (!$stmt->execute($data)) {
+            $errorInfo = $stmt->errorInfo();
+            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        return (int) $stmt->rowCount(); // Return the number of affected rows
+    }
+
+    /**
+     * Deletes all records from the specified table using the Query class.
+     * @param string $table The name of the table to delete from.
+     * @param array $data Optional data for the query.
+     * @param string $orderBy Optional ORDER BY clause.
+     * @param int $limit Optional limit for the deletion.
+     * @throws RuntimeException if the connection is not set or the query execution fails.
+     * @return int The number of affected rows.
+     */
+    public function deleteAll(string $table, array $data = [], string $orderBy = "", int $limit = 0): int {
+        if (!$this->conn) {
+            throw new RuntimeException('Database connection is not set.');
+        }
+
+        if (empty($table)) {
+            throw new InvalidArgumentException('Table is required.');
+        }
+
+        $query = new Query([
+            'method'=> 'DELETE',
+            'table' => $table,
+            'order_by'=> $orderBy,
+            'limit'=> $limit
+        ]);
+
+        $stmt = $this->conn->prepare((string) $query);
+
+        if (!$stmt) {
+            $errorInfo = $this->conn->errorInfo();
+            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        if (!$stmt->execute($data)) {
+            $errorInfo = $stmt->errorInfo();
+            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        return (int) $stmt->rowCount(); // Return the number of affected rows
+    }
+
+    /**
+     * Counts the number of records in the specified table using the Query class.
+     * @param string $table The name of the table to count records from.
+     * @param array $params Optional parameters for the query.
+     * @param string $where Optional WHERE clause to filter the count.
+     * @param array $joins Optional joins for the query.
+     * @throws RuntimeException if the connection is not set or the query execution fails.
+     * @return int The count of records.
+     */
+    public function count(string $table, array $params = [], string $where = '', array $joins = []): int
+    {
+        if (!$this->conn) {
+            throw new RuntimeException("Database connection is not set.");
+        }
+
+        $query = "SELECT COUNT(*) FROM {$table}";
+
+        if (!empty($where)) {
+            $query .= " WHERE {$where}";
+        }
+
+        if (!empty($joins)) {
+            foreach ($joins as $join) {
+                $query .= " {$join}";
+            }
+        }
+
+        $stmt = $this->conn->prepare($query);
+
+        if (!$stmt) {
+            $errorInfo = $this->conn->errorInfo();
+            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        if (!$stmt->execute($params)) {
+            $errorInfo = $stmt->errorInfo();
+            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+        }
+
+        return (int) $stmt->fetchColumn(); // Return the count
+    }
+
+    /**
+     * Executes a transaction with the provided callback.
+     * @param callable $callback The callback function to execute within the transaction.
+     * @throws RuntimeException if the connection is not set or the transaction fails.
+     * @return mixed The result of the callback function.
+     */
+    public function executeTransaction(callable $callback): mixed
+    {
+        if (!$this->conn) {
+            throw new RuntimeException("Database connection is not set.");
         }
 
         try {
-            $this->conn->setAttribute(PDO::ATTR_AUTOCOMMIT, 0);
             $this->conn->beginTransaction();
-
-            foreach ($queries as $key => $query) {
-                $this->execute_query($query, $variables);
-            }
-
+            $result = $callback($this);
             $this->conn->commit();
-            $this->conn->setAttribute(PDO::ATTR_AUTOCOMMIT, 1);
-
-            return true;
-
-        } catch (PDOException $e) {
-            return false;
+            return $result;
+        } catch (Exception $e) {
+            $this->conn->rollBack();
+            throw new RuntimeException("Transaction failed: " . $e->getMessage());
         }
-    }
-
-    /**
-     * Returns the number of records in a table
-     *
-     * @param string $table The selected table
-     * @param string $conditions The conditions for the count, it's not mandatory to provide it
-     * @return int The number of records
-     */
-    public function countFromTable($table, $conditions=1) {
-        if ($conditions == 1) {
-            $stmt = "SELECT COUNT(*) as cuenta FROM " . $table;
-        }else {
-            $stmt = "SELECT COUNT(*) as cuenta FROM " . $table . " WHERE ". $conditions;
-        }
-
-        $result = $this->select_stmt($stmt, [], false);
-        return $result[0]["cuenta"];
-    }
-
-    /**
-     * Returns the last inserted ID
-     *
-     * @return int The last inserted ID
-     */
-    function getLastInsertId() {
-        return $this->conn->lastInsertId();
-    }
-
-
-    /**
-     * Deletes the specified record
-     *
-     * @param string $table The selected table
-     * @param string $id The ID (primary key) of the record you want to delete
-     * @return void
-     */
-    function delete_stmt($table, $id) {
-        if (!in_array($table, $this->tables_names)) {
-            throw new PDOException("No existe la tabla $table");
-        }
-
-        if (!is_numeric($id)) {
-            throw new PDOException("El id $id tiene que ser numerico");
-        }
-
-        $sql = "DELETE FROM $table where {$this->tables_PK[$table][0]} = :id";
-        $variables = [
-            "id" => $id
-        ];
-
-        $this->execute_query($sql, $variables);
-    }
-
-
-    /**
-     * Performs a SELECT query to retrieve data from a table, including columns that are not primary or foreign keys.
-     * If a foreign key is found, it performs a LEFT JOIN with the referenced table and selects the first field that is not a primary or foreign key.
-     *
-     * @param string $table_name The name of the table from which data will be retrieved.
-     * @param bool $return_json Whether to return the result in JSON format. Default is true.
-     * @return array The result of the SELECT query.
-     */
-    function simple_select($table_name, $return_json=true) {
-        $columns = $this->tables_with_column_details[$table_name];
-        $selected_columns = [];
-        $join_tables = $this->tables_FK[$table_name];
-
-        if (!in_array($table_name, $this->tables_names)) {
-            throw new PDOException("No existe la tabla $table_name");
-        }
-
-        foreach ($columns as $key => $column) {
-            if ($column['Key'] != 'PRI' && $column['Key'] != 'MUL') {
-                $selected_columns[] = $key;
-
-            } elseif ($column['Key'] == 'MUL') {
-                // If a foreign key is found, it adds a LEFT JOIN with the referenced table and selects the first field that is neither a primary key (PK) nor a foreign key (FK)
-                $referenced_table = $this->tables_FK[$table_name][$key];
-                $selected_columns[] = "$referenced_table." . $this->get_first_non_key_column($referenced_table);
-            }
-        }
-
-
-        if (empty($selected_columns)) {
-            foreach ($columns as $key => $column) {
-                $selected_columns[] = $key;
-            }
-        }
-
-        $selected_columns_str = implode(', ', $selected_columns);
-        $query = "SELECT $selected_columns_str FROM $table_name";
-
-        foreach ($join_tables as $key => $join_table) {
-            $id_foreign = $this->tables_PK[$join_table][0];
-
-            $query .= " LEFT JOIN $join_table ON $table_name.$key = $join_table.$id_foreign";
-        }
-
-        if ($return_json) {
-            return $this->select_stmt($query, []);
-        }else {
-            return $this->select_stmt($query, [], false);
-        }
-    }
-
-
-    /**
-     * Searches and returns the name of the first column that is neither a primary key nor a foreign key in the specified table.
-     *
-     * @param string $table_name The name of the table in which to search for the first non-key column.
-     * @return string|null The name of the first non-key column found, or null if none is found.
-     */
-    function get_first_non_key_column($table_name) {
-        $columns = $this->tables_with_column_details[$table_name];
-
-        foreach ($columns as $key => $column) {
-            if ($column['Key'] != 'PRI' && $column['Key'] != 'MUL') {
-                return $key;
-            }
-        }
-        return null; // Not found any PK or FK in table
-    }
-
-
-    /**
-     * Retrieves the name of the table that a foreign key column references in a given table.
-     *
-     * @param string $table_name The name of the table containing the foreign key column.
-     * @param string $column_name The name of the foreign key column.
-     * @return string|null The name of the table referenced by the foreign key column, or null if no referenced table is found.
-     */
-    function get_referenced_table($table_name, $column_name) {
-        $stmt = $this->conn->prepare("SHOW CREATE TABLE $table_name");
-        $stmt->execute();
-        $table_info = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        // Obtain table definition
-        $table_definition = $table_info['Create Table'];
-
-        // Search column definition
-        preg_match_all('/CONSTRAINT `[^`]+` FOREIGN KEY \(`' . $column_name . '`\) REFERENCES `([^`]+)` \(`[^`]+`\)/', $table_definition, $matches);
-
-        // If matches are found, the referenced table is the first captured element in the regular expression
-        if (isset($matches[1][0])) {
-            return $matches[1][0];
-        } else {
-            // If no reference is found, return null or a value indicating no referenced table
-            return null;
-        }
-    }
-
-    /**
-     * Retrieves 1 record from the selected table based on the passed id
-     *
-     * @param string $table Name of the table
-     * @param string|int $id Id of the record to be retrieved
-     * @return array The resulting record
-     */
-    function select_one($table, $id, $json_encode=false) {
-        if (!in_array($table, $this->tables_names)) {
-            throw new PDOException("No existe la tabla $table");
-        }
-
-        if (!is_numeric($id)) {
-            throw new PDOException("El id $id tiene que ser numerico");
-        }
-
-        $PK = $this->tables_PK[$table][0];
-        $query = "SELECT * FROM $table where $PK = :id limit 1";
-
-        return $this->select_stmt($query, ["id"=> $id], $json_encode);
     }
 }
 
-class mysql extends database
+class Mysql extends Database
 {
     public function __construct($ppt)
     {
-        parent::setTypes(array(
-            'texto' => array('char', 'varchar', 'text', 'tinytext', 'mediumtext', 'longtext'),
-            'numero' => array('int', 'float', 'decimal', 'double'),
-            'tiempo' => array('date', 'datetime', 'timestamp', 'time')
-        ));
-
-        $servername = $ppt["serverName"];
-        $username = $ppt["username"];
-        $password = $ppt["password"];
-        $DB = $ppt["DB"];
-        $codification = $ppt["codification"];
-
-        try {
-            $conn = new PDO("mysql:host=$servername;dbname=$DB;charset=$codification", $username, $password);
-            // set the PDO error mode to exception
-            $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-            parent::setConection($conn);
-            parent::__construct($ppt);
-
-        } catch(PDOException $e) {
-            throw new Exception("Connection failed: " . $e->getMessage());
-        }
+        parent::__construct($ppt);
+        $this->connect($ppt);
     }
 
-}
-
-class sql extends database
-{
-    public function __construct($ppt)
+    protected function connect($ppt)
     {
-        parent::setTypes(array(
-            'texto' => array('char', 'varchar', 'text', 'tinytext', 'mediumtext', 'longtext'),
-            'numero' => array('int', 'float', 'decimal', 'double'),
-            'tiempo' => array('date', 'datetime', 'timestamp', 'time')
-        ));
+        $servername = $ppt["serverName"] ?? $ppt["host"] ?? null;
+        $username = $ppt["username"] ?? $ppt["user"] ?? '';
+        $password = $ppt["password"] ?? '';
+        $db = $ppt["DB"] ?? $ppt["dbname"] ?? null;
+        $codification = $ppt["codification"] ?? 'utf8mb4';
 
-        $servername = $ppt["serverName"];
-        $username = $ppt["username"];
-        $password = $ppt["password"];
-        $DB = $ppt["DB"];
-        $codification = $ppt["codification"];
+        $dsn = "mysql:host=$servername";
+        if (!empty($db)) {
+            $dsn .= ";dbname=$db";
+        }
+        $dsn .= ";charset=$codification";
 
         try {
-            $conn = new PDO("sqlsrv:Server=$servername;Database=$DB;charset=$codification", $username, $password);
+            $conn = new PDO($dsn, $username, $password);
             $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-            parent::setConection($conn);
-            parent::__construct($ppt);
-
+            parent::setConnection($conn);
         } catch (PDOException $e) {
             throw new Exception("Connection failed: " . $e->getMessage());
         }
     }
 }
 
+class Postgres extends Database
+{
+    public function __construct($ppt)
+    {
+        parent::__construct($ppt);
+        $this->connect($ppt);
+    }
 
+    protected function connect($ppt)
+    {
+        $servername = $ppt["serverName"] ?? $ppt["host"] ?? null;
+        $username = $ppt["username"] ?? $ppt["user"] ?? '';
+        $password = $ppt["password"] ?? '';
+        $db = $ppt["DB"] ?? $ppt["dbname"] ?? null;
+        $codification = $ppt["codification"] ?? 'utf8';
 
-$properties = [
-    "serverName" => "localhost",
-    "username" => "root",
-    "password" => "",
-    "DB" => "your_database",
-    "codification" => "utf-8"
-];
+        $dsn = "pgsql:host=$servername";
+        if (!empty($db)) {
+            $dsn .= ";dbname=$db";
+        }
+        if (!empty($codification)) {
+            $dsn .= ";options='--client_encoding=$codification'";
+        }
 
+        try {
+            $conn = new PDO($dsn, $username, $password);
+            $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            parent::setConnection($conn);
+        } catch (PDOException $e) {
+            throw new Exception("Connection failed: " . $e->getMessage());
+        }
+    }
+}
 
-$database_object = new mysql($properties);
+class Sqlite extends Database
+{
+    public function __construct($ppt)
+    {
+        parent::__construct($ppt);
+        $this->connect($ppt);
+    }
+
+    protected function connect($ppt)
+    {
+        $dbFile = $ppt["DB"] ?? $ppt["dbname"] ?? null;
+
+        if (empty($dbFile)) {
+            throw new InvalidArgumentException("Database file is required for SQLite.");
+        }
+
+        $dsn = "sqlite:{$dbFile}";
+
+        try {
+            $conn = new PDO($dsn);
+            $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            parent::setConnection($conn);
+        } catch (PDOException $e) {
+            throw new Exception("Connection failed: " . $e->getMessage());
+        }
+    }
+}
+
+class Sql extends Database
+{
+    public function __construct($ppt)
+    {
+        parent::__construct($ppt);
+        $this->connect($ppt);
+    }
+
+    protected function connect($ppt)
+    {
+        $servername = $ppt["serverName"] ?? $ppt["host"] ?? null;
+        $username = $ppt["username"] ?? $ppt["user"] ?? '';
+        $password = $ppt["password"] ?? '';
+        $db = $ppt["DB"] ?? $ppt["dbname"] ?? null;
+
+        if (empty($servername) || empty($username) || empty($db)) {
+            throw new InvalidArgumentException("Server name, username, and database name are required for SQL Server.");
+        }
+
+        $dsn = "sqlsrv:Server={$servername};Database={$db}";
+
+        try {
+            $conn = new PDO($dsn, $username, $password);
+            $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            parent::setConnection($conn);
+        } catch (PDOException $e) {
+            throw new Exception("Connection failed: " . $e->getMessage());
+        }
+    }
+}
+
+// Example object
+$database = new Mysql(
+    [
+        'host' => 'localhost', 
+        'user' =>'root',
+        'password' => '',
+        'DB' => 'users',
+        'codification' => 'utf8mb4'
+    ]
+);
+
+// Example usage
+$query = new Query([
+    'method' => 'SELECT',
+    'fields' => ['id', 'name'],
+    'table' => 'users',
+    'where' => 'active = 1',
+    'order_by' => 'name ASC',
+    'limit' => 10
+]);
+
+try {
+    $result = $database->select($query);
+    print_r($result);
+} catch (Exception $e) {
+    echo "Error: " . $e->getMessage();
+}
 
 ?>
