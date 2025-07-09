@@ -231,14 +231,17 @@ try {
 ---
 
 ### Select statement
-Is the same as as the **plain select method** but you must give a Query class object in the query param. Here is an example:
+
+The `select` and `selectOne` methods allow you to retrieve records from the database using a `Query` class object. The `select` method returns all matching records, while `selectOne` returns only a single record.
+
+**Example using `select`:**
 ```php
-$query = new Query(
+$query = new Query([
     'method' => 'SELECT',
     'fields' => ['id', 'name'],
     'table' => 'users',
     'where' => 'id = :userId'
-)
+]);
 
 try {
     $result = $database->select($query, ["userId" => 2]);
@@ -248,18 +251,14 @@ try {
 }
 ```
 
----
-
-### Select only one record
-Is the same as as the **select method** but return only one record. Here is an example:
-
+**Example using `selectOne`:**
 ```php
-$query = new Query(
+$query = new Query([
     'method' => 'SELECT',
     'fields' => ['id', 'name'],
     'table' => 'users',
     'where' => 'id = :userId'
-)
+]);
 
 try {
     $result = $database->selectOne($query, ["userId" => 2]);
@@ -268,7 +267,6 @@ try {
     echo "Error: " . $e->getMessage();
 }
 ```
-
 ---
 
 ### Insert statement
