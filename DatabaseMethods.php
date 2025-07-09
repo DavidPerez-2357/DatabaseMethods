@@ -8,7 +8,7 @@
  *
  * @author DavidPerez-2357
  * @link https://github.com/DavidPerez-2357/DatabaseMethods
-*/
+ */
 
 
 /**
@@ -250,7 +250,7 @@ class Query
         }
 
         if (!empty($this->data["limit"])) {
-            $limit = (int)$this->data["limit"];
+            $limit = (int) $this->data["limit"];
             if ($limit > 0) {
                 $sql .= " LIMIT {$limit}";
             }
@@ -270,10 +270,21 @@ class Database
 {
     private $properties; // Array with the initial properties of the class
     private $conn; // conection variable
+    private $json_encode = false; // Default value for json_encode
 
     function __construct($ppt)
     {
         $this->properties = $ppt;
+    }
+
+    function __call($method, $args)
+    {
+        // Modify the data to replace keywords like @lastInsertId and @currentDate
+        if (isset($args[1]) && is_array($args[1])) {
+            $args[1] = $this->replaceKeywordsInData($args[1]);
+        }
+
+        return call_user_func_array([$this, $method], $args);
     }
 
     protected function setConnection($conn)
@@ -281,13 +292,65 @@ class Database
         $this->conn = $conn;
     }
 
+    public function setJsonEncode($bool)
+    {
+        $this->json_encode = $bool;
+    }
+
+    /**
+     * Replaces keywords in the data array with actual values.
+     * This method is used to replace placeholders like @lastInsertId, @currentDate, and @currentDateTime.
+     * @param array $data The data array containing the placeholders.
+     * @return array The modified data array with placeholders replaced.
+     */
+    function replaceKeywordsInData(array $data): array
+    {
+        $keywords = [
+            // Database
+            '@lastInsertId' => $this->getLastInsertId(),
+
+            // Date and time
+            '@currentDate' => date('Y-m-d'),
+            '@currentDateTime' => date('Y-m-d H:i:s'),
+            '@currentTime' => date('H:i:s'),
+            '@currentTimestamp' => time(),
+            '@currentYear' => date('Y'),
+            '@currentMonth' => date('m'),
+            '@currentDay' => date('d'),
+            '@currentWeekday' => date('l'),
+
+            // Random values
+            '@randomString' => substr(str_shuffle('abcdefghijklmnopqrstuvwxyz0123456789'), 0, 8),
+            '@randomInt' => rand(1, 9999),
+            '@randomFloat' => rand(1, 9999) / 100,
+            '@randomBoolean' => rand(0, 1) ? true : false,
+
+            // Custom keywords can be added here
+        ];
+
+        // Check if the data is not another array or empty
+        if (empty($data) || !is_array($data) || is_array(reset($data))) {
+            return $data;
+        }
+
+        // Replace values that are keywords like @lastInsertId, @currentDate, @currentDateTime
+        foreach ($data as $key => $value) {
+            if (isset($keywords[$value])) {
+                $data[$key] = $keywords[$value];
+            }
+        }
+
+        return $data;
+    }
+
     /**
      * Executes a plain SQL query.
      * @param string $query The SQL query to execute.
+     * @param array $data Optional parameters for the query.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return bool True on success, false on failure.
      */
-    public function executePlainQuery(string $query, array $params = []): bool
+    public function executePlainQuery(string $query, array $data = []): bool
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -301,7 +364,7 @@ class Database
             throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
         }
 
-        $result = $stmt->execute($params);
+        $result = $stmt->execute($data);
 
         if (!$result) {
             $errorInfo = $stmt->errorInfo();
@@ -314,10 +377,11 @@ class Database
     /**
      * Executes a plain SELECT SQL query and returns the results.
      * @param string $query The SQL SELECT query to execute.
+     * @param array $data Optional parameters for the query.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return array The result set as an associative array.
      */
-    public function executePlainSelectQuery(string $query, array $params = []): array
+    public function plainSelect(string $query, array $data = []): array
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -326,29 +390,32 @@ class Database
         $stmt = $this->conn->prepare($query);
 
         if (!$stmt) {
-            // Use errorInfo for PDO
             $errorInfo = $this->conn->errorInfo();
             throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
         }
 
-        $result = $stmt->execute($params);
+        $result = $stmt->execute($data);
 
         if (!$result) {
             $errorInfo = $stmt->errorInfo();
             throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
         }
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($this->json_encode) {
+            return json_encode($results) ?? [];
+        }
+        return $results;
     }
 
     /**
      * Executes a SELECT query using the Query class and returns a single row.
      * @param Query $query The Query object containing the SQL query.
-     * @param array $params Optional parameters for the query.
+     * @param array $data Optional parameters for the query.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return array The result row as an associative array.
      */
-    public function selectOne(Query $query, array $params = []): array
+    private function selectOne(Query $query, array $data = []): array
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -361,16 +428,28 @@ class Database
             throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
         }
 
-        if (!$stmt->execute($params)) {
+        if (!$stmt->execute($data)) {
             $errorInfo = $stmt->errorInfo();
             throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
         }
-        
+
         // Fetch a single row as an associative array
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($row === false) {
+            return $this->json_encode ? json_encode([]) : [];
+        }
+        return $this->json_encode ? json_encode($row) : $row;
     }
 
-    public function select(Query $query, array $params = []): array
+    /**
+     * Executes a SELECT query using the Query class and returns all results.
+     * @param Query $query The Query object containing the SQL query.
+     * @param array $data Optional parameters for the query.
+     * @throws RuntimeException if the connection is not set or the query execution fails.
+     * @return array The result set as an associative array.
+     */
+    private function select(Query $query, array $data = []): array
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -383,13 +462,18 @@ class Database
             throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
         }
 
-        if (!$stmt->execute($params)) {
+        if (!$stmt->execute($data)) {
             $errorInfo = $stmt->errorInfo();
             throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
         }
 
         // Fetch all results as an associative array
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if ($this->json_encode) {
+            return json_encode($results) ?? [];
+        }
+        return $results;
     }
 
     /**
@@ -400,7 +484,7 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The ID of the last inserted row or the number of affected rows for multiple inserts.
      */
-    public function insert(string $table, array $data): int
+    private function insert(string $table, array $data): int
     {
         // Detect if the data is a single record or multiple records
         if (isset($data[0]) && is_array($data[0])) {
@@ -419,7 +503,7 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The ID of the last inserted row.
      */
-    public function insertOne(string $table, array $data): int
+    private function insertOne(string $table, array $data): int
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -513,7 +597,8 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
-    public function update($table, array $data, string $where, array $joins = []): int {
+    private function update($table, array $data, string $where, array $joins = []): int
+    {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
         }
@@ -530,7 +615,7 @@ class Database
             'table' => $table,
             'fields' => $fields,
             'where' => $where,
-            'joins'=> $joins,
+            'joins' => $joins,
         ]);
 
         $placeholders = [];
@@ -563,7 +648,8 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
-    public function delete(string $table, array $data = [], string $where, string $orderBy = "", int $limit = 0): int {
+    private function delete(string $table, array $data = [], string $where, string $orderBy = "", int $limit = 0): int
+    {
         if (!$this->conn) {
             throw new RuntimeException('Database connection is not set.');
         }
@@ -573,11 +659,11 @@ class Database
         }
 
         $query = new Query([
-            'method'=> 'DELETE',
+            'method' => 'DELETE',
             'table' => $table,
-            'where'=> $where,
-            'order_by'=> $orderBy,
-            'limit'=> $limit
+            'where' => $where,
+            'order_by' => $orderBy,
+            'limit' => $limit
         ]);
 
         $stmt = $this->conn->prepare((string) $query);
@@ -604,7 +690,8 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
-    public function deleteAll(string $table, array $data = [], string $orderBy = "", int $limit = 0): int {
+    private function deleteAll(string $table, array $data = [], string $orderBy = "", int $limit = 0): int
+    {
         if (!$this->conn) {
             throw new RuntimeException('Database connection is not set.');
         }
@@ -614,10 +701,10 @@ class Database
         }
 
         $query = new Query([
-            'method'=> 'DELETE',
+            'method' => 'DELETE',
             'table' => $table,
-            'order_by'=> $orderBy,
-            'limit'=> $limit
+            'order_by' => $orderBy,
+            'limit' => $limit
         ]);
 
         $stmt = $this->conn->prepare((string) $query);
@@ -638,13 +725,13 @@ class Database
     /**
      * Counts the number of records in the specified table using the Query class.
      * @param string $table The name of the table to count records from.
-     * @param array $params Optional parameters for the query.
+     * @param array $data Optional parameters for the query.
      * @param string $where Optional WHERE clause to filter the count.
      * @param array $joins Optional joins for the query.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The count of records.
      */
-    public function count(string $table, array $params = [], string $where = '', array $joins = []): int
+    private function count(string $table, array $data = [], string $where = '', array $joins = []): int
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -669,7 +756,7 @@ class Database
             throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
         }
 
-        if (!$stmt->execute($params)) {
+        if (!$stmt->execute($data)) {
             $errorInfo = $stmt->errorInfo();
             throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
         }
@@ -698,6 +785,20 @@ class Database
             $this->conn->rollBack();
             throw new RuntimeException("Transaction failed: " . $e->getMessage());
         }
+    }
+
+    /**
+     * Gets the last inserted ID from the database.
+     * @throws RuntimeException if the connection is not set.
+     * @return int The last inserted ID.
+     */
+    public function getLastInsertId(): int
+    {
+        if (!$this->conn) {
+            throw new RuntimeException("Database connection is not set.");
+        }
+
+        return (int) $this->conn->lastInsertId();
     }
 }
 
@@ -829,13 +930,14 @@ class Sql extends Database
 // Example object
 $database = new Mysql(
     [
-        'host' => 'localhost', 
-        'user' =>'root',
+        'host' => 'localhost',
+        'user' => 'root',
         'password' => '',
         'DB' => 'users',
         'codification' => 'utf8mb4'
     ]
 );
+
 
 // Example usage
 $query = new Query([
@@ -847,8 +949,9 @@ $query = new Query([
     'limit' => 10
 ]);
 
+
 try {
-    $result = $database->select($query);
+    $result = $database->selectOne($query);
     print_r($result);
 } catch (Exception $e) {
     echo "Error: " . $e->getMessage();
