@@ -2,7 +2,7 @@
 This file provides two essential classes designed to simplify and streamline your workflow when working with database queries.
 
 - The first class helps you build queries in a cleaner and more organized way, improving readability and maintainability.
-<br>
+
 - The second class offers a collection of convenient database methods that let you execute common queries with shorter, more intuitive code.
 
 By using these tools, you'll significantly reduce the time spent writing repetitive query logic, allowing you to focus more on building features and less on boilerplate code.
