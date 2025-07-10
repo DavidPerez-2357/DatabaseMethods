@@ -8,7 +8,7 @@ This file provides two essential classes designed to simplify and streamline you
 By using these tools, you'll significantly reduce the time spent writing repetitive query logic, allowing you to focus more on building features and less on boilerplate code.
 
 > **Compatibility:**  
-This library is compatible with PHP **version 4.3** and above.
+This library is compatible with PHP **version 5.4** and above.
 
 ## Query class
 The Query class is used to build a query from an object. You can use the class as a string directly.
