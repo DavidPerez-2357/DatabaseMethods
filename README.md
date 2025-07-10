@@ -309,12 +309,13 @@ Updates records in the specified table. You must provide the table, the data to 
 
 ```php
 $data = [
+    'id' => 5,
     'name' => 'Michael',
     'email' => 'michael@email.com'
 ];
 
 try {
-    $affected = $database->update('users', $data, 'id = :id', [], ['id' => 5]);
+    $affected = $database->update('users', $data, 'id = :id');
     echo "Rows updated: " . $affected;
 } catch (Exception $e) {
     echo "Error: " . $e->getMessage();
@@ -368,7 +369,7 @@ You can execute multiple operations inside a transaction using `executeTransacti
 ```php
 try {
     $database->executeTransaction(function($db) {
-        $db->update('users', ['active' => 0], 'id = :id', [], ['id' => 2]);
+        $db->update('users', ['active' => 0, 'id' => 2], 'id = :id');
         $db->delete('orders', ['user_id' => 2], 'user_id = :user_id');
     });
     echo "Transaction completed.";
