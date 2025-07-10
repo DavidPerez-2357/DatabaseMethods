@@ -19,23 +19,27 @@
  */
 class Query
 {
-    private array $data;
-    private string $query;
+    private $data;
+    private $query;
 
-    public function __construct(array $queryData)
+    public function __construct($queryData)
     {
         $this->data = $queryData;
         $this->query = $this->buildQuery();
     }
 
-    public function __tostring(): string
+    public function __tostring()
     {
         return $this->query;
     }
 
-    public function buildQuery(): string
+    public function buildQuery()
     {
-        switch (strtoupper($this->data['method'] ?? '')) {
+        if (empty($this->data['method'])) {
+            throw new InvalidArgumentException("Query method is required.");
+        }
+
+        switch (strtoupper($this->data['method'])) {
             case 'SELECT':
                 return $this->buildSelectQuery();
             case 'INSERT':
@@ -69,14 +73,17 @@ class Query
      * * ]);
      * 
      */
-    public function buildSelectQuery(): string
+    public function buildSelectQuery()
     {
-        if (strtoupper($this->data['method'] ?? '') !== 'SELECT') {
+        if (!isset($this->data['method']) || strtoupper($this->data['method']) !== 'SELECT') {
             throw new InvalidArgumentException("Only SELECT queries are supported.");
         }
 
         $fields = isset($this->data['fields']) ? implode(", ", $this->data['fields']) : "*";
-        $table = $this->data['table'] ?? throw new InvalidArgumentException("Table is required.");
+        if (!isset($this->data['table'])) {
+            throw new InvalidArgumentException("Table is required.");
+        }
+        $table = $this->data['table'];
 
         $sql = "SELECT {$fields} FROM {$table}";
 
@@ -133,15 +140,23 @@ class Query
      *     'values_to_insert' => 3
      * * ]);
      * */
-    public function buildPDOInsertQuery(): string
+    public function buildPDOInsertQuery()
     {
-        if (strtoupper($this->data['method'] ?? '') !== 'INSERT') {
+        if (!isset($this->data['method']) || strtoupper($this->data['method']) !== 'INSERT') {
             throw new InvalidArgumentException("Only INSERT method is supported.");
         }
 
-        $table = $this->data['table'] ?? throw new InvalidArgumentException("Table is required.");
-        $fields = $this->data['fields'] ?? throw new InvalidArgumentException("Fields are required.");
-        $values = $this->data['values_to_insert'] ?? 1;
+        if (!isset($this->data['table'])) {
+            throw new InvalidArgumentException("Table is required.");
+        }
+        $table = $this->data['table'];
+
+        if (!isset($this->data['fields'])) {
+            throw new InvalidArgumentException("Fields are required.");
+        }
+        $fields = $this->data['fields'];
+
+        $values = isset($this->data['values_to_insert']) ? $this->data['values_to_insert'] : 1;
 
         if (!is_array($fields) || empty($fields)) {
             throw new InvalidArgumentException("Fields must be a non-empty array.");
@@ -168,7 +183,7 @@ class Query
     /**
      * Builds an UPDATE SQL query based on the provided data.
      * @throws InvalidArgumentException if the method is not UPDATE or required fields are missing.
-     * @return array The constructed SQL UPDATE query and parameters.
+     * @return string The constructed SQL UPDATE query and parameters.
      * @example
      * ```php
      * $query = new Query([
@@ -179,14 +194,21 @@ class Query
      *   'joins' => ['LEFT JOIN orders ON users.id = orders.user_id']
      * ]);
      * */
-    public function buildPDOUpdateQuery(): string
+    public function buildPDOUpdateQuery()
     {
-        if (strtoupper($this->data['method'] ?? '') !== 'UPDATE') {
+        if (!isset($this->data['method']) || strtoupper($this->data['method']) !== 'UPDATE') {
             throw new InvalidArgumentException("Only UPDATE method is supported.");
         }
 
-        $table = $this->data['table'] ?? throw new InvalidArgumentException("Table is required.");
-        $fields = $this->data['fields'] ?? throw new InvalidArgumentException("Fields are required.");
+        if (!isset($this->data['table'])) {
+            throw new InvalidArgumentException("Table is required.");
+        }
+        $table = $this->data['table'];
+
+        if (!isset($this->data['fields'])) {
+            throw new InvalidArgumentException("Fields are required.");
+        }
+        $fields = $this->data['fields'];
 
         if (!is_array($fields) || empty($fields)) {
             throw new InvalidArgumentException("Fields must be a non-empty array.");
@@ -230,13 +252,16 @@ class Query
      *    'limit' => 10
      * ]);
      * */
-    public function buildDeleteQuery(): string
+    public function buildDeleteQuery()
     {
-        if (strtoupper($this->data['method'] ?? '') !== 'DELETE') {
+        if (!isset($this->data['method']) || strtoupper($this->data['method']) !== 'DELETE') {
             throw new InvalidArgumentException("Only DELETE method is supported.");
         }
 
-        $table = $this->data['table'] ?? throw new InvalidArgumentException("Table is required.");
+        if (!isset($this->data['table'])) {
+            throw new InvalidArgumentException("Table is required.");
+        }
+        $table = $this->data['table'];
 
         $sql = "DELETE FROM {$table}";
 
@@ -303,7 +328,7 @@ class Database
      * @param array $data The data array containing the placeholders.
      * @return array The modified data array with placeholders replaced.
      */
-    function replaceKeywordsInData(array $data): array
+    function replaceKeywordsInData($data)
     {
         $keywords = [
             // Database
@@ -350,7 +375,7 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return bool True on success, false on failure.
      */
-    public function executePlainQuery(string $query, array $data = []): bool
+    public function executePlainQuery($query, $data = [])
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -361,14 +386,14 @@ class Database
         if (!$stmt) {
             // Use errorInfo for PDO
             $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         $result = $stmt->execute($data);
 
         if (!$result) {
             $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         return true;
@@ -381,7 +406,7 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return array The result set as an associative array.
      */
-    public function plainSelect(string $query, array $data = []): array
+    public function plainSelect($query, $data = [])
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -391,19 +416,20 @@ class Database
 
         if (!$stmt) {
             $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         $result = $stmt->execute($data);
 
         if (!$result) {
             $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         if ($this->json_encode) {
-            return json_encode($results) ?? [];
+            $json = json_encode($results);
+            return $json === false ? array() : $json;
         }
         return $results;
     }
@@ -415,7 +441,7 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return array The result row as an associative array.
      */
-    private function selectOne(Query $query, array $data = []): array
+    private function selectOne($query, $data = [])
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -425,19 +451,19 @@ class Database
 
         if (!$stmt) {
             $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         if (!$stmt->execute($data)) {
             $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         // Fetch a single row as an associative array
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if ($row === false) {
-            return $this->json_encode ? json_encode([]) : [];
+            return $this->json_encode ? json_encode(array()) : array();
         }
         return $this->json_encode ? json_encode($row) : $row;
     }
@@ -449,7 +475,7 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return array The result set as an associative array.
      */
-    private function select(Query $query, array $data = []): array
+    private function select($query, $data = [])
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -459,19 +485,20 @@ class Database
 
         if (!$stmt) {
             $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         if (!$stmt->execute($data)) {
             $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         // Fetch all results as an associative array
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         if ($this->json_encode) {
-            return json_encode($results) ?? [];
+            $json = json_encode($results);
+            return $json === false ? array() : $json;
         }
         return $results;
     }
@@ -484,7 +511,7 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The ID of the last inserted row or the number of affected rows for multiple inserts.
      */
-    private function insert(string $table, array $data): int
+    private function insert($table, $data)
     {
         // Detect if the data is a single record or multiple records
         if (isset($data[0]) && is_array($data[0])) {
@@ -503,7 +530,7 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The ID of the last inserted row.
      */
-    private function insertOne(string $table, array $data): int
+    private function insertOne($table, $data)
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -528,12 +555,12 @@ class Database
 
         if (!$stmt) {
             $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         if (!$stmt->execute($placeholders)) {
             $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         return (int) $this->conn->lastInsertId();
@@ -546,7 +573,7 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The ID of the last inserted row.
      */
-    public function insertMany(string $table, array $data): int
+    public function insertMany($table, $data)
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -577,12 +604,12 @@ class Database
 
         if (!$stmt) {
             $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         if (!$stmt->execute($placeholders)) {
             $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         return (int) $this->conn->lastInsertId();
@@ -597,7 +624,7 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
-    private function update($table, array $data, string $where, array $joins = []): int
+    private function update($table, $data, $where, $joins = [])
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -627,12 +654,12 @@ class Database
 
         if (!$stmt) {
             $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         if (!$stmt->execute($placeholders)) {
             $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         return (int) $stmt->rowCount(); // Return the number of affected rows
@@ -648,7 +675,7 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
-    private function delete(string $table, array $data = [], string $where, string $orderBy = "", int $limit = 0): int
+    private function delete($table, $data = [], $where, $orderBy = "", $limit = 0)
     {
         if (!$this->conn) {
             throw new RuntimeException('Database connection is not set.');
@@ -670,12 +697,12 @@ class Database
 
         if (!$stmt) {
             $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         if (!$stmt->execute($data)) {
             $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         return (int) $stmt->rowCount(); // Return the number of affected rows
@@ -690,7 +717,7 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
-    private function deleteAll(string $table, array $data = [], string $orderBy = "", int $limit = 0): int
+    private function deleteAll($table, $data = [], $orderBy = "", $limit = 0)
     {
         if (!$this->conn) {
             throw new RuntimeException('Database connection is not set.');
@@ -711,12 +738,12 @@ class Database
 
         if (!$stmt) {
             $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         if (!$stmt->execute($data)) {
             $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         return (int) $stmt->rowCount(); // Return the number of affected rows
@@ -731,7 +758,7 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The count of records.
      */
-    private function count(string $table, array $data = [], string $where = '', array $joins = []): int
+    private function count($table, $data = [], $where = '', $joins = [])
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -753,12 +780,12 @@ class Database
 
         if (!$stmt) {
             $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         if (!$stmt->execute($data)) {
             $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . ($errorInfo[2] ?? 'Unknown error'));
+            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         return (int) $stmt->fetchColumn(); // Return the count
@@ -770,7 +797,7 @@ class Database
      * @throws RuntimeException if the connection is not set or the transaction fails.
      * @return mixed The result of the callback function.
      */
-    public function executeTransaction(callable $callback): mixed
+    public function executeTransaction($callback)
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -792,7 +819,7 @@ class Database
      * @throws RuntimeException if the connection is not set.
      * @return int The last inserted ID.
      */
-    public function getLastInsertId(): int
+    public function getLastInsertId()
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -812,11 +839,11 @@ class Mysql extends Database
 
     protected function connect($ppt)
     {
-        $servername = $ppt["serverName"] ?? $ppt["host"] ?? null;
-        $username = $ppt["username"] ?? $ppt["user"] ?? '';
-        $password = $ppt["password"] ?? '';
-        $db = $ppt["DB"] ?? $ppt["dbname"] ?? null;
-        $codification = $ppt["codification"] ?? 'utf8mb4';
+        $servername = isset($ppt["serverName"]) ? $ppt["serverName"] : (isset($ppt["host"]) ? $ppt["host"] : null);
+        $username = isset($ppt["username"]) ? $ppt["username"] : (isset($ppt["user"]) ? $ppt["user"] : '');
+        $password = isset($ppt["password"]) ? $ppt["password"] : '';
+        $db = isset($ppt["DB"]) ? $ppt["DB"] : (isset($ppt["dbname"]) ? $ppt["dbname"] : null);
+        $codification = isset($ppt["codification"]) ? $ppt["codification"] : 'utf8mb4';
 
         $dsn = "mysql:host=$servername";
         if (!empty($db)) {
@@ -844,11 +871,11 @@ class Postgres extends Database
 
     protected function connect($ppt)
     {
-        $servername = $ppt["serverName"] ?? $ppt["host"] ?? null;
-        $username = $ppt["username"] ?? $ppt["user"] ?? '';
-        $password = $ppt["password"] ?? '';
-        $db = $ppt["DB"] ?? $ppt["dbname"] ?? null;
-        $codification = $ppt["codification"] ?? 'utf8';
+        $servername = isset($ppt["serverName"]) ? $ppt["serverName"] : (isset($ppt["host"]) ? $ppt["host"] : null);
+        $username = isset($ppt["username"]) ? $ppt["username"] : (isset($ppt["user"]) ? $ppt["user"] : '');
+        $password = isset($ppt["password"]) ? $ppt["password"] : '';
+        $db = isset($ppt["DB"]) ? $ppt["DB"] : (isset($ppt["dbname"]) ? $ppt["dbname"] : null);
+        $codification = isset($ppt["codification"]) ? $ppt["codification"] : 'utf8';
 
         $dsn = "pgsql:host=$servername";
         if (!empty($db)) {
@@ -878,7 +905,7 @@ class Sqlite extends Database
 
     protected function connect($ppt)
     {
-        $dbFile = $ppt["DB"] ?? $ppt["dbname"] ?? null;
+        $dbFile = isset($ppt["DB"]) ? $ppt["DB"] : (isset($ppt["dbname"]) ? $ppt["dbname"] : null);
 
         if (empty($dbFile)) {
             throw new InvalidArgumentException("Database file is required for SQLite.");
@@ -906,10 +933,10 @@ class Sql extends Database
 
     protected function connect($ppt)
     {
-        $servername = $ppt["serverName"] ?? $ppt["host"] ?? null;
-        $username = $ppt["username"] ?? $ppt["user"] ?? '';
-        $password = $ppt["password"] ?? '';
-        $db = $ppt["DB"] ?? $ppt["dbname"] ?? null;
+        $servername = isset($ppt["serverName"]) ? $ppt["serverName"] : (isset($ppt["host"]) ? $ppt["host"] : null);
+        $username = isset($ppt["username"]) ? $ppt["username"] : (isset($ppt["user"]) ? $ppt["user"] : '');
+        $password = isset($ppt["password"]) ? $ppt["password"] : '';
+        $db = isset($ppt["DB"]) ? $ppt["DB"] : (isset($ppt["dbname"]) ? $ppt["dbname"] : null);
 
         if (empty($servername) || empty($username) || empty($db)) {
             throw new InvalidArgumentException("Server name, username, and database name are required for SQL Server.");
