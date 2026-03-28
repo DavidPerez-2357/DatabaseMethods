@@ -535,14 +535,14 @@ class Database
 
         $query = "SELECT COUNT(*) FROM {$table}";
 
-        if (!empty($where)) {
-            $query .= " WHERE {$where}";
-        }
-
         if (!empty($joins)) {
             foreach ($joins as $join) {
                 $query .= " {$join}";
             }
+        }
+
+        if (!empty($where)) {
+            $query .= " WHERE {$where}";
         }
 
         $stmt = $this->conn->prepare($query);
