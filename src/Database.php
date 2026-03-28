@@ -67,11 +67,13 @@ class Database
             return $data;
         }
 
-        // Detect a true multi-row array: every element must be an array.
-        // Checking only the first element (e.g. current()) is too broad and gives a
-        // false positive for associative arrays whose first value happens to be an array
-        // (e.g. a JSON/metadata column), which would prevent scalar keywords in the
-        // same payload from ever being replaced.
+        // Detect a true multi-row array: the array must be a sequential list (0-indexed numeric
+        // keys) and every element must be an array. Requiring sequential numeric keys avoids a
+        // false positive for associative single-row payloads whose every value happens to be an
+        // array (e.g. a JSON/metadata column), which would otherwise route them down the
+        // recursive branch and skip scalar keyword replacement.
+        // array_is_list() is PHP 8.1+; use the equivalent keys check for PHP 5.4 compatibility.
+        $isList = (array_keys($data) === range(0, count($data) - 1));
         $allArrays = true;
         foreach ($data as $value) {
             if (!is_array($value)) {
@@ -79,7 +81,7 @@ class Database
                 break;
             }
         }
-        if ($allArrays) {
+        if ($isList && $allArrays) {
             foreach ($data as $key => $row) {
                 $data[$key] = $this->replaceKeywordsInData($row);
             }
@@ -331,7 +333,7 @@ class Database
             throw new RuntimeException("Database connection is not set.");
         }
 
-        if (empty($data) || !is_array($data[0])) {
+        if (empty($data) || !isset($data[0]) || !is_array($data[0])) {
             throw new InvalidArgumentException("Data must be a non-empty array of associative arrays.");
         }
 
