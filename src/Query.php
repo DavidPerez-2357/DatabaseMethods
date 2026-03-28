@@ -109,7 +109,8 @@ class Query
 
         // Order by
         if (!empty($this->data['order_by'])) {
-            $sql .= " ORDER BY {$this->data['order_by']}";
+            $orderBy = self::validateOrderBy($this->data['order_by']);
+            $sql .= " ORDER BY {$orderBy}";
         }
 
         // Limit
@@ -244,6 +245,35 @@ class Query
     }
 
     /**
+     * Validates an ORDER BY value to prevent SQL injection.
+     * Each token must be a valid SQL identifier (optionally table-qualified) followed
+     * by an optional ASC or DESC keyword. Multiple columns may be separated by commas.
+     * @param string $orderBy The ORDER BY value to validate.
+     * @throws InvalidArgumentException if the value is not a string or contains disallowed characters.
+     * @return string The trimmed, validated ORDER BY string.
+     */
+    public static function validateOrderBy($orderBy)
+    {
+        if (!is_string($orderBy)) {
+            throw new InvalidArgumentException("order_by must be a string.");
+        }
+
+        $orderBy = trim($orderBy);
+
+        // Each token: optional_table.column_name optional_ASC_DESC, separated by commas
+        $pattern = '/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?\s*(ASC|DESC)?'
+            . '(\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?\s*(ASC|DESC)?)*$/i';
+
+        if (!preg_match($pattern, $orderBy)) {
+            throw new InvalidArgumentException(
+                "Invalid order_by value. Use column names with optional ASC/DESC, e.g. 'created_at DESC, id ASC'."
+            );
+        }
+
+        return $orderBy;
+    }
+
+    /**
      * Builds a DELETE SQL query based on the provided data.
      * @throws InvalidArgumentException if the method is not DELETE or required fields are missing.
      * @return string The constructed SQL DELETE query.
@@ -252,7 +282,7 @@ class Query
      * $query = new Query([
      *    'method' => 'DELETE',
      *    'table' => 'users',
-     *    'where' => 'id = 1',
+     *    'where' => 'id = :id',
      *    'order_by' => 'created_at DESC',
      *    'limit' => 10
      * ]);
@@ -276,7 +306,8 @@ class Query
         }
 
         if (!empty($this->data["order_by"])) {
-            $sql .= " ORDER BY {$this->data['order_by']}";
+            $orderBy = self::validateOrderBy($this->data['order_by']);
+            $sql .= " ORDER BY {$orderBy}";
         }
 
         if (!empty($this->data["limit"])) {
