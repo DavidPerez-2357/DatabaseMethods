@@ -2,7 +2,7 @@
 /**
  * Database.php
  *
- * Provides the abstract Database base class with all common database operations:
+ * Provides the Database base class with all common database operations:
  * querying, inserting, updating, deleting, counting, and transaction management.
  *
  * @author DavidPerez-2357
@@ -160,7 +160,7 @@ class Database
      * @param string $query The SQL SELECT query to execute.
      * @param array $data Optional parameters for the query.
      * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return array The result set as an associative array.
+     * @return array|string The result set as an associative array, or a JSON-encoded string if json_encode is enabled.
      */
     public function plainSelect($query, $data = [])
     {
@@ -437,14 +437,14 @@ class Database
     /**
      * Deletes records from the specified table using the Query class.
      * @param string $table The name of the table to delete from.
-     * @param array $data Optional data for the query.
      * @param string $where The WHERE clause to specify which records to delete.
+     * @param array $data Optional data for the query.
      * @param string $orderBy Optional ORDER BY clause.
      * @param int $limit Optional limit for the deletion.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
-    private function delete($table, $data = [], $where, $orderBy = "", $limit = 0)
+    private function delete($table, $where, $data = [], $orderBy = "", $limit = 0)
     {
         if (!$this->conn) {
             throw new RuntimeException('Database connection is not set.');
