@@ -28,7 +28,7 @@ class Database
 
     function __call($method, $args)
     {
-        $allowedMethods = ['select', 'selectone', 'insert', 'update', 'delete', 'deleteall', 'count'];
+        static $allowedMethods = ['select', 'selectone', 'insert', 'update', 'delete', 'deleteall', 'count'];
         if (!in_array(strtolower($method), $allowedMethods, true)) {
             throw new BadMethodCallException("Method '{$method}' does not exist in " . get_class($this) . ".");
         }
@@ -89,9 +89,6 @@ class Database
         }
 
         $keywords = [
-            // Database
-            '@lastInsertId' => $this->getLastInsertId(),
-
             // Date and time
             '@currentDate' => date('Y-m-d'),
             '@currentDateTime' => date('Y-m-d H:i:s'),
@@ -110,6 +107,12 @@ class Database
 
             // Custom keywords can be added here
         ];
+
+        // @lastInsertId is computed lazily: getLastInsertId() requires a connection and is
+        // unnecessary when the keyword is not present in the data.
+        if (in_array('@lastInsertId', $data, true)) {
+            $keywords['@lastInsertId'] = $this->getLastInsertId();
+        }
 
         // Replace values that are keywords like @lastInsertId, @currentDate, @currentDateTime
         foreach ($data as $key => $value) {
@@ -269,7 +272,7 @@ class Database
         // Detect if the data is a single record or multiple records
         if (isset($data[0]) && is_array($data[0])) {
             // Multiple records — keywords were already replaced by __call before dispatch.
-            return $this->insertMany($table, $data, true);
+            return $this->insertMany($table, $data);
         } else {
             // Single record
             return $this->insertOne($table, $data);
@@ -323,11 +326,10 @@ class Database
      * Inserts multiple records into the specified table using the Query class.
      * @param string $table The name of the table to insert into.
      * @param array $data An array of associative arrays, each representing a row to insert.
-     * @param bool $keywordsAlreadyReplaced Set to true when called from insert()/__call to avoid double keyword replacement.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The ID of the last inserted row.
      */
-    public function insertMany($table, $data, $keywordsAlreadyReplaced = false)
+    private function insertMany($table, $data)
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -347,12 +349,6 @@ class Database
                 if (!array_key_exists($field, $row)) {
                     throw new InvalidArgumentException("Data row at index {$i} is missing required field '{$field}'.");
                 }
-            }
-        }
-        // Apply keyword replacement when called directly (not via insert()/__call, which already does it).
-        if (!$keywordsAlreadyReplaced) {
-            foreach ($data as $i => $row) {
-                $data[$i] = $this->replaceKeywordsInData($row);
             }
         }
 
