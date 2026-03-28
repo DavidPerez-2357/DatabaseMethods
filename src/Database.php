@@ -409,10 +409,25 @@ class Database
         }
 
         // Backwards compatibility: if $whereData is a list-style (numerically-indexed) array
-        // and no explicit $joins was passed, treat $whereData as $joins (old 4th-arg position).
-        if (!empty($whereData) && $whereData === array_values($whereData) && empty($joins)) {
-            $joins = $whereData;
-            $whereData = [];
+        // whose values all look like JOIN clauses (strings containing 'JOIN', case-insensitive),
+        // and the WHERE clause has no placeholders, and no explicit $joins was passed,
+        // treat $whereData as $joins (old 4th-arg position).
+        if (!empty($whereData) && empty($joins) && $whereData === array_values($whereData)) {
+            $whereHasPlaceholders = is_string($where) &&
+                (strpos($where, '?') !== false || strpos($where, ':') !== false);
+
+            $allLookLikeJoins = true;
+            foreach ($whereData as $v) {
+                if (!is_string($v) || stripos($v, 'join') === false) {
+                    $allLookLikeJoins = false;
+                    break;
+                }
+            }
+
+            if ($allLookLikeJoins && !$whereHasPlaceholders) {
+                $joins = array_values($whereData);
+                $whereData = [];
+            }
         }
 
         if (!is_array($whereData)) {
@@ -517,6 +532,9 @@ class Database
                     throw new InvalidArgumentException("\$whereData must use non-empty string keys for named placeholders; invalid key encountered.");
                 }
                 $paramKey = ($key[0] === ':') ? $key : ":{$key}";
+                if (array_key_exists($paramKey, $placeholders)) {
+                    throw new InvalidArgumentException("Duplicate normalized placeholder key '{$paramKey}' in \$whereData; conflicting entries such as 'id' and ':id' are not allowed.");
+                }
                 $placeholders[$paramKey] = $value;
             }
         } else {
