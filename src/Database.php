@@ -415,8 +415,10 @@ class Database
         // and the WHERE clause has no placeholders, and no explicit $joins was passed,
         // treat $whereData as $joins (old 4th-arg position).
         if (!empty($whereData) && empty($joins) && $whereData === array_values($whereData)) {
-            $whereHasPlaceholders = is_string($where) &&
-                (strpos($where, '?') !== false || strpos($where, ':') !== false);
+            $whereHasPlaceholders = is_string($where) && (
+                strpos($where, '?') !== false ||
+                preg_match('/:[A-Za-z_][A-Za-z0-9_]*/', $where) === 1
+            );
 
             $allLookLikeJoins = true;
             foreach ($whereData as $v) {
