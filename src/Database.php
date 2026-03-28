@@ -414,23 +414,36 @@ class Database
         // whose values all look like JOIN clauses (strings containing 'JOIN', case-insensitive),
         // and the WHERE clause has no placeholders, and no explicit $joins was passed,
         // treat $whereData as $joins (old 4th-arg position).
-        if (!empty($whereData) && empty($joins) && $whereData === array_values($whereData)) {
-            $whereHasPlaceholders = is_string($where) && (
-                strpos($where, '?') !== false ||
-                preg_match('/:[A-Za-z_][A-Za-z0-9_]*/', $where) === 1
-            );
-
-            $allLookLikeJoins = true;
-            foreach ($whereData as $v) {
-                if (!is_string($v) || stripos($v, 'join') === false) {
-                    $allLookLikeJoins = false;
+        if (!empty($whereData) && empty($joins)) {
+            // Consider any array whose keys are all integers as "numerically-indexed",
+            // even if the numeric indices are non-sequential (e.g. [1 => 'LEFT JOIN ...']).
+            $numericKeysOnly = true;
+            foreach (array_keys($whereData) as $key) {
+                if (!is_int($key)) {
+                    $numericKeysOnly = false;
                     break;
                 }
             }
 
-            if ($allLookLikeJoins && !$whereHasPlaceholders) {
-                $joins = array_values($whereData);
-                $whereData = [];
+            if ($numericKeysOnly) {
+                $whereHasPlaceholders = is_string($where) && (
+                    strpos($where, '?') !== false ||
+                    preg_match('/:[A-Za-z_][A-Za-z0-9_]*/', $where) === 1
+                );
+
+                $allLookLikeJoins = true;
+                foreach ($whereData as $v) {
+                    if (!is_string($v) || stripos($v, 'join') === false) {
+                        $allLookLikeJoins = false;
+                        break;
+                    }
+                }
+
+                if ($allLookLikeJoins && !$whereHasPlaceholders) {
+                    // Reindex numerically-keyed array before using it as $joins.
+                    $joins = array_values($whereData);
+                    $whereData = [];
+                }
             }
         }
 
