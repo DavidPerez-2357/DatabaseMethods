@@ -66,9 +66,19 @@ class Database
             return $data;
         }
 
-        // Handle nested arrays recursively (e.g., multiple-record inserts).
-        // Use current() so detection works even if keys do not start at 0.
-        if (is_array(current($data))) {
+        // Detect a true multi-row array: every element must be an array.
+        // Checking only the first element (e.g. current()) is too broad and gives a
+        // false positive for associative arrays whose first value happens to be an array
+        // (e.g. a JSON/metadata column), which would prevent scalar keywords in the
+        // same payload from ever being replaced.
+        $allArrays = true;
+        foreach ($data as $value) {
+            if (!is_array($value)) {
+                $allArrays = false;
+                break;
+            }
+        }
+        if ($allArrays) {
             foreach ($data as $key => $row) {
                 $data[$key] = $this->replaceKeywordsInData($row);
             }
@@ -323,10 +333,8 @@ class Database
             throw new InvalidArgumentException("Data must be a non-empty array of associative arrays.");
         }
 
-        // Apply keyword replacement for each row
-        foreach ($data as $i => $row) {
-            $data[$i] = $this->replaceKeywordsInData($row);
-        }
+        // Note: keyword replacement is expected to be handled before calling insertMany()
+        // to avoid double-processing when multi-row inserts are dispatched via insert()/__call.
 
         $fields = array_keys($data[0]);
 
