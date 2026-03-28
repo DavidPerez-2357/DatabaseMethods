@@ -120,7 +120,7 @@ This is an example of a DELETE query using all available fields:
 $query = new Query([
     'method' => 'DELETE',
     'table' => 'users',
-    'where' => 'id = 1',
+    'where' => 'id = :id',
     'order_by' => 'created_at DESC',
     'limit' => 10
 ]);
@@ -129,10 +129,12 @@ $query = new Query([
 The resulting query will be:
 ```SQL
 DELETE FROM users
-WHERE id = 1
+WHERE id = :id
 ORDER BY created_at DESC
 LIMIT 10
 ```
+
+> **Security note:** The `where` value is embedded as a raw SQL fragment, so always use named placeholders (e.g. `id = :id`) and pass the actual values via the binding array when executing the query through the `Database` class. The `order_by` value is validated to allow only column names, dots, commas, and spaces — any other characters will throw an `InvalidArgumentException`.
 
 # Database class
 The Database class provides a comprehensive set of methods for performing essential database operations such as select, insert, update, and delete. It also includes advanced features like transaction management, record counting, and inserting many records, making it easier to handle both simple and complex database tasks efficiently.
@@ -383,6 +385,8 @@ try {
 ### Delete statement
 Deletes records from the specified table. You can specify the `where` condition, `order_by`, and `limit` if needed.
 
+Always use named placeholders in `$where` and supply the actual values in the binding array to avoid SQL injection:
+
 ```php
 try {
     $deleted = $database->delete('users', 'id = :id', ['id' => 2]);
@@ -391,6 +395,8 @@ try {
     echo "Error: " . $e->getMessage();
 }
 ```
+
+The `order_by` parameter accepts only column names, dots, commas, and spaces (e.g. `'created_at DESC'`). Passing any other characters will throw an `InvalidArgumentException`.
 
 To delete all records from a table (optionally with limit and order), use `deleteAll`:
 
