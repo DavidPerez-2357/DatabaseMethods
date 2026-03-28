@@ -134,7 +134,7 @@ ORDER BY created_at DESC
 LIMIT 10
 ```
 
-> **Security note:** The `where` value is embedded as a raw SQL fragment, so always use named placeholders (e.g. `id = :id`) and pass the actual values via the binding array when executing the query through the `Database` class. The `order_by` value is validated to allow only column names, dots, commas, and spaces — any other characters will throw an `InvalidArgumentException`.
+> **Security note:** The `where` value is embedded as a raw SQL fragment, so always use named placeholders (e.g. `id = :id`) and pass the actual values via the binding array when executing the query through the `Database` class. The `order_by` value is validated against a strict pattern that allows only identifiers made of letters, digits, and underscores (optionally qualified with dots), separated by commas and arbitrary whitespace, with optional `ASC`/`DESC` keywords — any other characters will throw an `InvalidArgumentException`.
 
 # Database class
 The Database class provides a comprehensive set of methods for performing essential database operations such as select, insert, update, and delete. It also includes advanced features like transaction management, record counting, and inserting many records, making it easier to handle both simple and complex database tasks efficiently.
@@ -396,7 +396,7 @@ try {
 }
 ```
 
-The `order_by` parameter accepts only column names, dots, commas, and spaces (e.g. `'created_at DESC'`). Passing any other characters will throw an `InvalidArgumentException`.
+The `order_by` parameter must be a comma-separated list of column identifiers (letters, digits, underscores, and dots), using only whitespace between tokens, with each column optionally followed by `ASC` or `DESC` (e.g. `'created_at DESC'`). Passing any other characters will throw an `InvalidArgumentException`.
 
 To delete all records from a table (optionally with limit and order), use `deleteAll`:
 

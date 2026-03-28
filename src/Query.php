@@ -109,8 +109,8 @@ class Query
 
         // Order by
         if (!empty($this->data['order_by'])) {
-            self::validateOrderBy($this->data['order_by']);
-            $sql .= " ORDER BY {$this->data['order_by']}";
+            $orderBy = self::validateOrderBy($this->data['order_by']);
+            $sql .= " ORDER BY {$orderBy}";
         }
 
         // Limit
@@ -250,6 +250,7 @@ class Query
      * by an optional ASC or DESC keyword. Multiple columns may be separated by commas.
      * @param string $orderBy The ORDER BY value to validate.
      * @throws InvalidArgumentException if the value is not a string or contains disallowed characters.
+     * @return string The trimmed, validated ORDER BY string.
      */
     public static function validateOrderBy($orderBy)
     {
@@ -268,6 +269,8 @@ class Query
                 "Invalid order_by value. Use column names with optional ASC/DESC, e.g. 'created_at DESC, id ASC'."
             );
         }
+
+        return $orderBy;
     }
 
     /**
@@ -303,8 +306,8 @@ class Query
         }
 
         if (!empty($this->data["order_by"])) {
-            self::validateOrderBy($this->data['order_by']);
-            $sql .= " ORDER BY {$this->data['order_by']}";
+            $orderBy = self::validateOrderBy($this->data['order_by']);
+            $sql .= " ORDER BY {$orderBy}";
         }
 
         if (!empty($this->data["limit"])) {
