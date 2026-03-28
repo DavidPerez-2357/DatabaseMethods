@@ -476,12 +476,13 @@ class Database
      * Deletes records from the specified table using the Query class.
      * @param string $table The name of the table to delete from.
      * @param string $where The WHERE clause to specify which records to delete.
-     * @param array $whereData Optional associative array of bindings for the WHERE clause.
-     *                         Keys should be the placeholder names (with or without leading `:`)
-     *                         and must be non-empty strings.
+     * @param array $whereData Optional bindings for the WHERE clause.
+     *                         For named placeholders (e.g. `id = :id`), pass an associative array;
+     *                         keys are normalized to include a leading `:` if absent.
+     *                         For positional placeholders (e.g. `id = ?`), pass a list-style array.
      * @param string $orderBy Optional ORDER BY clause.
      * @param int $limit Optional limit for the deletion.
-     * @throws InvalidArgumentException if $whereData is invalid.
+     * @throws InvalidArgumentException if $whereData is not an array or contains invalid named keys.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
@@ -496,12 +497,7 @@ class Database
         }
 
         if (!is_array($whereData)) {
-            throw new InvalidArgumentException("\$whereData must be an associative array of placeholder names to values.");
-        }
-
-        // Reject non-associative (list-style) arrays with numeric keys.
-        if ($whereData !== [] && $whereData === array_values($whereData)) {
-            throw new InvalidArgumentException("\$whereData must be an associative array with string keys; numeric or list-style arrays are not supported.");
+            throw new InvalidArgumentException("\$whereData must be an array of bindings for the WHERE clause.");
         }
 
         $query = new Query([
@@ -512,14 +508,19 @@ class Database
             'limit' => $limit
         ]);
 
-        // Normalize placeholder keys: add ':' prefix if missing
-        $placeholders = [];
-        foreach ($whereData as $key => $value) {
-            if (!is_string($key) || $key === '') {
-                throw new InvalidArgumentException("\$whereData must use non-empty string keys for placeholders; invalid key encountered.");
+        // For positional placeholders pass the array through unchanged.
+        // For named placeholders normalize keys to include a leading ':'.
+        if ($whereData !== [] && $whereData !== array_values($whereData)) {
+            $placeholders = [];
+            foreach ($whereData as $key => $value) {
+                if (!is_string($key) || $key === '') {
+                    throw new InvalidArgumentException("\$whereData must use non-empty string keys for named placeholders; invalid key encountered.");
+                }
+                $paramKey = ($key[0] === ':') ? $key : ":{$key}";
+                $placeholders[$paramKey] = $value;
             }
-            $paramKey = ($key[0] === ':') ? $key : ":{$key}";
-            $placeholders[$paramKey] = $value;
+        } else {
+            $placeholders = $whereData;
         }
 
         $stmt = $this->conn->prepare((string) $query);
@@ -540,16 +541,13 @@ class Database
     /**
      * Deletes all records from the specified table using the Query class.
      * @param string $table The name of the table to delete from.
-     * @param array $whereData Optional associative array of bindings for the WHERE clause.
-     *                         Keys should be the placeholder names (with or without leading `:`)
-     *                         and must be non-empty strings.
+     * @param array $data Optional parameters for the query.
      * @param string $orderBy Optional ORDER BY clause.
      * @param int $limit Optional limit for the deletion.
-     * @throws InvalidArgumentException if $whereData is invalid.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
-    private function deleteAll($table, $whereData = [], $orderBy = "", $limit = 0)
+    private function deleteAll($table, $data = [], $orderBy = "", $limit = 0)
     {
         if (!$this->conn) {
             throw new RuntimeException('Database connection is not set.');
@@ -559,31 +557,12 @@ class Database
             throw new InvalidArgumentException('Table is required.');
         }
 
-        if (!is_array($whereData)) {
-            throw new InvalidArgumentException("\$whereData must be an associative array of placeholder names to values.");
-        }
-
-        // Reject non-associative (list-style) arrays with numeric keys.
-        if ($whereData !== [] && $whereData === array_values($whereData)) {
-            throw new InvalidArgumentException("\$whereData must be an associative array with string keys; numeric or list-style arrays are not supported.");
-        }
-
         $query = new Query([
             'method' => 'DELETE',
             'table' => $table,
             'order_by' => $orderBy,
             'limit' => $limit
         ]);
-
-        // Normalize placeholder keys: add ':' prefix if missing
-        $placeholders = [];
-        foreach ($whereData as $key => $value) {
-            if (!is_string($key) || $key === '') {
-                throw new InvalidArgumentException("\$whereData must use non-empty string keys for placeholders; invalid key encountered.");
-            }
-            $paramKey = ($key[0] === ':') ? $key : ":{$key}";
-            $placeholders[$paramKey] = $value;
-        }
 
         $stmt = $this->conn->prepare((string) $query);
 
@@ -592,7 +571,7 @@ class Database
             throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
-        if (!$stmt->execute($placeholders)) {
+        if (!$stmt->execute($data)) {
             $errorInfo = $stmt->errorInfo();
             throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
