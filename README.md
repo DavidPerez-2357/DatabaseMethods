@@ -235,7 +235,7 @@ try {
     echo 'Error: '. $e->getMessage();
 }
 ```
-**This feature is supported in all CRUD methods (including `insertMany`), but not in plain query helpers like `executePlainQuery()` or `plainSelect()`.**
+**This feature is supported in all CRUD methods (including multi-row inserts via `insert()`), but not in plain query helpers like `executePlainQuery()` or `plainSelect()`.**
 
 ---
 
