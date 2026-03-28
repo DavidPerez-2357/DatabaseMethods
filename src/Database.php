@@ -56,9 +56,10 @@ class Database
     /**
      * Replaces keywords in the data array with actual values.
      * This method is used to replace placeholders like @lastInsertId, @currentDate, and @currentDateTime.
-     * Supports both flat associative arrays and nested arrays (e.g., for insertMany).
-     * @param array $data The data array containing the placeholders.
-     * @return array The modified data array with placeholders replaced.
+     * Supports flat associative arrays and multi-row arrays (where every element is an associative array,
+     * e.g., for insertMany). Arbitrary deeply nested structures are not recursed into.
+     * @param mixed $data The data array containing the placeholders, or a non-array value (returned as-is).
+     * @return mixed The modified data with placeholders replaced, or the original value if not an array.
      */
     function replaceKeywordsInData($data)
     {
@@ -265,8 +266,8 @@ class Database
     {
         // Detect if the data is a single record or multiple records
         if (isset($data[0]) && is_array($data[0])) {
-            // Multiple records
-            return $this->insertMany($table, $data);
+            // Multiple records — keywords were already replaced by __call before dispatch.
+            return $this->insertMany($table, $data, true);
         } else {
             // Single record
             return $this->insertOne($table, $data);
@@ -320,10 +321,11 @@ class Database
      * Inserts multiple records into the specified table using the Query class.
      * @param string $table The name of the table to insert into.
      * @param array $data An array of associative arrays, each representing a row to insert.
+     * @param bool $keywordsAlreadyReplaced Set to true when called from insert()/__call to avoid double keyword replacement.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The ID of the last inserted row.
      */
-    public function insertMany($table, $data)
+    public function insertMany($table, $data, $keywordsAlreadyReplaced = false)
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -333,8 +335,12 @@ class Database
             throw new InvalidArgumentException("Data must be a non-empty array of associative arrays.");
         }
 
-        // Note: keyword replacement is expected to be handled before calling insertMany()
-        // to avoid double-processing when multi-row inserts are dispatched via insert()/__call.
+        // Apply keyword replacement when called directly (not via insert()/__call, which already does it).
+        if (!$keywordsAlreadyReplaced) {
+            foreach ($data as $i => $row) {
+                $data[$i] = $this->replaceKeywordsInData($row);
+            }
+        }
 
         $fields = array_keys($data[0]);
 
