@@ -385,7 +385,7 @@ Deletes records from the specified table. You can specify the `where` condition,
 
 ```php
 try {
-    $deleted = $database->delete('users', ['id' => 2], 'id = :id');
+    $deleted = $database->delete('users', 'id = :id', ['id' => 2]);
     echo "Rows deleted: " . $deleted;
 } catch (Exception $e) {
     echo "Error: " . $e->getMessage();
@@ -426,7 +426,7 @@ You can execute multiple operations inside a transaction using `executeTransacti
 try {
     $database->executeTransaction(function($db) {
         $db->update('users', ['active' => 0, 'id' => 2], 'id = :id');
-        $db->delete('orders', ['user_id' => 2], 'user_id = :user_id');
+        $db->delete('orders', 'user_id = :user_id', ['user_id' => 2]);
     });
     echo "Transaction completed.";
 } catch (Exception $e) {
