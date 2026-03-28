@@ -390,7 +390,9 @@ class Database
      * @param array $data An associative array of column names and values to update.
      * @param string $where The WHERE clause to specify which records to update.
      * @param array $whereData Optional associative array of bindings for the WHERE clause.
-     *                         Keys must not overlap with the keys in $data.
+     *                         Keys must not overlap with the column names in $data.
+     *                         For backwards compatibility, a list-style (numerically-indexed) array
+     *                         is treated as $joins (the old 4th-parameter position).
      * @param array $joins Optional joins for the query.
      * @throws InvalidArgumentException if $data is invalid or a binding key conflicts between $data and $whereData.
      * @throws RuntimeException if the connection is not set or the query execution fails.
@@ -404,6 +406,23 @@ class Database
 
         if (empty($data) || !is_array($data)) {
             throw new InvalidArgumentException("Data must be a non-empty associative array.");
+        }
+
+        // Backwards compatibility: if $whereData is a list-style (numerically-indexed) array
+        // and no explicit $joins was passed, treat $whereData as $joins (old 4th-arg position).
+        if (!empty($whereData) && $whereData === array_values($whereData) && empty($joins)) {
+            $joins = $whereData;
+            $whereData = [];
+        }
+
+        if (!is_array($whereData)) {
+            throw new InvalidArgumentException("\$whereData must be an associative array of placeholder names to values.");
+        }
+
+        // Reject non-associative (list-style) arrays with numeric keys, as they cannot be
+        // safely converted to named placeholders.
+        if ($whereData !== [] && $whereData === array_values($whereData)) {
+            throw new InvalidArgumentException("\$whereData must be an associative array with string keys; numeric or list-style arrays are not supported.");
         }
 
         $fields = array_keys($data);
@@ -424,7 +443,11 @@ class Database
 
         // Merge WHERE clause bindings, detecting conflicts with SET bindings
         foreach ($whereData as $key => $value) {
-            $paramKey = ($key !== '' && $key[0] === ':') ? $key : ":{$key}";
+            if (!is_string($key) || $key === '') {
+                throw new InvalidArgumentException("\$whereData must use non-empty string keys for placeholders; invalid key encountered.");
+            }
+
+            $paramKey = ($key[0] === ':') ? $key : ":{$key}";
             if (array_key_exists($paramKey, $placeholders)) {
                 throw new InvalidArgumentException(
                     "Binding key '{$paramKey}' is used in both \$data (SET) and \$whereData (WHERE). " .
