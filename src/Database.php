@@ -28,9 +28,16 @@ class Database
 
     function __call($method, $args)
     {
-        // Modify the data to replace keywords like @lastInsertId and @currentDate
-        if (isset($args[1]) && is_array($args[1])) {
-            $args[1] = $this->replaceKeywordsInData($args[1]);
+        static $allowedMethods = ['select', 'selectone', 'insert', 'update', 'delete', 'deleteall', 'count'];
+        if (!in_array(strtolower($method), $allowedMethods, true)) {
+            throw new BadMethodCallException("Method '{$method}' does not exist in " . get_class($this) . ".");
+        }
+
+        // Replace keywords in every array argument before dispatching
+        foreach ($args as $i => $arg) {
+            if (is_array($arg)) {
+                $args[$i] = $this->replaceKeywordsInData($arg);
+            }
         }
 
         return call_user_func_array([$this, $method], $args);
@@ -49,15 +56,39 @@ class Database
     /**
      * Replaces keywords in the data array with actual values.
      * This method is used to replace placeholders like @lastInsertId, @currentDate, and @currentDateTime.
-     * @param array $data The data array containing the placeholders.
-     * @return array The modified data array with placeholders replaced.
+     * Supports flat associative arrays and multi-row arrays (where every element is an associative array,
+     * e.g., for insertMany). Arbitrary deeply nested structures are not recursed into.
+     * @param mixed $data The data array containing the placeholders, or a non-array value (returned as-is).
+     * @return mixed The modified data with placeholders replaced, or the original value if not an array.
      */
     function replaceKeywordsInData($data)
     {
-        $keywords = [
-            // Database
-            '@lastInsertId' => $this->getLastInsertId(),
+        if (empty($data) || !is_array($data)) {
+            return $data;
+        }
 
+        // Detect a true multi-row array: the array must be a sequential list (0-indexed numeric
+        // keys) and every element must be an array. Requiring sequential numeric keys avoids a
+        // false positive for associative single-row payloads whose every value happens to be an
+        // array (e.g. a JSON/metadata column), which would otherwise route them down the
+        // recursive branch and skip scalar keyword replacement.
+        // array_is_list() is PHP 8.1+; use the equivalent keys check for PHP 5.4 compatibility.
+        $isList = (array_keys($data) === range(0, count($data) - 1));
+        $allArrays = true;
+        foreach ($data as $value) {
+            if (!is_array($value)) {
+                $allArrays = false;
+                break;
+            }
+        }
+        if ($isList && $allArrays) {
+            foreach ($data as $key => $row) {
+                $data[$key] = $this->replaceKeywordsInData($row);
+            }
+            return $data;
+        }
+
+        $keywords = [
             // Date and time
             '@currentDate' => date('Y-m-d'),
             '@currentDateTime' => date('Y-m-d H:i:s'),
@@ -77,14 +108,15 @@ class Database
             // Custom keywords can be added here
         ];
 
-        // Check if the data is not another array or empty
-        if (empty($data) || !is_array($data) || is_array(reset($data))) {
-            return $data;
+        // @lastInsertId is computed lazily: getLastInsertId() requires a connection and is
+        // unnecessary when the keyword is not present in the data.
+        if (in_array('@lastInsertId', $data, true)) {
+            $keywords['@lastInsertId'] = $this->getLastInsertId();
         }
 
         // Replace values that are keywords like @lastInsertId, @currentDate, @currentDateTime
         foreach ($data as $key => $value) {
-            if (isset($keywords[$value])) {
+            if (is_string($value) && isset($keywords[$value])) {
                 $data[$key] = $keywords[$value];
             }
         }
@@ -239,7 +271,7 @@ class Database
     {
         // Detect if the data is a single record or multiple records
         if (isset($data[0]) && is_array($data[0])) {
-            // Multiple records
+            // Multiple records — keywords were already replaced by __call before dispatch.
             return $this->insertMany($table, $data);
         } else {
             // Single record
@@ -297,14 +329,27 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The ID of the last inserted row.
      */
-    public function insertMany($table, $data)
+    private function insertMany($table, $data)
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
         }
 
-        if (empty($data) || !is_array($data[0])) {
+        if (empty($data) || !isset($data[0]) || !is_array($data[0])) {
             throw new InvalidArgumentException("Data must be a non-empty array of associative arrays.");
+        }
+
+        // Validate that all rows are arrays and contain the required fields.
+        $expectedFields = array_keys($data[0]);
+        foreach ($data as $i => $row) {
+            if (!is_array($row)) {
+                throw new InvalidArgumentException("Data row at index {$i} must be an associative array.");
+            }
+            foreach ($expectedFields as $field) {
+                if (!array_key_exists($field, $row)) {
+                    throw new InvalidArgumentException("Data row at index {$i} is missing required field '{$field}'.");
+                }
+            }
         }
 
         $fields = array_keys($data[0]);
