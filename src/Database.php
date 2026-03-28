@@ -392,7 +392,9 @@ class Database
      * @param array $whereData Optional associative array of bindings for the WHERE clause.
      *                         Keys must not overlap with the column names in $data.
      *                         For backwards compatibility, a list-style (numerically-indexed) array
-     *                         is treated as $joins (the old 4th-parameter position).
+     *                         may be interpreted as $joins (the old 4th-parameter position) when its
+     *                         values are compatible with JOIN clauses and the $where string has no
+     *                         placeholders; otherwise, list-style arrays are rejected.
      * @param array $joins Optional joins for the query.
      * @throws InvalidArgumentException if $data is invalid or a binding key conflicts between $data and $whereData.
      * @throws RuntimeException if the connection is not set or the query execution fails.
