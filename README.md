@@ -187,7 +187,27 @@ $mysql_object->setJsonEncode(false);
 ### Keywords in query variables
 When using query variables, you can include special keywords that will be automatically replaced with their corresponding values before the query is executed. 
 
-You can add more keywords, here is an example of use:
+Available keywords:
+
+| Keyword              | Replaced with                        |
+|----------------------|--------------------------------------|
+| `@lastInsertId`      | Last auto-increment ID inserted      |
+| `@currentDate`       | Current date (`Y-m-d`)               |
+| `@currentDateTime`   | Current date and time (`Y-m-d H:i:s`)|
+| `@currentTime`       | Current time (`H:i:s`)               |
+| `@currentTimestamp`  | Unix timestamp                       |
+| `@currentYear`       | Current year (`Y`)                   |
+| `@currentMonth`      | Current month (`m`)                  |
+| `@currentDay`        | Current day (`d`)                    |
+| `@currentWeekday`    | Day name (e.g. `Monday`)             |
+| `@randomString`      | Random 8-character alphanumeric string |
+| `@randomInt`         | Random integer between 1 and 9999    |
+| `@randomFloat`       | Random float between 0.01 and 99.99  |
+| `@randomBoolean`     | Random `true` or `false`             |
+
+You can add more keywords by editing the `replaceKeywordsInData` method in `Database.php`.
+
+Here is an example of use:
 ```PHP
 $data = [
     'id' => '@lastInsertId',
@@ -197,11 +217,25 @@ $data = [
 
 try {
     $database->update('users', $data, 'id = :id');
-}catch (Exception $e) {
+} catch (Exception $e) {
     echo 'Error:'. $e->getMessage();
 }
 ```
-**This feature is supported in all methods except for the "insert many" method.**
+
+Keywords also work in multi-record inserts:
+```PHP
+$data = [
+    ['name' => '@randomString', 'created_at' => '@currentDateTime'],
+    ['name' => '@randomString', 'created_at' => '@currentDateTime'],
+];
+
+try {
+    $database->insert('users', $data);
+} catch (Exception $e) {
+    echo 'Error:'. $e->getMessage();
+}
+```
+**This feature is supported in all methods, including `insertMany`.**
 
 ---
 

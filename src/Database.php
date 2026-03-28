@@ -28,9 +28,16 @@ class Database
 
     function __call($method, $args)
     {
-        // Modify the data to replace keywords like @lastInsertId and @currentDate
-        if (isset($args[1]) && is_array($args[1])) {
-            $args[1] = $this->replaceKeywordsInData($args[1]);
+        $allowedMethods = ['select', 'selectOne', 'insert', 'update', 'delete', 'deleteAll', 'count'];
+        if (!in_array($method, $allowedMethods, true)) {
+            throw new BadMethodCallException("Method '{$method}' does not exist in " . get_class($this) . ".");
+        }
+
+        // Replace keywords in every array argument before dispatching
+        foreach ($args as $i => $arg) {
+            if (is_array($arg)) {
+                $args[$i] = $this->replaceKeywordsInData($arg);
+            }
         }
 
         return call_user_func_array([$this, $method], $args);
@@ -49,11 +56,24 @@ class Database
     /**
      * Replaces keywords in the data array with actual values.
      * This method is used to replace placeholders like @lastInsertId, @currentDate, and @currentDateTime.
+     * Supports both flat associative arrays and nested arrays (e.g., for insertMany).
      * @param array $data The data array containing the placeholders.
      * @return array The modified data array with placeholders replaced.
      */
     function replaceKeywordsInData($data)
     {
+        if (empty($data) || !is_array($data)) {
+            return $data;
+        }
+
+        // Handle nested arrays recursively (e.g., multiple-record inserts)
+        if (isset($data[0]) && is_array($data[0])) {
+            foreach ($data as $key => $row) {
+                $data[$key] = $this->replaceKeywordsInData($row);
+            }
+            return $data;
+        }
+
         $keywords = [
             // Database
             '@lastInsertId' => $this->getLastInsertId(),
@@ -77,14 +97,9 @@ class Database
             // Custom keywords can be added here
         ];
 
-        // Check if the data is not another array or empty
-        if (empty($data) || !is_array($data) || is_array(reset($data))) {
-            return $data;
-        }
-
         // Replace values that are keywords like @lastInsertId, @currentDate, @currentDateTime
         foreach ($data as $key => $value) {
-            if (isset($keywords[$value])) {
+            if (is_string($value) && isset($keywords[$value])) {
                 $data[$key] = $keywords[$value];
             }
         }
@@ -305,6 +320,11 @@ class Database
 
         if (empty($data) || !is_array($data[0])) {
             throw new InvalidArgumentException("Data must be a non-empty array of associative arrays.");
+        }
+
+        // Apply keyword replacement for each row
+        foreach ($data as $i => $row) {
+            $data[$i] = $this->replaceKeywordsInData($row);
         }
 
         $fields = array_keys($data[0]);

@@ -26,7 +26,7 @@ class Query
         $this->query = $this->buildQuery();
     }
 
-    public function __tostring()
+    public function __toString()
     {
         return $this->query;
     }
