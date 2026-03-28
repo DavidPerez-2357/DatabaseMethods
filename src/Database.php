@@ -342,8 +342,9 @@ class Database
 
     /**
      * Normalizes an associative WHERE bindings array into PDO named-parameter form.
-     * Adds a ':' prefix to keys that lack one, validates key format, and detects both
-     * intra-array duplicates and collisions against an already-built placeholder map.
+     * Adds a ':' prefix to keys that lack one, validates that each normalized key is a
+     * legal PDO named-parameter name (matching /^:[A-Za-z_][A-Za-z0-9_]*$/), and detects
+     * both intra-array duplicates and collisions against an already-built placeholder map.
      * @param array $whereData Associative array of placeholder names to values.
      * @param array $existingPlaceholders Already-built placeholder map to check for SET-vs-WHERE conflicts.
      * @throws InvalidArgumentException if a key is invalid, malformed, duplicated, or conflicts with $existingPlaceholders.
@@ -359,6 +360,13 @@ class Database
             }
 
             $paramKey = ($key[0] === ':') ? $key : ":{$key}";
+
+            if (!preg_match('/^:[A-Za-z_][A-Za-z0-9_]*$/', $paramKey)) {
+                throw new InvalidArgumentException(
+                    "Invalid placeholder name '{$paramKey}' in \$whereData; " .
+                    "placeholder names must start with a letter or underscore and contain only letters, digits, and underscores."
+                );
+            }
 
             if (array_key_exists($paramKey, $result)) {
                 throw new InvalidArgumentException(
@@ -386,12 +394,9 @@ class Database
      * @param string $where The WHERE clause to specify which records to update.
      * @param array $whereData Optional associative array of bindings for the WHERE clause.
      *                         Keys must not overlap with the column names in $data.
-     *                         For backwards compatibility, a list-style (numerically-indexed) array
-     *                         may be interpreted as $joins (the old 4th-parameter position) when its
-     *                         values are compatible with JOIN clauses and the $where string has no
-     *                         placeholders; otherwise, list-style arrays are rejected.
+     *                         Each key must be a valid PDO named-parameter name (letters, digits, underscores; starting with a letter or underscore).
      * @param array $joins Optional joins for the query.
-     * @throws InvalidArgumentException if $data is invalid or a binding key conflicts between $data and $whereData.
+     * @throws InvalidArgumentException if $data or $whereData is invalid, or a binding key conflicts between $data and $whereData.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
@@ -409,41 +414,9 @@ class Database
             throw new InvalidArgumentException("Data must be a non-empty associative array.");
         }
 
-        // Detect whether $whereData has only integer keys (legacy $joins position or numeric bindings).
-        $allNumericKeys = !empty($whereData);
+        // $whereData must be associative (string keys only); numeric/list-style arrays are not supported.
         foreach (array_keys($whereData) as $k) {
-            if (!is_int($k)) {
-                $allNumericKeys = false;
-                break;
-            }
-        }
-
-        if ($allNumericKeys) {
-            // Backwards compatibility: treat numeric-keyed $whereData as $joins when every value
-            // looks like a JOIN clause and $where has no placeholders.
-            if (empty($joins)) {
-                $whereHasPlaceholders = is_string($where) && (
-                    strpos($where, '?') !== false ||
-                    preg_match('/:[A-Za-z_][A-Za-z0-9_]*/', $where) === 1
-                );
-
-                $allLookLikeJoins = true;
-                foreach ($whereData as $v) {
-                    if (!is_string($v) || stripos($v, 'join') === false) {
-                        $allLookLikeJoins = false;
-                        break;
-                    }
-                }
-
-                if ($allLookLikeJoins && !$whereHasPlaceholders) {
-                    $joins = array_values($whereData);
-                    $whereData = [];
-                    $allNumericKeys = false;
-                }
-            }
-
-            // Reject any remaining numeric-keyed $whereData.
-            if ($allNumericKeys) {
+            if (!is_string($k)) {
                 throw new InvalidArgumentException("\$whereData must be an associative array with string keys; numeric or list-style arrays are not supported.");
             }
         }
@@ -514,10 +487,21 @@ class Database
             'limit' => $limit
         ]);
 
-        // Positional arrays pass through unchanged; associative arrays get ':' normalization.
-        $placeholders = ($whereData !== [] && $whereData !== array_values($whereData))
-            ? $this->normalizeNamedWhereBindings($whereData)
-            : $whereData;
+        // Detect positional vs named bindings: any string key → named (normalize with ':'); all int keys → positional.
+        $hasStringKey = false;
+        foreach ($whereData as $k => $_val) {
+            if (!is_int($k)) {
+                $hasStringKey = true;
+                break;
+            }
+        }
+
+        if ($hasStringKey) {
+            $placeholders = $this->normalizeNamedWhereBindings($whereData);
+        } else {
+            // Integer-keyed array: normalize to a proper 0-indexed list for positional '?' bindings.
+            $placeholders = array_values($whereData);
+        }
 
         $stmt = $this->prepareAndExecute((string) $query, $placeholders);
         return (int) $stmt->rowCount();
