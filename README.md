@@ -1,14 +1,36 @@
-# Database methods
-This file provides two essential classes designed to simplify and streamline your workflow when working with database queries.
+# DatabaseMethods
 
-- The first class helps you build queries in a cleaner and more organized way, improving readability and maintainability.
+A lightweight PHP library that simplifies database work with two focused tools:
 
-- The second class offers a collection of convenient database methods that let you execute common queries with shorter, more intuitive code.
+- **`Query`** — builds clean, readable SQL queries from a plain array.
+- **`Database`** — a PDO-based class with intuitive methods for selecting, inserting, updating, deleting, counting, and running transactions.
 
-By using these tools, you'll significantly reduce the time spent writing repetitive query logic, allowing you to focus more on building features and less on boilerplate code.
+By using these tools you'll cut repetitive boilerplate, letting you focus on building features instead.
 
 > **Compatibility:**  
-This library is compatible with PHP **version 5.4** and above.
+> This library is compatible with PHP **version 5.4** and above.
+
+## Installation / Usage
+
+Just require the single entry-point file — it automatically loads every module:
+
+```php
+require_once 'DatabaseMethods.php';
+```
+
+## Repository structure
+
+```
+DatabaseMethods.php          ← entry point (require this file)
+src/
+  Query.php                  ← SQL query builder
+  Database.php               ← base Database class (CRUD, transactions, …)
+  drivers/
+    Mysql.php                ← MySQL / MariaDB driver
+    Postgres.php             ← PostgreSQL driver
+    Sqlite.php               ← SQLite driver
+    Sql.php                  ← Microsoft SQL Server driver
+```
 
 ## Query class
 The Query class is used to build a query from an object. You can use the class as a string directly.
