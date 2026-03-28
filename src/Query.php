@@ -154,10 +154,14 @@ class Query
         }
         $fields = $this->data['fields'];
 
-        $values = isset($this->data['values_to_insert']) ? $this->data['values_to_insert'] : 1;
+        $values = isset($this->data['values_to_insert']) ? (int) $this->data['values_to_insert'] : 1;
 
         if (!is_array($fields) || empty($fields)) {
             throw new InvalidArgumentException("Fields must be a non-empty array.");
+        }
+
+        if ($values < 1) {
+            throw new InvalidArgumentException("Number of values to insert must be at least 1.");
         }
 
         // Prepare placeholders for the query
@@ -221,13 +225,15 @@ class Query
         }
         $setClause = implode(', ', $setClauses);
 
-        $sql = "UPDATE {$table} SET {$setClause}";
+        $sql = "UPDATE {$table}";
 
         if (!empty($this->data['joins'])) {
             foreach ($this->data['joins'] as $join) {
                 $sql .= " {$join}";
             }
         }
+
+        $sql .= " SET {$setClause}";
 
         // Prepare WHERE clause
         if (!empty($this->data['where'])) {
