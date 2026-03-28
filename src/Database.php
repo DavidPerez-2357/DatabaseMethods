@@ -28,8 +28,8 @@ class Database
 
     function __call($method, $args)
     {
-        $allowedMethods = ['select', 'selectOne', 'insert', 'update', 'delete', 'deleteAll', 'count'];
-        if (!in_array($method, $allowedMethods, true)) {
+        $allowedMethods = ['select', 'selectone', 'insert', 'update', 'delete', 'deleteall', 'count'];
+        if (!in_array(strtolower($method), $allowedMethods, true)) {
             throw new BadMethodCallException("Method '{$method}' does not exist in " . get_class($this) . ".");
         }
 
@@ -66,8 +66,9 @@ class Database
             return $data;
         }
 
-        // Handle nested arrays recursively (e.g., multiple-record inserts)
-        if (isset($data[0]) && is_array($data[0])) {
+        // Handle nested arrays recursively (e.g., multiple-record inserts).
+        // Use current() so detection works even if keys do not start at 0.
+        if (is_array(current($data))) {
             foreach ($data as $key => $row) {
                 $data[$key] = $this->replaceKeywordsInData($row);
             }

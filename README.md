@@ -218,7 +218,7 @@ $data = [
 try {
     $database->update('users', $data, 'id = :id');
 } catch (Exception $e) {
-    echo 'Error:'. $e->getMessage();
+    echo 'Error: '. $e->getMessage();
 }
 ```
 
@@ -232,10 +232,10 @@ $data = [
 try {
     $database->insert('users', $data);
 } catch (Exception $e) {
-    echo 'Error:'. $e->getMessage();
+    echo 'Error: '. $e->getMessage();
 }
 ```
-**This feature is supported in all methods, including `insertMany`.**
+**This feature is supported in all CRUD methods (including `insertMany`), but not in plain query helpers like `executePlainQuery()` or `plainSelect()`.**
 
 ---
 
