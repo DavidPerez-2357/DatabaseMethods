@@ -364,6 +364,8 @@ try {
 ### Update statement
 Updates records in the specified table. You must provide the table, the data to update, and the `where` condition.
 
+> **⚠ Breaking change:** The 4th argument of `update()` is now `$whereData` (an associative array of WHERE-clause bindings). It was previously `$joins`. If you were passing JOIN strings as the 4th argument, move them to the 5th argument (`$joins`) instead.
+
 Always supply WHERE values via `$whereData` instead of inline in the SQL string to prevent SQL injection. Keys in `$whereData` must not overlap with column names in `$data`. Note: positional placeholders (`?`) are not supported in `$where` for `update()` — use named placeholders (e.g. `id = :id`) instead.
 
 ```php
