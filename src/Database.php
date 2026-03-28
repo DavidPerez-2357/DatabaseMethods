@@ -337,6 +337,18 @@ class Database
             throw new InvalidArgumentException("Data must be a non-empty array of associative arrays.");
         }
 
+        // Validate that all rows are arrays and contain the required fields.
+        $expectedFields = array_keys($data[0]);
+        foreach ($data as $i => $row) {
+            if (!is_array($row)) {
+                throw new InvalidArgumentException("Data row at index {$i} must be an associative array.");
+            }
+            foreach ($expectedFields as $field) {
+                if (!array_key_exists($field, $row)) {
+                    throw new InvalidArgumentException("Data row at index {$i} is missing required field '{$field}'.");
+                }
+            }
+        }
         // Apply keyword replacement when called directly (not via insert()/__call, which already does it).
         if (!$keywordsAlreadyReplaced) {
             foreach ($data as $i => $row) {
