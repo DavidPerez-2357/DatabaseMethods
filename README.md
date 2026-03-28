@@ -212,13 +212,12 @@ You can add more keywords by editing the `replaceKeywordsInData` method in `Data
 Here is an example of use:
 ```PHP
 $data = [
-    'id' => '@lastInsertId',
     'name'=> '@randomString',
     'created_at'=> '@currentDateTime',
 ];
 
 try {
-    $database->update('users', $data, 'id = :id');
+    $database->update('users', $data, 'id = :id', ['id' => '@lastInsertId']);
 } catch (Exception $e) {
     echo 'Error: '. $e->getMessage();
 }
@@ -365,15 +364,17 @@ try {
 ### Update statement
 Updates records in the specified table. You must provide the table, the data to update, and the `where` condition.
 
+Always use named placeholders in `$where` and supply the actual values in the `$whereData` array to avoid SQL injection.
+The placeholder keys in `$whereData` must not overlap with the column names in `$data` (which are automatically prefixed with `:` for binding).
+
 ```php
 $data = [
-    'id' => 5,
     'name' => 'Michael',
     'email' => 'michael@email.com'
 ];
 
 try {
-    $affected = $database->update('users', $data, 'id = :id');
+    $affected = $database->update('users', $data, 'id = :id', ['id' => 5]);
     echo "Rows updated: " . $affected;
 } catch (Exception $e) {
     echo "Error: " . $e->getMessage();
@@ -431,7 +432,7 @@ You can execute multiple operations inside a transaction using `executeTransacti
 ```php
 try {
     $database->executeTransaction(function($db) {
-        $db->update('users', ['active' => 0, 'id' => 2], 'id = :id');
+        $db->update('users', ['active' => 0], 'id = :id', ['id' => 2]);
         $db->delete('orders', 'user_id = :user_id', ['user_id' => 2]);
     });
     echo "Transaction completed.";

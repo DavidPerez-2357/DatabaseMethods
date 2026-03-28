@@ -389,11 +389,14 @@ class Database
      * @param string $table The name of the table to update.
      * @param array $data An associative array of column names and values to update.
      * @param string $where The WHERE clause to specify which records to update.
+     * @param array $whereData Optional associative array of bindings for the WHERE clause.
+     *                         Keys must not overlap with the keys in $data.
      * @param array $joins Optional joins for the query.
+     * @throws InvalidArgumentException if $data is invalid or a binding key conflicts between $data and $whereData.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
-    private function update($table, $data, $where, $joins = [])
+    private function update($table, $data, $where, $whereData = [], $joins = [])
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
@@ -417,6 +420,18 @@ class Database
         $placeholders = [];
         foreach ($data as $field => $value) {
             $placeholders[":{$field}"] = $value;
+        }
+
+        // Merge WHERE clause bindings, detecting conflicts with SET bindings
+        foreach ($whereData as $key => $value) {
+            $paramKey = ($key !== '' && $key[0] === ':') ? $key : ":{$key}";
+            if (array_key_exists($paramKey, $placeholders)) {
+                throw new InvalidArgumentException(
+                    "Binding key '{$paramKey}' is used in both \$data (SET) and \$whereData (WHERE). " .
+                    "Use distinct placeholder names to avoid conflicts."
+                );
+            }
+            $placeholders[$paramKey] = $value;
         }
 
         $stmt = $this->conn->prepare((string) $query);
