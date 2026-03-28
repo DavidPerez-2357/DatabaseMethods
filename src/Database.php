@@ -444,6 +444,15 @@ class Database
             throw new InvalidArgumentException("\$whereData must be an associative array with string keys; numeric or list-style arrays are not supported.");
         }
 
+        // update() always generates named placeholders for SET; mixing positional '?' in $where
+        // is not supported by PDO and will fail at execute time.
+        if (is_string($where) && strpos($where, '?') !== false) {
+            throw new InvalidArgumentException(
+                "Positional placeholders ('?') are not supported in \$where for update(); " .
+                "use named placeholders (e.g. 'id = :id') and pass their values via \$whereData."
+            );
+        }
+
         $fields = array_keys($data);
 
         // Use the Query class to build the update query
