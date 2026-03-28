@@ -364,7 +364,7 @@ try {
 ### Update statement
 Updates records in the specified table. You must provide the table, the data to update, and the `where` condition.
 
-Always supply WHERE values via `$whereData` instead of inline in the SQL string to prevent SQL injection. Keys in `$whereData` must not overlap with column names in `$data`.
+Always supply WHERE values via `$whereData` instead of inline in the SQL string to prevent SQL injection. Keys in `$whereData` must not overlap with column names in `$data`. Note: positional placeholders (`?`) are not supported in `$where` for `update()` — use named placeholders (e.g. `id = :id`) instead.
 
 ```php
 $data = [
