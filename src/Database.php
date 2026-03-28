@@ -410,21 +410,25 @@ class Database
             throw new InvalidArgumentException("Data must be a non-empty associative array.");
         }
 
-        // Backwards compatibility: if $whereData is a list-style (numerically-indexed) array
-        // whose values all look like JOIN clauses (strings containing 'JOIN', case-insensitive),
-        // and the WHERE clause has no placeholders, and no explicit $joins was passed,
-        // treat $whereData as $joins (old 4th-arg position).
-        if (!empty($whereData) && empty($joins)) {
+        $numericKeysOnly = true;
+        
+        if (!empty($whereData)) {
             // Consider any array whose keys are all integers as "numerically-indexed",
             // even if the numeric indices are non-sequential (e.g. [1 => 'LEFT JOIN ...']).
-            $numericKeysOnly = true;
+            
             foreach (array_keys($whereData) as $key) {
                 if (!is_int($key)) {
                     $numericKeysOnly = false;
                     break;
                 }
             }
+        }
 
+        // Backwards compatibility: if $whereData is a list-style (numerically-indexed) array
+        // whose values all look like JOIN clauses (strings containing 'JOIN', case-insensitive),
+        // and the WHERE clause has no placeholders, and no explicit $joins was passed,
+        // treat $whereData as $joins (old 4th-arg position).
+        if (!empty($whereData) && empty($joins)) {
             if ($numericKeysOnly) {
                 $whereHasPlaceholders = is_string($where) && (
                     strpos($where, '?') !== false ||
@@ -453,7 +457,7 @@ class Database
 
         // Reject non-associative (list-style) arrays with numeric keys, as they cannot be
         // safely converted to named placeholders.
-        if ($whereData !== [] && $whereData === array_values($whereData)) {
+        if ($whereData !== [] && $numericKeysOnly) {
             throw new InvalidArgumentException("\$whereData must be an associative array with string keys; numeric or list-style arrays are not supported.");
         }
 
