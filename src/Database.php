@@ -548,17 +548,17 @@ class Database
     /**
      * Counts the number of records in the specified table using the Query class.
      * @param string $table The name of the table to count records from.
+     * @param string $where Optional WHERE clause to filter the count.
      * @param array $whereData Optional bindings for the WHERE clause.
      *                         For named placeholders (e.g. `active = :active`), pass an associative array;
      *                         keys are normalized to include a leading `:` if absent.
      *                         For positional placeholders (e.g. `active = ?`), pass a list-style array.
-     * @param string $where Optional WHERE clause to filter the count.
      * @param array $joins Optional joins for the query.
      * @throws InvalidArgumentException if $whereData is not an array or contains invalid named keys.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The count of records.
      */
-    private function count($table, $whereData = [], $where = '', $joins = [])
+    private function count($table, $where = '', $whereData = [], $joins = [])
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");

@@ -416,7 +416,7 @@ Returns the number of records that match a condition. Always use named placehold
 
 ```php
 try {
-    $total = $database->count('users', ['active' => 1], 'active = :active');
+    $total = $database->count('users', 'active = :active', ['active' => 1]);
     echo "Active users: " . $total;
 } catch (Exception $e) {
     echo "Error: " . $e->getMessage();
