@@ -63,7 +63,9 @@ class Database
      * Canonical connection-config keys and their accepted aliases:
      *  - serverName  : host      — hostname or IP address of the database server
      *  - username    : user      — database user
-     *  - DB          : dbname    — database (schema) name
+     *  - DB          : dbname    — database/schema identifier for server-based drivers
+     *                             and the SQLite database file path when using the
+     *                             SQLite driver (used as dsn "sqlite:{DB}")
      *  - password    : (none)    — user password
      *  - codification: (none)    — character encoding (e.g. "utf8", "utf8mb4")
      *
