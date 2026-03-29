@@ -55,21 +55,40 @@ class Query
 
     public function __toString()
     {
-        if ($this->query === null) {
-            $this->query = $this->buildQuery();
+        try {
+            if ($this->query === null) {
+                $this->query = $this->buildQuery();
+            }
+            return (string) $this->query;
+        } catch (Exception $e) {
+            // Throwing from __toString() is fatal in PHP 5.4–6.x, so we emit a warning instead.
+            // Note: `Throwable` (which also covers `Error`) was introduced in PHP 7.0 and cannot
+            // be used here without breaking the library's PHP 5.4+ compatibility guarantee.
+            // In practice, buildQuery() only throws InvalidArgumentException (extends Exception),
+            // so this catch is sufficient for all real-world error paths.
+            trigger_error(
+                'Error building SQL query in ' . __METHOD__ . ': ' . $e->getMessage(),
+                E_USER_WARNING
+            );
+            return '';
         }
-        return $this->query;
     }
 
     /**
      * Returns the built SQL query string.
-     * Equivalent to casting the object to a string.
      *
+     * Unlike casting to a string, this method lets any exception thrown
+     * during query building propagate to the caller.
+     *
+     * @throws InvalidArgumentException if the query configuration is invalid.
      * @return string
      */
     public function getQuery()
     {
-        return (string) $this;
+        if ($this->query === null) {
+            $this->query = $this->buildQuery();
+        }
+        return $this->query;
     }
 
     // -------------------------------------------------------------------------
@@ -97,12 +116,18 @@ class Query
     /**
      * Creates an INSERT Query for the given table and fields.
      *
+     * `$fields` is optional here; you can also call `->fields([...])` in the chain.
+     * The `fields` must be provided (either here or via `->fields()`) before the
+     * query string is generated.
+     *
      * @param string $table  Target table name.
-     * @param array  $fields Columns to insert.
+     * @param array  $fields Columns to insert (optional; can be set later with ->fields()).
      * @return static
      * @example
      * ```php
      * $query = Query::insert('users', ['name', 'email'])->valuesCount(3);
+     * // or
+     * $query = Query::insert('users')->fields(['name', 'email'])->valuesCount(3);
      * ```
      */
     public static function insert($table, $fields = [])
@@ -119,12 +144,18 @@ class Query
     /**
      * Creates an UPDATE Query for the given table and fields.
      *
+     * `$fields` is optional here; you can also call `->fields([...])` in the chain.
+     * The `fields` must be provided (either here or via `->fields()`) before the
+     * query string is generated.
+     *
      * @param string $table  Target table name.
-     * @param array  $fields Columns to update.
+     * @param array  $fields Columns to update (optional; can be set later with ->fields()).
      * @return static
      * @example
      * ```php
      * $query = Query::update('users', ['name', 'email'])->where('id = :id');
+     * // or
+     * $query = Query::update('users')->fields(['name', 'email'])->where('id = :id');
      * ```
      */
     public static function update($table, $fields = [])
@@ -220,6 +251,8 @@ class Query
     {
         if (!isset($this->data['joins'])) {
             $this->data['joins'] = [];
+        } elseif (!is_array($this->data['joins'])) {
+            $this->data['joins'] = [$this->data['joins']];
         }
         $this->data['joins'][] = $join;
         $this->query = null;

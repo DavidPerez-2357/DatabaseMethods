@@ -45,8 +45,8 @@ Both styles produce identical SQL and can be used interchangeably. You can cast 
 | Factory method | Description |
 |---|---|
 | `Query::select($fields)` | Start a SELECT query |
-| `Query::insert($table, $fields)` | Start an INSERT query |
-| `Query::update($table, $fields)` | Start an UPDATE query |
+| `Query::insert($table[, $fields])` | Start an INSERT query (`$fields` is optional; you can also call `->fields(...)` later) |
+| `Query::update($table[, $fields])` | Start an UPDATE query (`$fields` is optional; you can also call `->fields(...)` later) |
 | `Query::delete($table)` | Start a DELETE query |
 
 | Chainable setter | Applies to | Description |
