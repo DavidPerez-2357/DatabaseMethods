@@ -56,6 +56,32 @@ class Database
         $this->conn = $conn;
     }
 
+    /**
+     * Returns the first non-null value found in $ppt for the given ordered list of $keys,
+     * or $default when none of the keys are present.
+     *
+     * Canonical connection-config keys and their accepted aliases:
+     *  - serverName  : host      — hostname or IP address of the database server
+     *  - username    : user      — database user
+     *  - DB          : dbname    — database (schema) name
+     *  - password    : (none)    — user password
+     *  - codification: (none)    — character encoding (e.g. "utf8", "utf8mb4")
+     *
+     * @param array $ppt     Configuration array passed to the driver constructor.
+     * @param array $keys    Ordered list of key names to try (first match wins).
+     * @param mixed $default Value to return when none of the keys are present.
+     * @return mixed
+     */
+    protected function getConfigValue(array $ppt, array $keys, $default = null)
+    {
+        foreach ($keys as $key) {
+            if (isset($ppt[$key])) {
+                return $ppt[$key];
+            }
+        }
+        return $default;
+    }
+
     public function setJsonEncode($bool)
     {
         $this->json_encode = $bool;

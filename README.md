@@ -144,11 +144,14 @@ The Database class provides a comprehensive set of methods for performing essent
 The classes **Sql**, **Mysql**, **Postgres** and **Sqlite** extends of the parent class **Database** who own the methods that the two child classes have in commun.
 
 To create a object is needed to specify some properties:
-* **serverName**: The name or IP address of the server.
-* **userName**: The userName that is going to be used for the operations.
-* **password**: The password of the username.
-* **DB**: The database that you are going to use. (optional)
-* **codification**: The codification you want to use. (optional)
+
+| Canonical key   | Accepted alias | Description                                      | Required by          |
+|-----------------|----------------|--------------------------------------------------|----------------------|
+| `serverName`    | `host`         | Hostname or IP address of the database server    | Mysql, Postgres, Sql |
+| `username`      | `user`         | Database user name                               | Mysql, Postgres, Sql |
+| `password`      | *(none)*       | Password for the database user (default: `""`)   | Mysql, Postgres, Sql |
+| `DB`            | `dbname`       | Database / schema name                           | Mysql, Postgres, Sql, Sqlite |
+| `codification`  | *(none)*       | Character encoding (default: `utf8mb4` / `utf8`) | Mysql, Postgres      |
 
 ```php
 $properties = [

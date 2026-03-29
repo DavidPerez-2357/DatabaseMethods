@@ -24,11 +24,11 @@ class Mysql extends Database
 
     protected function connect($ppt)
     {
-        $servername = isset($ppt["serverName"]) ? $ppt["serverName"] : (isset($ppt["host"]) ? $ppt["host"] : null);
-        $username = isset($ppt["username"]) ? $ppt["username"] : (isset($ppt["user"]) ? $ppt["user"] : '');
-        $password = isset($ppt["password"]) ? $ppt["password"] : '';
-        $db = isset($ppt["DB"]) ? $ppt["DB"] : (isset($ppt["dbname"]) ? $ppt["dbname"] : null);
-        $codification = isset($ppt["codification"]) ? $ppt["codification"] : 'utf8mb4';
+        $servername   = $this->getConfigValue($ppt, ['serverName', 'host']);
+        $username     = $this->getConfigValue($ppt, ['username', 'user'], '');
+        $password     = $this->getConfigValue($ppt, ['password'], '');
+        $db           = $this->getConfigValue($ppt, ['DB', 'dbname']);
+        $codification = $this->getConfigValue($ppt, ['codification'], 'utf8mb4');
 
         $dsn = "mysql:host=$servername";
         if (!empty($db)) {
