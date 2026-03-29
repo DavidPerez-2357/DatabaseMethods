@@ -169,9 +169,7 @@ class Database
      */
     public function executePlainQuery($query, $data = [])
     {
-        if (!$this->conn) {
-            throw new RuntimeException("Database connection is not set.");
-        }
+        $this->requireConnection();
 
         $this->prepareAndExecute($query, $data);
         return true;
@@ -186,18 +184,11 @@ class Database
      */
     public function plainSelect($query, $data = [])
     {
-        if (!$this->conn) {
-            throw new RuntimeException("Database connection is not set.");
-        }
+        $this->requireConnection();
 
         $stmt = $this->prepareAndExecute($query, $data);
 
-        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        if ($this->json_encode) {
-            $json = json_encode($results);
-            return $json === false ? array() : $json;
-        }
-        return $results;
+        return $this->formatResult($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
     /**
@@ -209,9 +200,7 @@ class Database
      */
     private function selectOne($query, $data = [])
     {
-        if (!$this->conn) {
-            throw new RuntimeException("Database connection is not set.");
-        }
+        $this->requireConnection();
 
         $stmt = $this->prepareAndExecute((string) $query, $data);
 
@@ -233,20 +222,12 @@ class Database
      */
     private function select($query, $data = [])
     {
-        if (!$this->conn) {
-            throw new RuntimeException("Database connection is not set.");
-        }
+        $this->requireConnection();
 
         $stmt = $this->prepareAndExecute((string) $query, $data);
 
         // Fetch all results as an associative array
-        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        if ($this->json_encode) {
-            $json = json_encode($results);
-            return $json === false ? array() : $json;
-        }
-        return $results;
+        return $this->formatResult($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
     /**
@@ -278,9 +259,7 @@ class Database
      */
     private function insertOne($table, $data)
     {
-        if (!$this->conn) {
-            throw new RuntimeException("Database connection is not set.");
-        }
+        $this->requireConnection();
 
         $fields = array_keys($data);
 
@@ -310,9 +289,7 @@ class Database
      */
     private function insertMany($table, $data)
     {
-        if (!$this->conn) {
-            throw new RuntimeException("Database connection is not set.");
-        }
+        $this->requireConnection();
 
         if (empty($data) || !isset($data[0]) || !is_array($data[0])) {
             throw new InvalidArgumentException("Data must be a non-empty array of associative arrays.");
@@ -424,6 +401,51 @@ class Database
     }
 
     /**
+     * Throws a RuntimeException if the database connection has not been established.
+     * @throws RuntimeException
+     */
+    private function requireConnection()
+    {
+        if (!$this->conn) {
+            throw new RuntimeException("Database connection is not set.");
+        }
+    }
+
+    /**
+     * Detects whether $whereData uses named or positional placeholders, normalizes
+     * accordingly, and returns the resolved bindings array.
+     * Named placeholders (any string key) are forwarded to normalizeNamedWhereBindings();
+     * positional placeholders (all integer keys) are returned as a 0-indexed list.
+     * @param array $whereData
+     * @return array
+     */
+    private function resolveWhereBindings($whereData)
+    {
+        foreach ($whereData as $k => $_val) {
+            if (!is_int($k)) {
+                return $this->normalizeNamedWhereBindings($whereData);
+            }
+        }
+        return array_values($whereData);
+    }
+
+    /**
+     * Returns $result encoded as JSON when json_encode mode is enabled,
+     * or returns the plain value otherwise.
+     * On json_encode failure an empty array is returned.
+     * @param mixed $result
+     * @return mixed
+     */
+    private function formatResult($result)
+    {
+        if ($this->json_encode) {
+            $json = json_encode($result);
+            return $json === false ? array() : $json;
+        }
+        return $result;
+    }
+
+    /**
      * Updates records in the specified table using the Query class.
      * @param string $table The name of the table to update.
      * @param array $data An associative array of column names and values to update.
@@ -438,9 +460,7 @@ class Database
      */
     private function update($table, $data, $where, $whereData = [], $joins = [])
     {
-        if (!$this->conn) {
-            throw new RuntimeException("Database connection is not set.");
-        }
+        $this->requireConnection();
 
         if (!is_array($whereData)) {
             throw new InvalidArgumentException("\$whereData must be an associative array of placeholder names to values.");
@@ -503,9 +523,7 @@ class Database
      */
     private function delete($table, $where, $whereData = [], $orderBy = "", $limit = 0)
     {
-        if (!$this->conn) {
-            throw new RuntimeException('Database connection is not set.');
-        }
+        $this->requireConnection();
 
         if (empty($table) || empty($where)) {
             throw new InvalidArgumentException('Table and where clause are required.');
@@ -523,23 +541,7 @@ class Database
             'limit' => $limit
         ]);
 
-        // Detect positional vs named bindings: any string key → named (normalize with ':'); all int keys → positional.
-        $hasStringKey = false;
-        foreach ($whereData as $k => $_val) {
-            if (!is_int($k)) {
-                $hasStringKey = true;
-                break;
-            }
-        }
-
-        if ($hasStringKey) {
-            $placeholders = $this->normalizeNamedWhereBindings($whereData);
-        } else {
-            // Integer-keyed array: normalize to a proper 0-indexed list for positional '?' bindings.
-            $placeholders = array_values($whereData);
-        }
-
-        $stmt = $this->prepareAndExecute((string) $query, $placeholders);
+        $stmt = $this->prepareAndExecute((string) $query, $this->resolveWhereBindings($whereData));
         return (int) $stmt->rowCount();
     }
 
@@ -554,9 +556,7 @@ class Database
      */
     private function deleteAll($table, $data = [], $orderBy = "", $limit = 0)
     {
-        if (!$this->conn) {
-            throw new RuntimeException('Database connection is not set.');
-        }
+        $this->requireConnection();
 
         if (empty($table)) {
             throw new InvalidArgumentException('Table is required.');
@@ -588,9 +588,7 @@ class Database
      */
     private function count($table, $where = '', $whereData = [], $joins = [])
     {
-        if (!$this->conn) {
-            throw new RuntimeException("Database connection is not set.");
-        }
+        $this->requireConnection();
 
         if (!is_array($whereData)) {
             throw new InvalidArgumentException("\$whereData must be an array of bindings for the WHERE clause.");
@@ -608,23 +606,7 @@ class Database
             $query .= " WHERE {$where}";
         }
 
-        // Detect positional vs named bindings: any string key → named (normalize with ':'); all int keys → positional.
-        $hasStringKey = false;
-        foreach ($whereData as $k => $_val) {
-            if (!is_int($k)) {
-                $hasStringKey = true;
-                break;
-            }
-        }
-
-        if ($hasStringKey) {
-            $placeholders = $this->normalizeNamedWhereBindings($whereData);
-        } else {
-            // Integer-keyed array: normalize to a proper 0-indexed list for positional '?' bindings.
-            $placeholders = array_values($whereData);
-        }
-
-        $stmt = $this->prepareAndExecute($query, $placeholders);
+        $stmt = $this->prepareAndExecute($query, $this->resolveWhereBindings($whereData));
         return (int) $stmt->fetchColumn();
     }
 
@@ -636,9 +618,7 @@ class Database
      */
     public function executeTransaction($callback)
     {
-        if (!$this->conn) {
-            throw new RuntimeException("Database connection is not set.");
-        }
+        $this->requireConnection();
 
         try {
             $this->conn->beginTransaction();
@@ -664,9 +644,7 @@ class Database
      */
     public function getLastInsertId()
     {
-        if (!$this->conn) {
-            throw new RuntimeException("Database connection is not set.");
-        }
+        $this->requireConnection();
 
         return (int) $this->conn->lastInsertId();
     }
