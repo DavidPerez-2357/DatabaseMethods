@@ -24,7 +24,7 @@ class Sqlite extends Database
 
     protected function connect($ppt)
     {
-        $dbFile = isset($ppt["DB"]) ? $ppt["DB"] : (isset($ppt["dbname"]) ? $ppt["dbname"] : null);
+        $dbFile = $this->getConfigValue($ppt, ['DB', 'dbname']);
 
         if (empty($dbFile)) {
             throw new InvalidArgumentException("Database file is required for SQLite.");

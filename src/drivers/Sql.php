@@ -24,10 +24,10 @@ class Sql extends Database
 
     protected function connect($ppt)
     {
-        $servername = isset($ppt["serverName"]) ? $ppt["serverName"] : (isset($ppt["host"]) ? $ppt["host"] : null);
-        $username = isset($ppt["username"]) ? $ppt["username"] : (isset($ppt["user"]) ? $ppt["user"] : '');
-        $password = isset($ppt["password"]) ? $ppt["password"] : '';
-        $db = isset($ppt["DB"]) ? $ppt["DB"] : (isset($ppt["dbname"]) ? $ppt["dbname"] : null);
+        $servername = $this->getConfigValue($ppt, ['serverName', 'host']);
+        $username   = $this->getConfigValue($ppt, ['username', 'user'], '');
+        $password   = $this->getConfigValue($ppt, ['password'], '');
+        $db         = $this->getConfigValue($ppt, ['DB', 'dbname']);
 
         if (empty($servername) || empty($username) || empty($db)) {
             throw new InvalidArgumentException("Server name, username, and database name are required for SQL Server.");
