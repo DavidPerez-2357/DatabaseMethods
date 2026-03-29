@@ -13,6 +13,21 @@
  * Query class to build SQL queries based on provided data.
  * Supports SELECT, INSERT, UPDATE, and DELETE methods.
  *
+ * Queries can be built either by passing a full configuration array to the
+ * constructor, or via the static factory methods combined with the fluent
+ * setter API:
+ *
+ * ```php
+ * // Array constructor (original API — still fully supported)
+ * $query = new Query(['method' => 'SELECT', 'fields' => ['id'], 'table' => 'users']);
+ *
+ * // Fluent API
+ * $query = Query::select(['id', 'name'])->from('users')->where('active = 1');
+ * $query = Query::insert('users', ['name', 'email'])->valuesCount(3);
+ * $query = Query::update('users', ['name', 'email'])->where('id = :id');
+ * $query = Query::delete('users')->where('id = :id')->limit(10);
+ * ```
+ *
  * @package DatabaseMethods
  */
 class Query
@@ -20,16 +35,293 @@ class Query
     private $data;
     private $query;
 
-    public function __construct($queryData)
+    /**
+     * Creates a Query instance.
+     *
+     * When $queryData is a non-empty array the query is built immediately
+     * (original behavior). When called with an empty array — as the static
+     * factory methods do — building is deferred until the query string is
+     * first needed.
+     *
+     * @param array $queryData Configuration array (optional when using factory methods).
+     */
+    public function __construct($queryData = [])
     {
         $this->data = $queryData;
-        $this->query = $this->buildQuery();
+        if (!empty($queryData)) {
+            $this->query = $this->buildQuery();
+        }
     }
 
     public function __toString()
     {
+        if ($this->query === null) {
+            $this->query = $this->buildQuery();
+        }
         return $this->query;
     }
+
+    /**
+     * Returns the built SQL query string.
+     * Equivalent to casting the object to a string.
+     *
+     * @return string
+     */
+    public function getQuery()
+    {
+        return (string) $this;
+    }
+
+    // -------------------------------------------------------------------------
+    // Static factory methods
+    // -------------------------------------------------------------------------
+
+    /**
+     * Creates a SELECT Query for the given fields.
+     *
+     * @param array $fields Column list (defaults to ['*'] when omitted).
+     * @return static
+     * @example
+     * ```php
+     * $query = Query::select(['id', 'name'])->from('users')->where('active = 1');
+     * ```
+     */
+    public static function select($fields = [])
+    {
+        $instance = new static();
+        $instance->data['method'] = 'SELECT';
+        $instance->data['fields'] = empty($fields) ? ['*'] : $fields;
+        return $instance;
+    }
+
+    /**
+     * Creates an INSERT Query for the given table and fields.
+     *
+     * @param string $table  Target table name.
+     * @param array  $fields Columns to insert.
+     * @return static
+     * @example
+     * ```php
+     * $query = Query::insert('users', ['name', 'email'])->valuesCount(3);
+     * ```
+     */
+    public static function insert($table, $fields = [])
+    {
+        $instance = new static();
+        $instance->data['method'] = 'INSERT';
+        $instance->data['table'] = $table;
+        if (!empty($fields)) {
+            $instance->data['fields'] = $fields;
+        }
+        return $instance;
+    }
+
+    /**
+     * Creates an UPDATE Query for the given table and fields.
+     *
+     * @param string $table  Target table name.
+     * @param array  $fields Columns to update.
+     * @return static
+     * @example
+     * ```php
+     * $query = Query::update('users', ['name', 'email'])->where('id = :id');
+     * ```
+     */
+    public static function update($table, $fields = [])
+    {
+        $instance = new static();
+        $instance->data['method'] = 'UPDATE';
+        $instance->data['table'] = $table;
+        if (!empty($fields)) {
+            $instance->data['fields'] = $fields;
+        }
+        return $instance;
+    }
+
+    /**
+     * Creates a DELETE Query for the given table.
+     *
+     * @param string $table Target table name.
+     * @return static
+     * @example
+     * ```php
+     * $query = Query::delete('users')->where('id = :id')->limit(10);
+     * ```
+     */
+    public static function delete($table)
+    {
+        $instance = new static();
+        $instance->data['method'] = 'DELETE';
+        $instance->data['table'] = $table;
+        return $instance;
+    }
+
+    // -------------------------------------------------------------------------
+    // Fluent setter methods
+    // -------------------------------------------------------------------------
+
+    /**
+     * Sets the target table (alias of table()).
+     *
+     * @param string $table Table name.
+     * @return $this
+     */
+    public function from($table)
+    {
+        $this->data['table'] = $table;
+        $this->query = null;
+        return $this;
+    }
+
+    /**
+     * Sets the target table (alias of from()).
+     *
+     * @param string $table Table name.
+     * @return $this
+     */
+    public function table($table)
+    {
+        return $this->from($table);
+    }
+
+    /**
+     * Sets the column list.
+     *
+     * @param array $fields Column names.
+     * @return $this
+     */
+    public function fields($fields)
+    {
+        $this->data['fields'] = $fields;
+        $this->query = null;
+        return $this;
+    }
+
+    /**
+     * Sets the WHERE clause.
+     *
+     * @param string $where Raw SQL WHERE fragment (use named placeholders, e.g. `id = :id`).
+     * @return $this
+     */
+    public function where($where)
+    {
+        $this->data['where'] = $where;
+        $this->query = null;
+        return $this;
+    }
+
+    /**
+     * Appends a single JOIN clause.
+     *
+     * @param string $join Full JOIN expression (e.g. `LEFT JOIN orders ON users.id = orders.user_id`).
+     * @return $this
+     */
+    public function join($join)
+    {
+        if (!isset($this->data['joins'])) {
+            $this->data['joins'] = [];
+        }
+        $this->data['joins'][] = $join;
+        $this->query = null;
+        return $this;
+    }
+
+    /**
+     * Replaces all JOIN clauses with the given array.
+     *
+     * @param array $joins Array of JOIN expressions.
+     * @return $this
+     */
+    public function joins($joins)
+    {
+        $this->data['joins'] = $joins;
+        $this->query = null;
+        return $this;
+    }
+
+    /**
+     * Sets the GROUP BY clause.
+     *
+     * @param string $groupBy Column or expression to group by.
+     * @return $this
+     */
+    public function groupBy($groupBy)
+    {
+        $this->data['group_by'] = $groupBy;
+        $this->query = null;
+        return $this;
+    }
+
+    /**
+     * Sets the HAVING clause.
+     *
+     * @param string $having HAVING condition.
+     * @return $this
+     */
+    public function having($having)
+    {
+        $this->data['having'] = $having;
+        $this->query = null;
+        return $this;
+    }
+
+    /**
+     * Sets the ORDER BY clause.
+     * The value is validated by validateOrderBy() when the query is built.
+     *
+     * @param string $orderBy Column(s) with optional ASC/DESC (e.g. `name ASC, id DESC`).
+     * @return $this
+     */
+    public function orderBy($orderBy)
+    {
+        $this->data['order_by'] = $orderBy;
+        $this->query = null;
+        return $this;
+    }
+
+    /**
+     * Sets the LIMIT clause.
+     *
+     * @param int $limit Maximum number of rows.
+     * @return $this
+     */
+    public function limit($limit)
+    {
+        $this->data['limit'] = $limit;
+        $this->query = null;
+        return $this;
+    }
+
+    /**
+     * Sets the OFFSET clause (SELECT only).
+     *
+     * @param int $offset Number of rows to skip.
+     * @return $this
+     */
+    public function offset($offset)
+    {
+        $this->data['offset'] = $offset;
+        $this->query = null;
+        return $this;
+    }
+
+    /**
+     * Sets how many rows the INSERT query should prepare placeholders for.
+     * Defaults to 1 when not called.
+     *
+     * @param int $count Number of rows to insert.
+     * @return $this
+     */
+    public function valuesCount($count)
+    {
+        $this->data['values_to_insert'] = $count;
+        $this->query = null;
+        return $this;
+    }
+
+    // -------------------------------------------------------------------------
+    // Query builders
+    // -------------------------------------------------------------------------
 
     public function buildQuery()
     {
