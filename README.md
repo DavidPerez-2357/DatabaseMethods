@@ -412,11 +412,11 @@ try {
 ---
 
 ### Count statement
-Returns the number of records that match a condition:
+Returns the number of records that match a condition. Always use named placeholders in `$where` and supply the actual values in the binding array to avoid SQL injection:
 
 ```php
 try {
-    $total = $database->count('users', [], 'active = 1');
+    $total = $database->count('users', 'active = :active', ['active' => 1]);
     echo "Active users: " . $total;
 } catch (Exception $e) {
     echo "Error: " . $e->getMessage();

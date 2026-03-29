@@ -548,16 +548,24 @@ class Database
     /**
      * Counts the number of records in the specified table using the Query class.
      * @param string $table The name of the table to count records from.
-     * @param array $data Optional parameters for the query.
      * @param string $where Optional WHERE clause to filter the count.
+     * @param array $whereData Optional bindings for the WHERE clause.
+     *                         For named placeholders (e.g. `active = :active`), pass an associative array;
+     *                         keys are normalized to include a leading `:` if absent.
+     *                         For positional placeholders (e.g. `active = ?`), pass a list-style array.
      * @param array $joins Optional joins for the query.
+     * @throws InvalidArgumentException if $whereData is not an array or contains invalid named keys.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The count of records.
      */
-    private function count($table, $data = [], $where = '', $joins = [])
+    private function count($table, $where = '', $whereData = [], $joins = [])
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
+        }
+
+        if (!is_array($whereData)) {
+            throw new InvalidArgumentException("\$whereData must be an array of bindings for the WHERE clause.");
         }
 
         $query = "SELECT COUNT(*) FROM {$table}";
@@ -572,7 +580,23 @@ class Database
             $query .= " WHERE {$where}";
         }
 
-        $stmt = $this->prepareAndExecute($query, $data);
+        // Detect positional vs named bindings: any string key → named (normalize with ':'); all int keys → positional.
+        $hasStringKey = false;
+        foreach ($whereData as $k => $_val) {
+            if (!is_int($k)) {
+                $hasStringKey = true;
+                break;
+            }
+        }
+
+        if ($hasStringKey) {
+            $placeholders = $this->normalizeNamedWhereBindings($whereData);
+        } else {
+            // Integer-keyed array: normalize to a proper 0-indexed list for positional '?' bindings.
+            $placeholders = array_values($whereData);
+        }
+
+        $stmt = $this->prepareAndExecute($query, $placeholders);
         return (int) $stmt->fetchColumn();
     }
 
