@@ -29,9 +29,17 @@ class Database
     function __call($method, $args)
     {
         static $allowedMethods = ['select', 'selectone', 'insert', 'update', 'delete', 'deleteall', 'count'];
-        if (!in_array(strtolower($method), $allowedMethods, true)) {
+        static $canonicalNames = [
+            'selectone' => 'selectOne',
+            'deleteall' => 'deleteAll',
+        ];
+        $lower = strtolower($method);
+        if (!in_array($lower, $allowedMethods, true)) {
             throw new BadMethodCallException("Method '{$method}' does not exist in " . get_class($this) . ".");
         }
+
+        // Normalize to canonical camelCase method name
+        $canonical = isset($canonicalNames[$lower]) ? $canonicalNames[$lower] : $lower;
 
         // Replace keywords in every array argument before dispatching
         foreach ($args as $i => $arg) {
@@ -40,7 +48,7 @@ class Database
             }
         }
 
-        return call_user_func_array([$this, $method], $args);
+        return call_user_func_array([$this, $canonical], $args);
     }
 
     protected function setConnection($conn)
