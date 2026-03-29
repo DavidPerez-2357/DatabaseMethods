@@ -145,13 +145,13 @@ The classes **Sql**, **Mysql**, **Postgres** and **Sqlite** extends of the paren
 
 To create a object is needed to specify some properties:
 
-| Canonical key   | Accepted alias | Description                                      | Required by          |
-|-----------------|----------------|--------------------------------------------------|----------------------|
-| `serverName`    | `host`         | Hostname or IP address of the database server    | Mysql, Postgres, Sql |
-| `username`      | `user`         | Database user name                               | Mysql, Postgres, Sql |
-| `password`      | *(none)*       | Password for the database user (default: `""`)   | Mysql, Postgres, Sql |
-| `DB`            | `dbname`       | Database / schema name                           | Mysql, Postgres, Sql, Sqlite |
-| `codification`  | *(none)*       | Character encoding (default: `utf8mb4` / `utf8`) | Mysql, Postgres      |
+| Canonical key   | Accepted alias | Description                                                                 | Required by                                    |
+|-----------------|----------------|-----------------------------------------------------------------------------|-----------------------------------------------|
+| `serverName`    | `host`         | Hostname or IP address of the database server                               | Mysql, Postgres, Sql                          |
+| `username`      | `user`         | Database user name                                                          | Mysql, Postgres, Sql                          |
+| `password`      | *(none)*       | Password for the database user (default: `""`)                              | Mysql, Postgres, Sql                          |
+| `DB`            | `dbname`       | Database/schema name (Mysql, Postgres, Sql) or database file path (Sqlite) | Mysql (optional), Postgres (optional), Sql, Sqlite |
+| `codification`  | *(none)*       | Character encoding (default: `utf8mb4` / `utf8`)                            | Mysql, Postgres                               |
 
 ```php
 $properties = [
