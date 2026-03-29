@@ -137,21 +137,7 @@ class Database
             throw new RuntimeException("Database connection is not set.");
         }
 
-        $stmt = $this->conn->prepare($query);
-
-        if (!$stmt) {
-            // Use errorInfo for PDO
-            $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
-
-        $result = $stmt->execute($data);
-
-        if (!$result) {
-            $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
-
+        $this->prepareAndExecute($query, $data);
         return true;
     }
 
@@ -168,19 +154,7 @@ class Database
             throw new RuntimeException("Database connection is not set.");
         }
 
-        $stmt = $this->conn->prepare($query);
-
-        if (!$stmt) {
-            $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
-
-        $result = $stmt->execute($data);
-
-        if (!$result) {
-            $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
+        $stmt = $this->prepareAndExecute($query, $data);
 
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         if ($this->json_encode) {
@@ -203,17 +177,7 @@ class Database
             throw new RuntimeException("Database connection is not set.");
         }
 
-        $stmt = $this->conn->prepare((string) $query);
-
-        if (!$stmt) {
-            $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
-
-        if (!$stmt->execute($data)) {
-            $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
+        $stmt = $this->prepareAndExecute((string) $query, $data);
 
         // Fetch a single row as an associative array
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -237,17 +201,7 @@ class Database
             throw new RuntimeException("Database connection is not set.");
         }
 
-        $stmt = $this->conn->prepare((string) $query);
-
-        if (!$stmt) {
-            $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
-
-        if (!$stmt->execute($data)) {
-            $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
+        $stmt = $this->prepareAndExecute((string) $query, $data);
 
         // Fetch all results as an associative array
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -307,18 +261,7 @@ class Database
             $placeholders[":{$field}_0"] = $data[$field];
         }
 
-        $stmt = $this->conn->prepare((string) $query);
-
-        if (!$stmt) {
-            $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
-
-        if (!$stmt->execute($placeholders)) {
-            $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
-
+        $this->prepareAndExecute((string) $query, $placeholders);
         return (int) $this->conn->lastInsertId();
     }
 
@@ -369,19 +312,79 @@ class Database
             }
         }
 
-        $stmt = $this->conn->prepare((string) $query);
+        $this->prepareAndExecute((string) $query, $placeholders);
+        return (int) $this->conn->lastInsertId();
+    }
+
+    /**
+     * Prepares and executes a SQL statement with the given parameters.
+     * @param string $sql The SQL query to prepare and execute.
+     * @param array $params Optional parameter bindings for the statement.
+     * @throws RuntimeException if preparation or execution fails.
+     * @return PDOStatement The executed statement.
+     */
+    private function prepareAndExecute($sql, $params = [])
+    {
+        $stmt = $this->conn->prepare($sql);
 
         if (!$stmt) {
             $errorInfo = $this->conn->errorInfo();
             throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
-        if (!$stmt->execute($placeholders)) {
+        if (!$stmt->execute($params)) {
             $errorInfo = $stmt->errorInfo();
             throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
-        return (int) $this->conn->lastInsertId();
+        return $stmt;
+    }
+
+    /**
+     * Normalizes an associative WHERE bindings array into PDO named-parameter form.
+     * Adds a ':' prefix to keys that lack one, validates that each normalized key is a
+     * legal PDO named-parameter name (matching /^:[A-Za-z_][A-Za-z0-9_]*$/), and detects
+     * both intra-array duplicates and collisions against an already-built placeholder map.
+     * @param array $whereData Associative array of placeholder names to values.
+     * @param array $existingPlaceholders Already-built placeholder map to check for SET-vs-WHERE conflicts.
+     * @throws InvalidArgumentException if a key is invalid, malformed, duplicated, or conflicts with $existingPlaceholders.
+     * @return array Normalized placeholder array with ':'-prefixed keys.
+     */
+    private function normalizeNamedWhereBindings($whereData, $existingPlaceholders = [])
+    {
+        $result = [];
+
+        foreach ($whereData as $key => $value) {
+            if (!is_string($key) || $key === '') {
+                throw new InvalidArgumentException("\$whereData must use non-empty string keys for placeholders; invalid key encountered.");
+            }
+
+            $paramKey = ($key[0] === ':') ? $key : ":{$key}";
+
+            if (!preg_match('/^:[A-Za-z_][A-Za-z0-9_]*$/', $paramKey)) {
+                throw new InvalidArgumentException(
+                    "Invalid placeholder name '{$paramKey}' in \$whereData; " .
+                    "placeholder names must start with a letter or underscore and contain only letters, digits, and underscores."
+                );
+            }
+
+            if (array_key_exists($paramKey, $result)) {
+                throw new InvalidArgumentException(
+                    "Binding key '{$paramKey}' is duplicated within \$whereData (WHERE); each placeholder must be unique."
+                );
+            }
+
+            if (!empty($existingPlaceholders) && array_key_exists($paramKey, $existingPlaceholders)) {
+                throw new InvalidArgumentException(
+                    "Binding key '{$paramKey}' is used in both \$data (SET) and \$whereData (WHERE). " .
+                    "Use distinct placeholder names to avoid conflicts."
+                );
+            }
+
+            $result[$paramKey] = $value;
+        }
+
+        return $result;
     }
 
     /**
@@ -389,27 +392,47 @@ class Database
      * @param string $table The name of the table to update.
      * @param array $data An associative array of column names and values to update.
      * @param string $where The WHERE clause to specify which records to update.
+     * @param array $whereData Optional associative array of bindings for the WHERE clause.
+     *                         Keys must not overlap with the column names in $data.
+     *                         Each key must be a valid PDO named-parameter name (letters, digits, underscores; starting with a letter or underscore).
      * @param array $joins Optional joins for the query.
+     * @throws InvalidArgumentException if $data or $whereData is invalid, or a binding key conflicts between $data and $whereData.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
-    private function update($table, $data, $where, $joins = [])
+    private function update($table, $data, $where, $whereData = [], $joins = [])
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
+        }
+
+        if (!is_array($whereData)) {
+            throw new InvalidArgumentException("\$whereData must be an associative array of placeholder names to values.");
         }
 
         if (empty($data) || !is_array($data)) {
             throw new InvalidArgumentException("Data must be a non-empty associative array.");
         }
 
-        $fields = array_keys($data);
+        // $whereData must be associative (string keys only); numeric/list-style arrays are not supported.
+        foreach (array_keys($whereData) as $k) {
+            if (!is_string($k)) {
+                throw new InvalidArgumentException("\$whereData must be an associative array with string keys; numeric or list-style arrays are not supported.");
+            }
+        }
 
-        // Use the Query class to build the update query
+        // update() always generates named SET placeholders; positional '?' in $where is not supported.
+        if (is_string($where) && strpos($where, '?') !== false) {
+            throw new InvalidArgumentException(
+                "Positional placeholders ('?') are not supported in \$where for update(); " .
+                "use named placeholders (e.g. 'id = :id') and pass their values via \$whereData."
+            );
+        }
+
         $query = new Query([
             'method' => 'UPDATE',
             'table' => $table,
-            'fields' => $fields,
+            'fields' => array_keys($data),
             'where' => $where,
             'joins' => $joins,
         ]);
@@ -419,32 +442,30 @@ class Database
             $placeholders[":{$field}"] = $value;
         }
 
-        $stmt = $this->conn->prepare((string) $query);
+        $placeholders = array_merge(
+            $placeholders,
+            $this->normalizeNamedWhereBindings($whereData, $placeholders)
+        );
 
-        if (!$stmt) {
-            $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
-
-        if (!$stmt->execute($placeholders)) {
-            $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
-
-        return (int) $stmt->rowCount(); // Return the number of affected rows
+        $stmt = $this->prepareAndExecute((string) $query, $placeholders);
+        return (int) $stmt->rowCount();
     }
 
     /**
      * Deletes records from the specified table using the Query class.
      * @param string $table The name of the table to delete from.
      * @param string $where The WHERE clause to specify which records to delete.
-     * @param array $data Optional data for the query.
+     * @param array $whereData Optional bindings for the WHERE clause.
+     *                         For named placeholders (e.g. `id = :id`), pass an associative array;
+     *                         keys are normalized to include a leading `:` if absent.
+     *                         For positional placeholders (e.g. `id = ?`), pass a list-style array.
      * @param string $orderBy Optional ORDER BY clause.
      * @param int $limit Optional limit for the deletion.
+     * @throws InvalidArgumentException if $whereData is not an array or contains invalid named keys.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
-    private function delete($table, $where, $data = [], $orderBy = "", $limit = 0)
+    private function delete($table, $where, $whereData = [], $orderBy = "", $limit = 0)
     {
         if (!$this->conn) {
             throw new RuntimeException('Database connection is not set.');
@@ -452,6 +473,10 @@ class Database
 
         if (empty($table) || empty($where)) {
             throw new InvalidArgumentException('Table and where clause are required.');
+        }
+
+        if (!is_array($whereData)) {
+            throw new InvalidArgumentException("\$whereData must be an array of bindings for the WHERE clause.");
         }
 
         $query = new Query([
@@ -462,25 +487,30 @@ class Database
             'limit' => $limit
         ]);
 
-        $stmt = $this->conn->prepare((string) $query);
-
-        if (!$stmt) {
-            $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
+        // Detect positional vs named bindings: any string key → named (normalize with ':'); all int keys → positional.
+        $hasStringKey = false;
+        foreach ($whereData as $k => $_val) {
+            if (!is_int($k)) {
+                $hasStringKey = true;
+                break;
+            }
         }
 
-        if (!$stmt->execute($data)) {
-            $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
+        if ($hasStringKey) {
+            $placeholders = $this->normalizeNamedWhereBindings($whereData);
+        } else {
+            // Integer-keyed array: normalize to a proper 0-indexed list for positional '?' bindings.
+            $placeholders = array_values($whereData);
         }
 
-        return (int) $stmt->rowCount(); // Return the number of affected rows
+        $stmt = $this->prepareAndExecute((string) $query, $placeholders);
+        return (int) $stmt->rowCount();
     }
 
     /**
      * Deletes all records from the specified table using the Query class.
      * @param string $table The name of the table to delete from.
-     * @param array $data Optional data for the query.
+     * @param array $data Optional parameters for the query.
      * @param string $orderBy Optional ORDER BY clause.
      * @param int $limit Optional limit for the deletion.
      * @throws RuntimeException if the connection is not set or the query execution fails.
@@ -503,19 +533,8 @@ class Database
             'limit' => $limit
         ]);
 
-        $stmt = $this->conn->prepare((string) $query);
-
-        if (!$stmt) {
-            $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
-
-        if (!$stmt->execute($data)) {
-            $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
-
-        return (int) $stmt->rowCount(); // Return the number of affected rows
+        $stmt = $this->prepareAndExecute((string) $query, $data);
+        return (int) $stmt->rowCount();
     }
 
     /**
@@ -545,19 +564,8 @@ class Database
             $query .= " WHERE {$where}";
         }
 
-        $stmt = $this->conn->prepare($query);
-
-        if (!$stmt) {
-            $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
-
-        if (!$stmt->execute($data)) {
-            $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
-
-        return (int) $stmt->fetchColumn(); // Return the count
+        $stmt = $this->prepareAndExecute($query, $data);
+        return (int) $stmt->fetchColumn();
     }
 
     /**
