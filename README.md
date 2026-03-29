@@ -136,7 +136,7 @@ VALUES (:name_0, :email_0), (:name_1, :email_1), (:name_2, :email_2)
 ```PHP
 $query = Query::update('users', ['name', 'email'])
     ->join('LEFT JOIN orders ON users.id = orders.user_id')
-    ->where('id = 1');
+    ->where('id = :id');
 ```
 
 **Array constructor (equivalent):**
@@ -145,7 +145,7 @@ $query = new Query([
     'method' => 'UPDATE',
     'table' => 'users',
     'fields' => ['name', 'email'],
-    'where' => 'id = 1',
+    'where' => 'id = :id',
     'joins' => ['LEFT JOIN orders ON users.id = orders.user_id']
 ]);
 ```
@@ -153,8 +153,9 @@ $query = new Query([
 The resulting query will be:
 ```SQL
 UPDATE users
+LEFT JOIN orders ON users.id = orders.user_id
 SET name = :name, email = :email
-LEFT JOIN orders ON users.id = orders.user_id WHERE id = 1
+WHERE id = :id
 ```
 
 ### Delete query

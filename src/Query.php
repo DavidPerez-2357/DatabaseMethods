@@ -44,9 +44,13 @@ class Query
      * first needed.
      *
      * @param array $queryData Configuration array (optional when using factory methods).
+     * @throws InvalidArgumentException if $queryData is not an array.
      */
     public function __construct($queryData = [])
     {
+        if (!is_array($queryData)) {
+            throw new InvalidArgumentException('Query constructor expects an array.');
+        }
         $this->data = $queryData;
         if (!empty($queryData)) {
             $this->query = $this->buildQuery();
@@ -218,11 +222,16 @@ class Query
     /**
      * Sets the column list.
      *
-     * @param array $fields Column names.
+     * @param array $fields Column names. For INSERT and UPDATE queries, must be non-empty
+     *                      (an empty array will cause an exception when the query is built).
      * @return $this
+     * @throws InvalidArgumentException if $fields is not an array.
      */
     public function fields($fields)
     {
+        if (!is_array($fields)) {
+            throw new InvalidArgumentException('Query::fields() expects an array of column names.');
+        }
         $this->data['fields'] = $fields;
         $this->query = null;
         return $this;
@@ -260,14 +269,28 @@ class Query
     }
 
     /**
-     * Replaces all JOIN clauses with the given array.
+     * Replaces all JOIN clauses with the given value.
      *
-     * @param array $joins Array of JOIN expressions.
+     * Accepts an array of JOIN expressions, a single JOIN string (normalized to a one-element array),
+     * or null (clears all joins). Any other type throws an InvalidArgumentException.
+     *
+     * @param array|string|null $joins Array of JOIN expressions, a single JOIN string, or null.
      * @return $this
+     * @throws InvalidArgumentException if $joins is not an array, string, or null.
      */
     public function joins($joins)
     {
-        $this->data['joins'] = $joins;
+        if ($joins === null) {
+            $this->data['joins'] = [];
+        } elseif (is_string($joins)) {
+            $this->data['joins'] = [$joins];
+        } elseif (is_array($joins)) {
+            $this->data['joins'] = $joins;
+        } else {
+            throw new InvalidArgumentException(
+                'joins() expects an array of JOIN expressions, a JOIN string, or null.'
+            );
+        }
         $this->query = null;
         return $this;
     }
