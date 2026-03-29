@@ -33,12 +33,12 @@ class Database
             'selectone' => 'selectOne',
             'deleteall' => 'deleteAll',
         ];
-        if (!in_array(strtolower($method), $allowedMethods, true)) {
+        $lower = strtolower($method);
+        if (!in_array($lower, $allowedMethods, true)) {
             throw new BadMethodCallException("Method '{$method}' does not exist in " . get_class($this) . ".");
         }
 
         // Normalize to canonical camelCase method name
-        $lower = strtolower($method);
         $canonical = isset($canonicalNames[$lower]) ? $canonicalNames[$lower] : $lower;
 
         // Replace keywords in every array argument before dispatching
