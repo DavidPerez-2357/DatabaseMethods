@@ -102,18 +102,33 @@ class Query
     /**
      * Creates a SELECT Query for the given fields.
      *
-     * @param array $fields Column list (defaults to ['*'] when omitted).
+     * @param array|string $fields Column list (defaults to ['*'] when omitted).
+     *                             A string is normalized to a single-element array.
      * @return static
+     * @throws InvalidArgumentException If $fields is not an array, string, or empty.
      * @example
      * ```php
      * $query = Query::select(['id', 'name'])->from('users')->where('active = 1');
+     * $query = Query::select('id')->from('users');
      * ```
      */
     public static function select($fields = [])
     {
         $instance = new static();
         $instance->data['method'] = 'SELECT';
-        $instance->data['fields'] = empty($fields) ? ['*'] : $fields;
+
+        if (empty($fields)) {
+            $instance->data['fields'] = ['*'];
+        } elseif (is_string($fields)) {
+            $instance->data['fields'] = [$fields];
+        } elseif (is_array($fields)) {
+            $instance->data['fields'] = $fields;
+        } else {
+            throw new InvalidArgumentException(
+                'Query::select() expects $fields to be an array, string, or empty.'
+            );
+        }
+
         return $instance;
     }
 
@@ -124,9 +139,11 @@ class Query
      * The `fields` must be provided (either here or via `->fields()`) before the
      * query string is generated.
      *
-     * @param string $table  Target table name.
-     * @param array  $fields Columns to insert (optional; can be set later with ->fields()).
+     * @param string       $table  Target table name.
+     * @param array|string $fields Columns to insert (optional; can be set later with ->fields()).
+     *                             A string is normalized to a single-element array.
      * @return static
+     * @throws InvalidArgumentException If $fields is not an array or string.
      * @example
      * ```php
      * $query = Query::insert('users', ['name', 'email'])->valuesCount(3);
@@ -140,7 +157,15 @@ class Query
         $instance->data['method'] = 'INSERT';
         $instance->data['table'] = $table;
         if (!empty($fields)) {
-            $instance->data['fields'] = $fields;
+            if (is_string($fields)) {
+                $instance->data['fields'] = [$fields];
+            } elseif (is_array($fields)) {
+                $instance->data['fields'] = $fields;
+            } else {
+                throw new InvalidArgumentException(
+                    'Query::insert() expects $fields to be an array or string.'
+                );
+            }
         }
         return $instance;
     }
@@ -152,9 +177,11 @@ class Query
      * The `fields` must be provided (either here or via `->fields()`) before the
      * query string is generated.
      *
-     * @param string $table  Target table name.
-     * @param array  $fields Columns to update (optional; can be set later with ->fields()).
+     * @param string       $table  Target table name.
+     * @param array|string $fields Columns to update (optional; can be set later with ->fields()).
+     *                             A string is normalized to a single-element array.
      * @return static
+     * @throws InvalidArgumentException If $fields is not an array or string.
      * @example
      * ```php
      * $query = Query::update('users', ['name', 'email'])->where('id = :id');
@@ -168,7 +195,15 @@ class Query
         $instance->data['method'] = 'UPDATE';
         $instance->data['table'] = $table;
         if (!empty($fields)) {
-            $instance->data['fields'] = $fields;
+            if (is_string($fields)) {
+                $instance->data['fields'] = [$fields];
+            } elseif (is_array($fields)) {
+                $instance->data['fields'] = $fields;
+            } else {
+                throw new InvalidArgumentException(
+                    'Query::update() expects $fields to be an array or string.'
+                );
+            }
         }
         return $instance;
     }
@@ -338,12 +373,18 @@ class Query
     /**
      * Sets the LIMIT clause.
      *
-     * @param int $limit Maximum number of rows.
+     * @param int $limit Maximum number of rows (must be a non-negative integer).
      * @return $this
+     * @throws InvalidArgumentException If $limit is not a non-negative integer value.
      */
     public function limit($limit)
     {
-        $this->data['limit'] = $limit;
+        if (filter_var($limit, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) === false) {
+            throw new InvalidArgumentException(
+                'limit() expects a non-negative integer.'
+            );
+        }
+        $this->data['limit'] = (int) $limit;
         $this->query = null;
         return $this;
     }
@@ -351,12 +392,18 @@ class Query
     /**
      * Sets the OFFSET clause (SELECT only).
      *
-     * @param int $offset Number of rows to skip.
+     * @param int $offset Number of rows to skip (must be a non-negative integer).
      * @return $this
+     * @throws InvalidArgumentException If $offset is not a non-negative integer value.
      */
     public function offset($offset)
     {
-        $this->data['offset'] = $offset;
+        if (filter_var($offset, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) === false) {
+            throw new InvalidArgumentException(
+                'offset() expects a non-negative integer.'
+            );
+        }
+        $this->data['offset'] = (int) $offset;
         $this->query = null;
         return $this;
     }
@@ -365,12 +412,18 @@ class Query
      * Sets how many rows the INSERT query should prepare placeholders for.
      * Defaults to 1 when not called.
      *
-     * @param int $count Number of rows to insert.
+     * @param int $count Number of rows to insert (must be a positive integer).
      * @return $this
+     * @throws InvalidArgumentException If $count is not a positive integer value.
      */
     public function valuesCount($count)
     {
-        $this->data['values_to_insert'] = $count;
+        if (filter_var($count, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
+            throw new InvalidArgumentException(
+                'valuesCount() expects a positive integer (>= 1).'
+            );
+        }
+        $this->data['values_to_insert'] = (int) $count;
         $this->query = null;
         return $this;
     }
