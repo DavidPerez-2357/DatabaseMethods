@@ -593,9 +593,15 @@ class Database
             $result = $callback($this);
             $this->conn->commit();
             return $result;
-        } catch (Exception $e) {
-            $this->conn->rollBack();
-            throw new RuntimeException("Transaction failed: " . $e->getMessage());
+        } catch (Throwable $e) {
+            try {
+                if ($this->conn->inTransaction()) {
+                    $this->conn->rollBack();
+                }
+            } catch (Throwable $rollbackEx) {
+                // Ignore rollback errors to preserve the original exception
+            }
+            throw new RuntimeException("Transaction failed: " . $e->getMessage(), 0, $e);
         }
     }
 
