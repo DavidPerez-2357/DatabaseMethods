@@ -521,13 +521,15 @@ class Query
         }
 
         // Limit
-        if (isset($this->data['limit'])) {
-            $sql .= " LIMIT {$this->data['limit']}";
+        $limit = filter_var(isset($this->data['limit']) ? $this->data['limit'] : null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+        if ($limit !== false) {
+            $sql .= " LIMIT " . $limit;
         }
 
         // Offset
-        if (isset($this->data['offset'])) {
-            $sql .= " OFFSET {$this->data['offset']}";
+        $offset = filter_var(isset($this->data['offset']) ? $this->data['offset'] : null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+        if ($offset !== false) {
+            $sql .= " OFFSET " . $offset;
         }
 
         return $sql;
@@ -717,8 +719,9 @@ class Query
             $sql .= " ORDER BY {$orderBy}";
         }
 
-        if (isset($this->data["limit"])) {
-            $sql .= " LIMIT {$this->data['limit']}";
+        $limit = filter_var(isset($this->data['limit']) ? $this->data['limit'] : null, FILTER_VALIDATE_INT);
+        if ($limit !== false && $limit > 0) {
+            $sql .= " LIMIT " . $limit;
         }
 
         return $sql;
