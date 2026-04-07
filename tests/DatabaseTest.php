@@ -754,4 +754,17 @@ class DatabaseTest
             $this->db->executePlainQuery($this->getNullableDropTableSql());
         }
     }
+
+    public function testMixedPositionalAndNamedParamsThrows()
+    {
+        $caughtException = false;
+        try {
+            // A params array with both integer (positional) and string (named) keys
+            // must be rejected before any PDO calls are made.
+            $this->db->executePlainQuery('SELECT 1', [0 => 'val', 'name' => 'Alice']);
+        } catch (InvalidArgumentException $e) {
+            $caughtException = true;
+        }
+        assert_true($caughtException, 'Mixed positional and named params must throw InvalidArgumentException.');
+    }
 }

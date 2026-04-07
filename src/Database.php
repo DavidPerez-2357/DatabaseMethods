@@ -359,12 +359,20 @@ class Database
         // or non-zero-based numeric keys.
         // For named placeholders, normalize the key so that both ':name' and 'name'
         // forms work across all PDO drivers (add ':' prefix when missing).
+        // Mixed positional and named keys are rejected to avoid silently mis-binding
+        // parameters.
         $hasPositionalParams = false;
+        $hasNamedParams      = false;
         foreach (array_keys($params) as $key) {
             if (is_int($key)) {
                 $hasPositionalParams = true;
-                break;
+            } else {
+                $hasNamedParams = true;
             }
+        }
+
+        if ($hasPositionalParams && $hasNamedParams) {
+            throw new InvalidArgumentException('Mixed positional and named parameters are not supported.');
         }
 
         if ($hasPositionalParams) {
