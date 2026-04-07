@@ -535,15 +535,15 @@ class QueryTests
 
     public function testJoinNormalizesNonArrayExistingJoins()
     {
-        // Simulate array-constructor path where 'joins' is stored as a plain
+        // Simulate the array-constructor path where 'joins' is stored as a plain
         // string and then join() is called — join() must normalize it first.
-        $q = Query::select(['*'])
-            ->from('users')
-            ->joins('LEFT JOIN orders ON users.id = orders.user_id')
-            // Replace internal joins array with a raw string via joins() helper,
-            // then call join() again to trigger the normalization branch.
-            ->joins('LEFT JOIN orders ON users.id = orders.user_id')
-            ->join('INNER JOIN roles ON users.role_id = roles.id');
+        $q = new Query([
+            'type' => 'select',
+            'fields' => ['*'],
+            'from' => 'users',
+            'joins' => 'LEFT JOIN orders ON users.id = orders.user_id',
+        ]);
+        $q->join('INNER JOIN roles ON users.role_id = roles.id');
         $sql = $q->getQuery();
         assert_contains('LEFT JOIN orders', $sql);
         assert_contains('INNER JOIN roles', $sql);
