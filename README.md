@@ -349,12 +349,9 @@ The `select` and `selectOne` methods allow you to retrieve records from the data
 
 **Example using `select`:**
 ```php
-$query = new Query([
-    'method' => 'SELECT',
-    'fields' => ['id', 'name'],
-    'table' => 'users',
-    'where' => 'id = :userId'
-]);
+$query = Query::select(['id', 'name'])
+    ->from('users')
+    ->where('id = :userId');
 
 try {
     $result = $database->select($query, ["userId" => 2]);
@@ -366,12 +363,9 @@ try {
 
 **Example using `selectOne`:**
 ```php
-$query = new Query([
-    'method' => 'SELECT',
-    'fields' => ['id', 'name'],
-    'table' => 'users',
-    'where' => 'id = :userId'
-]);
+$query = Query::select(['id', 'name'])
+    ->from('users')
+    ->where('id = :userId');
 
 try {
     $result = $database->selectOne($query, ["userId" => 2]);
