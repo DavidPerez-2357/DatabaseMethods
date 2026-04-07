@@ -54,7 +54,7 @@ Both styles produce identical SQL and can be used interchangeably. You can cast 
 
 | Chainable setter | Applies to | Description |
 |---|---|---|
-| `->from($table)` / `->table($table)` | SELECT | Set the target table (primary use; also works as a setter on any query type) |
+| `->from($table)` / `->table($table)` | All | Set the target table (primary use; also works as a setter on any query type) |
 | `->fields($fields)` | SELECT, INSERT, UPDATE | Set the column list |
 | `->where($expr)` | SELECT, UPDATE, DELETE | Set the WHERE clause |
 | `->join($join)` | SELECT, UPDATE | Append one JOIN clause |
