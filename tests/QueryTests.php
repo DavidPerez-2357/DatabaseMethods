@@ -46,7 +46,12 @@ class QueryTests
             }
             return false;
         });
-        $result = call_user_func($fn);
+        try {
+            $result = call_user_func($fn);
+        } catch (Exception $e) {
+            restore_error_handler();
+            throw $e;
+        }
         restore_error_handler();
         return ['result' => $result, 'warnings' => $warnings];
     }
