@@ -251,7 +251,7 @@ $sqlite_object = new Sqlite(["DB" => "/path/to/database.sqlite"]);
 > [!NOTE]
 > The `Sqlite` driver only uses the `DB` key (the path to the `.sqlite` file). The `serverName`, `username`, `password`, and `codification` keys are not required and will be ignored if present.
 >
-> The `Sql` (SQL Server) driver requires `serverName`, `username`, and `DB` — it throws an `InvalidArgumentException` if any of these are missing.
+> The `Sql` (SQL Server) driver requires `serverName`, `username`, and `DB` — it throws an `InvalidArgumentException` if any of these are missing. `password` is optional and defaults to `""`.
 
 ---
 
@@ -501,7 +501,7 @@ To delete all records from a table (optionally with `$orderBy` and `$limit`), us
 **Signature:** `deleteAll($table, $data = [], $orderBy = "", $limit = 0)`
 
 > [!NOTE]
-> The `$data` parameter is an optional bindings array that is rarely needed for `deleteAll` (which has no WHERE clause). Pass `$orderBy` and `$limit` as the 3rd and 4th arguments when needed.
+> The `$data` parameter is a bindings array that is passed directly to PDO. Since `deleteAll` builds a DELETE with no WHERE clause, it has no bound parameters and `$data` should always be left as `[]`. Pass `$orderBy` and `$limit` as the 3rd and 4th arguments when needed.
 
 ```php
 try {
