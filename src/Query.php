@@ -136,7 +136,8 @@ class Query
             }
             $instance->data['fields'] = [$fields];
         } elseif (is_array($fields)) {
-            $instance->data['fields'] = $fields;
+            // Delegate to fields() so per-element validation runs consistently.
+            $instance->fields($fields);
         } else {
             throw new InvalidArgumentException(
                 'Query::select() expects $fields to be an array, string, or empty.'
@@ -563,15 +564,15 @@ class Query
         $limit = $this->getValidatedLimit();
         if ($limit > 0) {
             $sql .= " LIMIT " . $limit;
+        }
 
-            $offset = filter_var(
-                isset($this->data['offset']) ? $this->data['offset'] : null,
-                FILTER_VALIDATE_INT,
-                array('options' => array('min_range' => 0))
-            );
-            if ($offset !== false) {
-                $sql .= " OFFSET " . $offset;
-            }
+        $offset = filter_var(
+            isset($this->data['offset']) ? $this->data['offset'] : null,
+            FILTER_VALIDATE_INT,
+            array('options' => array('min_range' => 0))
+        );
+        if ($offset !== false) {
+            $sql .= " OFFSET " . $offset;
         }
 
         return $sql;
@@ -601,10 +602,11 @@ class Query
             throw new InvalidArgumentException("Number of values to insert must be at least 1.");
         }
 
-        // Validate all column names once up-front. After validation, each $col only
-        // contains [a-zA-Z_][a-zA-Z0-9_]*, so ":{$col}_{$i}" is a safe PDO placeholder.
+        // Validate all column names once up-front. Field names must be plain
+        // (unqualified) identifiers because they are also used as PDO named-placeholder
+        // tokens like ":{$col}_{$i}". Dots are not valid in PDO placeholder names.
         foreach ($fields as $col) {
-            self::validateIdentifier($col, 'INSERT field');
+            self::validateUnqualifiedIdentifier($col, 'INSERT field');
         }
 
         $placeholders = array();
@@ -641,9 +643,9 @@ class Query
 
         $setClauses = array();
         foreach ($fields as $col) {
-            // validateIdentifier() guarantees $col is [a-zA-Z_][a-zA-Z0-9_]* so
-            // the resulting PDO placeholder ":{$col}" contains only safe chars.
-            self::validateIdentifier($col, 'UPDATE field');
+            // Field names must be plain (unqualified) identifiers because the PDO
+            // placeholder is built as ":{$col}" — a dot in the name would make it invalid.
+            self::validateUnqualifiedIdentifier($col, 'UPDATE field');
             $setClauses[] = "{$col} = :{$col}";
         }
 
@@ -863,6 +865,27 @@ class Query
             throw new InvalidArgumentException(
                 "Invalid {$context}: only alphanumeric characters and underscores are allowed"
                 . " (optionally schema-qualified, e.g. 'schema.table')."
+            );
+        }
+    }
+
+    /**
+     * Validates that a value is a plain (unqualified) SQL identifier with no dots.
+     *
+     * Use this instead of validateIdentifier() for INSERT/UPDATE column names, because
+     * those names are also embedded in PDO named-placeholder tokens (e.g. `:col_0`).
+     * PDO does not accept dots in placeholder names, so `schema.column` must be rejected.
+     *
+     * @param string $name    The identifier to validate.
+     * @param string $context Human-readable name used in exception messages (e.g. 'INSERT field').
+     * @throws InvalidArgumentException if $name is not a plain SQL identifier.
+     */
+    private static function validateUnqualifiedIdentifier($name, $context)
+    {
+        if (!is_string($name) || !preg_match('/^' . self::IDENTIFIER . '$/', $name)) {
+            throw new InvalidArgumentException(
+                "Invalid {$context}: only alphanumeric characters and underscores are allowed"
+                . " (unqualified column name, e.g. 'email' or 'created_at')."
             );
         }
     }

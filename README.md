@@ -187,6 +187,27 @@ LIMIT 10
 
 > **Security note:** The `where` value is embedded as a raw SQL fragment, so always use named placeholders (e.g. `id = :id`) and pass the actual values via the binding array when executing the query through the `Database` class. The `order_by` / `orderBy()` value is validated against a strict pattern that allows only identifiers made of letters, digits, and underscores (optionally qualified with dots), separated by commas and arbitrary whitespace, with optional `ASC`/`DESC` keywords — any other characters will throw an `InvalidArgumentException`.
 
+### Identifier validation rules
+
+Some inputs are validated strictly and will throw `InvalidArgumentException` for values that would previously have been passed through unchecked.
+
+**Table names** (`->from()`, `->table()`, `Query::delete($table)`, etc.):
+- Must be a plain identifier: letters, digits, and underscores, starting with a letter or underscore (e.g. `users`, `order_items`).
+- Optionally schema-qualified with a single dot: `schema.table` (e.g. `myschema.orders`).
+- Must **not** include quoting, whitespace, aliases, or arbitrary SQL fragments (e.g. `` `users` ``, `"users"`, `users u`, `users AS u` are all rejected).
+
+**INSERT / UPDATE column names** (`->fields()`, `Query::insert($table, $fields)`, etc.):
+- Must be plain, **unqualified** identifiers (no dots) — e.g. `email`, `created_at`.
+- Qualified names like `users.email` are **rejected** because the column name is also used to construct a PDO named-placeholder token (e.g. `:email_0`), and PDO does not allow dots in placeholder names.
+
+**GROUP BY / ORDER BY**:
+- Must be one or more plain identifiers (optionally table-qualified), separated by commas.
+- `ORDER BY` additionally allows optional `ASC` / `DESC` per column.
+- Raw SQL expressions, function calls, or subqueries are not accepted.
+
+**WHERE, HAVING, JOIN** (raw SQL fragments):
+- These are passed through as-is. Always use PDO named placeholders (e.g. `age > :min_age`) for any user-supplied values, and bind them through `Database`.
+
 # Database class
 The Database class provides a comprehensive set of methods for performing essential database operations such as select, insert, update, and delete. It also includes advanced features like transaction management, record counting, and inserting many records, making it easier to handle both simple and complex database tasks efficiently.
 
