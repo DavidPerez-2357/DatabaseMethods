@@ -165,15 +165,7 @@ class Query
         $instance->data['method'] = 'INSERT';
         $instance->data['table'] = $table;
         if (!empty($fields)) {
-            if (is_string($fields)) {
-                $instance->data['fields'] = [$fields];
-            } elseif (is_array($fields)) {
-                $instance->data['fields'] = $fields;
-            } else {
-                throw new InvalidArgumentException(
-                    'Query::insert() expects $fields to be an array or string.'
-                );
-            }
+            $instance->data['fields'] = self::normalizeOptionalFields($fields, 'Query::insert()');
         }
         return $instance;
     }
@@ -203,15 +195,7 @@ class Query
         $instance->data['method'] = 'UPDATE';
         $instance->data['table'] = $table;
         if (!empty($fields)) {
-            if (is_string($fields)) {
-                $instance->data['fields'] = [$fields];
-            } elseif (is_array($fields)) {
-                $instance->data['fields'] = $fields;
-            } else {
-                throw new InvalidArgumentException(
-                    'Query::update() expects $fields to be an array or string.'
-                );
-            }
+            $instance->data['fields'] = self::normalizeOptionalFields($fields, 'Query::update()');
         }
         return $instance;
     }
@@ -284,17 +268,19 @@ class Query
             throw new InvalidArgumentException('Query::fields() expects an array of column names or a string column name.');
         }
 
+        // Validate every element before applying any default.
+        foreach ($fields as $field) {
+            if (!is_string($field) || trim($field) === '') {
+                throw new InvalidArgumentException('Query::fields() expects every element to be a non-empty string column name.');
+            }
+        }
+
+        // Empty array on SELECT defaults to 'SELECT *'.
         if (empty($fields)
             && isset($this->data['method'])
             && strtoupper($this->data['method']) === 'SELECT'
         ) {
             $fields = ['*'];
-        } else {
-            foreach ($fields as $field) {
-                if (!is_string($field) || trim($field) === '') {
-                    throw new InvalidArgumentException('Query::fields() expects every element to be a non-empty string column name.');
-                }
-            }
         }
 
         $this->data['fields'] = $fields;
@@ -524,57 +510,42 @@ class Query
      */
     public function buildSelectQuery()
     {
-        if (!isset($this->data['method']) || strtoupper($this->data['method']) !== 'SELECT') {
-            throw new InvalidArgumentException("Only SELECT queries are supported.");
-        }
+        $this->assertMethod('SELECT');
+        $table = $this->requireTable();
 
         $fields = isset($this->data['fields']) ? implode(", ", $this->data['fields']) : "*";
-        if (!isset($this->data['table'])) {
-            throw new InvalidArgumentException("Table is required.");
-        }
-        $table = $this->data['table'];
-
         $sql = "SELECT {$fields} FROM {$table}";
 
-        // Joins
-        if (!empty($this->data['joins'])) {
-            $joins = is_array($this->data['joins']) ? $this->data['joins'] : [$this->data['joins']];
-            foreach ($joins as $join) {
-                $sql .= " {$join}";
-            }
-        }
+        $this->appendJoinsToSql($sql);
 
-        // Where
         if (!empty($this->data['where'])) {
             $sql .= " WHERE {$this->data['where']}";
         }
 
-        // Group by
         if (!empty($this->data['group_by'])) {
             $sql .= " GROUP BY {$this->data['group_by']}";
         }
 
-        // Having
         if (!empty($this->data['having'])) {
             $sql .= " HAVING {$this->data['having']}";
         }
 
-        // Order by
         if (!empty($this->data['order_by'])) {
-            $orderBy = self::validateOrderBy($this->data['order_by']);
-            $sql .= " ORDER BY {$orderBy}";
+            $sql .= " ORDER BY " . self::validateOrderBy($this->data['order_by']);
         }
 
-        // Limit
-        $limit = filter_var(isset($this->data['limit']) ? $this->data['limit'] : null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
-        if ($limit !== false && $limit > 0) {
+        $limit = $this->getValidatedLimit();
+        if ($limit > 0) {
             $sql .= " LIMIT " . $limit;
-        }
 
-        // Offset
-        $offset = filter_var(isset($this->data['offset']) ? $this->data['offset'] : null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
-        if ($offset !== false && $limit !== false && $limit > 0) {
-            $sql .= " OFFSET " . $offset;
+            $offset = filter_var(
+                isset($this->data['offset']) ? $this->data['offset'] : null,
+                FILTER_VALIDATE_INT,
+                array('options' => array('min_range' => 0))
+            );
+            if ($offset !== false) {
+                $sql .= " OFFSET " . $offset;
+            }
         }
 
         return $sql;
@@ -595,47 +566,25 @@ class Query
      * */
     public function buildPDOInsertQuery()
     {
-        if (!isset($this->data['method']) || strtoupper($this->data['method']) !== 'INSERT') {
-            throw new InvalidArgumentException("Only INSERT method is supported.");
-        }
-
-        if (!isset($this->data['table'])) {
-            throw new InvalidArgumentException("Table is required.");
-        }
-        $table = $this->data['table'];
-
-        if (!isset($this->data['fields'])) {
-            throw new InvalidArgumentException("Fields are required.");
-        }
-        $fields = $this->data['fields'];
+        $this->assertMethod('INSERT');
+        $table = $this->requireTable();
+        $fields = $this->requireFields();
 
         $values = isset($this->data['values_to_insert']) ? (int) $this->data['values_to_insert'] : 1;
-
-        if (!is_array($fields) || empty($fields)) {
-            throw new InvalidArgumentException("Fields must be a non-empty array.");
-        }
-
         if ($values < 1) {
             throw new InvalidArgumentException("Number of values to insert must be at least 1.");
         }
 
-        // Prepare placeholders for the query
-        $placeholders = [];
+        $placeholders = array();
         for ($i = 0; $i < $values; $i++) {
-            $rowPlaceholders = [];
+            $rowPlaceholders = array();
             foreach ($fields as $col) {
-                $paramKey = ":{$col}_{$i}";
-                $rowPlaceholders[] = $paramKey;
+                $rowPlaceholders[] = ":{$col}_{$i}";
             }
             $placeholders[] = '(' . implode(', ', $rowPlaceholders) . ')';
         }
 
-        $placeholders = implode(', ', $placeholders);
-        $fieldsList = implode(', ', $fields);
-
-        $sql = "INSERT INTO {$table} ({$fieldsList}) VALUES {$placeholders}";
-
-        return $sql;
+        return "INSERT INTO {$table} (" . implode(', ', $fields) . ") VALUES " . implode(', ', $placeholders);
     }
 
     /**
@@ -654,44 +603,19 @@ class Query
      * */
     public function buildPDOUpdateQuery()
     {
-        if (!isset($this->data['method']) || strtoupper($this->data['method']) !== 'UPDATE') {
-            throw new InvalidArgumentException("Only UPDATE method is supported.");
-        }
+        $this->assertMethod('UPDATE');
+        $table = $this->requireTable();
+        $fields = $this->requireFields();
 
-        if (!isset($this->data['table'])) {
-            throw new InvalidArgumentException("Table is required.");
-        }
-        $table = $this->data['table'];
-
-        if (!isset($this->data['fields'])) {
-            throw new InvalidArgumentException("Fields are required.");
-        }
-        $fields = $this->data['fields'];
-
-        if (!is_array($fields) || empty($fields)) {
-            throw new InvalidArgumentException("Fields must be a non-empty array.");
-        }
-
-        // Prepare SET clause
-        $setClauses = [];
+        $setClauses = array();
         foreach ($fields as $col) {
-            $paramKey = ":{$col}";
-            $setClauses[] = "{$col} = {$paramKey}";
+            $setClauses[] = "{$col} = :{$col}";
         }
-        $setClause = implode(', ', $setClauses);
 
         $sql = "UPDATE {$table}";
+        $this->appendJoinsToSql($sql);
+        $sql .= " SET " . implode(', ', $setClauses);
 
-        if (!empty($this->data['joins'])) {
-            $joins = is_array($this->data['joins']) ? $this->data['joins'] : [$this->data['joins']];
-            foreach ($joins as $join) {
-                $sql .= " {$join}";
-            }
-        }
-
-        $sql .= " SET {$setClause}";
-
-        // Prepare WHERE clause
         if (!empty($this->data['where'])) {
             $sql .= " WHERE {$this->data['where']}";
         }
@@ -744,32 +668,113 @@ class Query
      * */
     public function buildDeleteQuery()
     {
-        if (!isset($this->data['method']) || strtoupper($this->data['method']) !== 'DELETE') {
-            throw new InvalidArgumentException("Only DELETE method is supported.");
-        }
-
-        if (!isset($this->data['table'])) {
-            throw new InvalidArgumentException("Table is required.");
-        }
-        $table = $this->data['table'];
+        $this->assertMethod('DELETE');
+        $table = $this->requireTable();
 
         $sql = "DELETE FROM {$table}";
 
-        // Where
         if (!empty($this->data['where'])) {
             $sql .= " WHERE {$this->data['where']}";
         }
 
-        if (!empty($this->data["order_by"])) {
-            $orderBy = self::validateOrderBy($this->data['order_by']);
-            $sql .= " ORDER BY {$orderBy}";
+        if (!empty($this->data['order_by'])) {
+            $sql .= " ORDER BY " . self::validateOrderBy($this->data['order_by']);
         }
 
-        $limit = filter_var(isset($this->data['limit']) ? $this->data['limit'] : null, FILTER_VALIDATE_INT);
-        if ($limit !== false && $limit > 0) {
+        $limit = $this->getValidatedLimit();
+        if ($limit > 0) {
             $sql .= " LIMIT " . $limit;
         }
 
         return $sql;
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Asserts that $this->data['method'] matches the expected value.
+     * @param string $expected Expected method name (e.g. 'SELECT').
+     * @throws InvalidArgumentException
+     */
+    private function assertMethod($expected)
+    {
+        if (!isset($this->data['method']) || strtoupper($this->data['method']) !== $expected) {
+            throw new InvalidArgumentException("Only {$expected} method is supported.");
+        }
+    }
+
+    /**
+     * Returns the table name from data, throwing if it is missing.
+     * @throws InvalidArgumentException
+     * @return string
+     */
+    private function requireTable()
+    {
+        if (!isset($this->data['table'])) {
+            throw new InvalidArgumentException("Table is required.");
+        }
+        return $this->data['table'];
+    }
+
+    /**
+     * Returns the fields array from data, throwing if it is missing or empty.
+     * @throws InvalidArgumentException
+     * @return array
+     */
+    private function requireFields()
+    {
+        if (!isset($this->data['fields']) || !is_array($this->data['fields']) || empty($this->data['fields'])) {
+            throw new InvalidArgumentException("Fields must be a non-empty array.");
+        }
+        return $this->data['fields'];
+    }
+
+    /**
+     * Appends any stored JOIN clauses to the SQL string.
+     * Handles both array and legacy string values in $data['joins'].
+     * @param string &$sql SQL string to append to.
+     */
+    private function appendJoinsToSql(&$sql)
+    {
+        if (empty($this->data['joins'])) {
+            return;
+        }
+        $joins = is_array($this->data['joins']) ? $this->data['joins'] : array($this->data['joins']);
+        foreach ($joins as $join) {
+            $sql .= " {$join}";
+        }
+    }
+
+    /**
+     * Validates and returns the stored LIMIT value.
+     * Returns 0 when no valid positive limit is set (meaning "no LIMIT clause").
+     * @return int
+     */
+    private function getValidatedLimit()
+    {
+        $raw = isset($this->data['limit']) ? $this->data['limit'] : null;
+        $limit = filter_var($raw, FILTER_VALIDATE_INT, array('options' => array('min_range' => 0)));
+        return ($limit !== false && $limit > 0) ? (int) $limit : 0;
+    }
+
+    /**
+     * Normalizes the optional $fields argument accepted by insert() and update().
+     * A string is wrapped in an array; an array is used as-is; anything else throws.
+     * @param mixed  $fields  The value to normalize.
+     * @param string $context Method name used in exception messages (e.g. 'Query::insert()').
+     * @throws InvalidArgumentException
+     * @return array
+     */
+    private static function normalizeOptionalFields($fields, $context)
+    {
+        if (is_string($fields)) {
+            return array($fields);
+        }
+        if (is_array($fields)) {
+            return $fields;
+        }
+        throw new InvalidArgumentException("{$context} expects \$fields to be an array or string.");
     }
 }
