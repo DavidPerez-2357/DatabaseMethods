@@ -185,6 +185,7 @@ class DatabaseTest
                         DB_TEST_USER,
                         DB_TEST_PASS
                     );
+                    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
                     $conn->exec('DROP DATABASE IF EXISTS ' . DB_TEST_NAME);
                 } catch (Exception $e) {
                     // Best-effort.
