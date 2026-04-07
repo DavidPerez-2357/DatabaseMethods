@@ -148,7 +148,7 @@ $lastId = $database->insert('users', [
 Update records. Returns the number of affected rows.
 
 > [!CAUTION]
-> Keys in `$whereData` must not overlap with column names in `$data`. Positional placeholders (`?`) are not supported in `$where` — use named placeholders (e.g. `id = :id`).
+> Keys in `$whereData` must not overlap with column names in `$data`. Positional placeholders (`?`) are not supported in `$where` - use named placeholders (e.g. `id = :id`).
 
 ```php
 $affected = $database->update('users',

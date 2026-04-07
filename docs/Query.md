@@ -2,8 +2,8 @@
 
 The `Query` class builds SQL query strings from PHP. It supports two equivalent styles:
 
-- **Fluent API** — static factory methods with chainable setters; IDE-friendly and readable.
-- **Array constructor** — the original API, fully supported and interchangeable with the fluent API.
+- **Fluent API** - static factory methods with chainable setters; IDE-friendly and readable.
+- **Array constructor** - the original API, fully supported and interchangeable with the fluent API.
 
 Both styles produce identical SQL. Cast a `Query` object to string with `echo` / concatenation, or call `getQuery()` explicitly.
 
@@ -165,7 +165,7 @@ LIMIT 10
 ```
 
 > [!WARNING]
-> The `where` value is embedded as a raw SQL fragment. Always use PDO placeholders (`id = :id` or `id = ?`) and bind values through `Database`. **Never interpolate user-controlled values directly into WHERE, HAVING, or JOIN strings** — that creates an SQL injection vulnerability.
+> The `where` value is embedded as a raw SQL fragment. Always use PDO placeholders (`id = :id` or `id = ?`) and bind values through `Database`. **Never interpolate user-controlled values directly into WHERE, HAVING, or JOIN strings** - that creates an SQL injection vulnerability.
 
 &emsp;
 
@@ -185,4 +185,4 @@ LIMIT 10
 - `ORDER BY` additionally allows `ASC` / `DESC` per column.
 - Function calls, expressions, or subqueries are not accepted.
 
-**WHERE, HAVING, JOIN** — passed through as raw SQL fragments. Use PDO placeholders for any user-supplied values.
+**WHERE, HAVING, JOIN** - passed through as raw SQL fragments. Use PDO placeholders for any user-supplied values.
