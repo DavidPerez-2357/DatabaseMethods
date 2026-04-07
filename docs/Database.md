@@ -2,7 +2,7 @@
 
 The `Database` class provides a PDO-based interface for selecting, inserting, updating, deleting, counting, and running transactions. Driver subclasses (`Mysql`, `Postgres`, `Sql`, `Sqlite`) extend it and handle the connection details.
 
----
+&emsp;
 
 ## Creating a connection
 
@@ -36,7 +36,7 @@ $sqlite   = new Sqlite(['DB' => '/path/to/database.sqlite']);
 >
 > `Sql` (SQL Server) requires `serverName`, `username`, and `DB`; `password` defaults to `""`.
 
----
+&emsp;
 
 ## JSON encode
 
@@ -49,7 +49,7 @@ $mysql->setJsonEncode(false);  // disable (default)
 
 Affects `select`, `selectOne`, and `plainSelect`.
 
----
+&emsp;
 
 ## Special keywords
 
@@ -83,7 +83,7 @@ $database->update('users',
 );
 ```
 
----
+&emsp;
 
 ## Methods
 
