@@ -399,7 +399,11 @@ class DatabaseTest
     public function testUpdateModifiesRecord()
     {
         $this->resetTable();
-        $id = $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+        // Derive the id via SELECT to avoid relying on lastInsertId() (unreliable on PostgreSQL).
+        $rows = $this->db->plainSelect('SELECT id FROM ' . self::TABLE . ' WHERE email = :email', ['email' => 'alice@example.com']);
+        $id   = (int)$rows[0]['id'];
+
         $this->db->update(self::TABLE, ['name' => 'Alicia'], 'id = :row_id', ['row_id' => $id]);
 
         $query = Query::select()->from(self::TABLE)->where('id = :id');
@@ -431,8 +435,12 @@ class DatabaseTest
     public function testDeleteRemovesMatchingRow()
     {
         $this->resetTable();
-        $id = $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
         $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com']);
+
+        // Derive the id via SELECT to avoid relying on lastInsertId() (unreliable on PostgreSQL).
+        $rows = $this->db->plainSelect('SELECT id FROM ' . self::TABLE . ' WHERE email = :email', ['email' => 'alice@example.com']);
+        $id   = (int)$rows[0]['id'];
 
         $this->db->delete(self::TABLE, 'id = :id', ['id' => $id]);
         assert_equals(1, $this->db->count(self::TABLE));
@@ -452,7 +460,11 @@ class DatabaseTest
     public function testDeleteWithPositionalPlaceholder()
     {
         $this->resetTable();
-        $id       = $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+
+        // Derive the id via SELECT to avoid relying on lastInsertId() (unreliable on PostgreSQL).
+        $rows     = $this->db->plainSelect('SELECT id FROM ' . self::TABLE . ' WHERE email = :email', ['email' => 'alice@example.com']);
+        $id       = (int)$rows[0]['id'];
         $affected = $this->db->delete(self::TABLE, 'id = ?', [$id]);
         assert_equals(1, $affected);
         assert_equals(0, $this->db->count(self::TABLE));
