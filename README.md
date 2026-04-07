@@ -7,8 +7,8 @@ A lightweight PHP library that simplifies database work with two focused tools:
 
 By using these tools you'll cut repetitive boilerplate, letting you focus on building features instead.
 
-> **Compatibility:**  
-> This library is compatible with PHP **version 5.4** and above.
+> [!NOTE]
+> This library is compatible with PHP **5.4** and above.
 
 ## Installation / Usage
 
@@ -38,7 +38,10 @@ The `Query` class builds SQL query strings from PHP. It supports two equivalent 
 * **Array constructor** — the original API, fully supported.
 * **Fluent API** — static factory methods combined with chainable setters for a more readable, IDE-friendly experience.
 
-Both styles produce identical SQL and can be used interchangeably. You can cast a `Query` object to a string with `echo`, string concatenation, or the explicit `getQuery()` method.
+Both styles produce identical SQL and can be used interchangeably. You can cast a `Query` object to a string with `echo` or string concatenation, or call the explicit `getQuery()` method.
+
+> [!TIP]
+> Prefer `getQuery()` over string casting when you need reliable error handling. Casting to string catches build errors internally and returns an empty string with an `E_USER_WARNING`, whereas `getQuery()` propagates the exception to the caller.
 
 ### Fluent API — quick reference
 
@@ -51,7 +54,7 @@ Both styles produce identical SQL and can be used interchangeably. You can cast 
 
 | Chainable setter | Applies to | Description |
 |---|---|---|
-| `->from($table)` / `->table($table)` | SELECT | Set the target table |
+| `->from($table)` / `->table($table)` | SELECT | Set the target table (primary use; also works as a setter on any query type) |
 | `->fields($fields)` | SELECT, INSERT, UPDATE | Set the column list |
 | `->where($expr)` | SELECT, UPDATE, DELETE | Set the WHERE clause |
 | `->join($join)` | SELECT, UPDATE | Append one JOIN clause |
@@ -68,7 +71,7 @@ Both styles produce identical SQL and can be used interchangeably. You can cast 
 ### Select query
 
 **Fluent API:**
-```PHP
+```php
 $query = Query::select(['id', 'name'])
     ->from('users')
     ->join('LEFT JOIN orders ON users.id = orders.user_id')
@@ -80,7 +83,7 @@ $query = Query::select(['id', 'name'])
 ```
 
 **Array constructor (equivalent):**
-```PHP
+```php
 $query = new Query([
     'method' => 'SELECT',
     'fields' => ['id', 'name'],
@@ -107,12 +110,12 @@ LIMIT 10
 ### PDO Insert query
 
 **Fluent API:**
-```PHP
+```php
 $query = Query::insert('users', ['name', 'email'])->valuesCount(3);
 ```
 
 **Array constructor (equivalent):**
-```PHP
+```php
 $query = new Query([
     'method' => 'INSERT',
     'table' => 'users',
@@ -131,14 +134,14 @@ VALUES (:name_0, :email_0), (:name_1, :email_1), (:name_2, :email_2)
 ### PDO Update query
 
 **Fluent API:**
-```PHP
+```php
 $query = Query::update('users', ['name', 'email'])
     ->join('LEFT JOIN orders ON users.id = orders.user_id')
     ->where('id = :id');
 ```
 
 **Array constructor (equivalent):**
-```PHP
+```php
 $query = new Query([
     'method' => 'UPDATE',
     'table' => 'users',
@@ -159,7 +162,7 @@ WHERE id = :id
 ### Delete query
 
 **Fluent API:**
-```PHP
+```php
 $query = Query::delete('users')
     ->where('id = :id')
     ->orderBy('created_at DESC')
@@ -167,7 +170,7 @@ $query = Query::delete('users')
 ```
 
 **Array constructor (equivalent):**
-```PHP
+```php
 $query = new Query([
     'method' => 'DELETE',
     'table' => 'users',
@@ -185,7 +188,8 @@ ORDER BY created_at DESC
 LIMIT 10
 ```
 
-> **Security note:** The `where` value is embedded as a raw SQL fragment, so always use named placeholders (e.g. `id = :id`) and pass the actual values via the binding array when executing the query through the `Database` class. The `order_by` / `orderBy()` value is validated against a strict pattern that allows only identifiers made of letters, digits, and underscores (optionally qualified with dots), separated by commas and arbitrary whitespace, with optional `ASC`/`DESC` keywords — any other characters will throw an `InvalidArgumentException`.
+> [!WARNING]
+> The `where` value is embedded as a raw SQL fragment. Always use named placeholders (e.g. `id = :id`) and pass the actual values via the binding array when executing the query through the `Database` class. The `order_by` / `orderBy()` value is validated against a strict pattern that allows only identifiers made of letters, digits, and underscores (optionally qualified with dots), separated by commas and arbitrary whitespace, with optional `ASC`/`DESC` keywords — any other characters will throw an `InvalidArgumentException`.
 
 ### Identifier validation rules
 
@@ -206,18 +210,18 @@ Some inputs are validated strictly and will throw `InvalidArgumentException` for
 - Raw SQL expressions, function calls, or subqueries are not accepted.
 
 **WHERE, HAVING, JOIN** (raw SQL fragments):
-- These are passed through as-is. **Never interpolate user-controlled values directly into these strings** — doing so creates an SQL injection vulnerability.
-- Always use PDO named placeholders for any user-supplied values (e.g. `age > :min_age`) and bind the actual values through `Database`.
+- These are passed through as-is.
 - Only hard-coded or otherwise fully-trusted strings should appear directly in these expressions.
 
-# Database class
-The Database class provides a comprehensive set of methods for performing essential database operations such as select, insert, update, and delete. It also includes advanced features like transaction management, record counting, and inserting many records, making it easier to handle both simple and complex database tasks efficiently.
+> [!WARNING]
+> **Never interpolate user-controlled values directly into WHERE, HAVING, or JOIN strings** — doing so creates an SQL injection vulnerability. Always use PDO named placeholders for any user-supplied values (e.g. `age > :min_age`) and bind the actual values through `Database`.
 
+## Database class
+The Database class provides a comprehensive set of methods for essential database operations such as select, insert, update, delete, record counting, and transaction management, making it straightforward to handle both simple and complex database tasks.
 
 ### Creating a database object
-The classes **Sql**, **Mysql**, **Postgres** and **Sqlite** extends of the parent class **Database** who own the methods that the two child classes have in commun.
 
-To create a object is needed to specify some properties:
+The **Mysql**, **Postgres**, **Sql**, and **Sqlite** driver classes all extend the parent class **Database**, which provides the shared CRUD and transaction methods. To create a driver object, pass a configuration array with the following properties:
 
 | Canonical key   | Accepted alias | Description                                                                 | Required by                                    |
 |-----------------|----------------|-----------------------------------------------------------------------------|-----------------------------------------------|
@@ -236,11 +240,18 @@ $properties = [
     "codification" => "utf8"
 ];
 
-$mysql_object = new Mysql($properties);
-$sql_object = new Sql($properties);
-$sqlite_object = new Sqlite($properties);
+$mysql_object    = new Mysql($properties);
+$sql_object      = new Sql($properties);
 $postgres_object = new Postgres($properties);
+
+// SQLite only requires the "DB" key (path to the database file)
+$sqlite_object = new Sqlite(["DB" => "/path/to/database.sqlite"]);
 ```
+
+> [!NOTE]
+> The `Sqlite` driver only uses the `DB` key (the path to the `.sqlite` file). The `serverName`, `username`, `password`, and `codification` keys are not required and will be ignored if present.
+>
+> The `Sql` (SQL Server) driver requires `serverName`, `username`, and `DB` — it throws an `InvalidArgumentException` if any of these are missing.
 
 ---
 
@@ -287,7 +298,7 @@ Available keywords:
 You can add more keywords by editing the `replaceKeywordsInData` method in `Database.php`.
 
 Here is an example of use:
-```PHP
+```php
 $data = [
     'name'=> '@randomString',
     'created_at'=> '@currentDateTime',
@@ -301,7 +312,7 @@ try {
 ```
 
 Keywords also work in multi-record inserts:
-```PHP
+```php
 $data = [
     ['name' => '@randomString', 'created_at' => '@currentDateTime'],
     ['name' => '@randomString', 'created_at' => '@currentDateTime'],
@@ -313,18 +324,19 @@ try {
     echo 'Error: '. $e->getMessage();
 }
 ```
-**This feature is supported in all CRUD methods (including multi-row inserts via `insert()`), but not in plain query helpers like `executePlainQuery()` or `plainSelect()`.**
+> [!NOTE]
+> Keywords are supported in all CRUD methods (including multi-row inserts via `insert()`), but **not** in the plain query helpers `executePlainQuery()` and `plainSelect()`.
 
 ---
 
-### Executing plain query
-If you dont want the especific methods that are below, you can execute a query with this method, which has this parameters:
+### Executing a plain query
+If you don't want to use the specific methods described below, you can execute any SQL statement directly with this method. It accepts the following parameters:
 
-* **query**: This can be either a string containing the SQL query, or an instance of the *Query* class.
+* **query**: A SQL string or a `Query` object.
 
-* **data**: There are the variables of the query in a asociative array, this field is not required.
+* **data**: An optional associative array of query bindings.
 
-This method returns a boolean value indicating success, or throws an exception if an error occurs.
+This method returns `true` on success, or throws an exception if an error occurs.
 
 ```php
 try {
@@ -337,18 +349,20 @@ try {
     echo "Error: " . $e->getMessage();
 }
 ```
-*In the query a variable need to go behind ":"*
+
+> [!NOTE]
+> Query parameters must use named PDO placeholders prefixed with `:` (e.g. `:userId`).
 
 ---
 
-### Execute plain Select query
-This method works similarly to the previous one, but is specifically designed for SELECT clauses:
+### Execute plain SELECT query
+This method works similarly to `executePlainQuery`, but is specifically designed for SELECT statements:
 
-* **query**: This can be either a string containing the SQL query, or an instance of the *Query* class.
+* **query**: A SQL string or a `Query` object.
 
-* **data**: There are the variables of the query in a asociative array, this field is not required.
+* **data**: An optional associative array of query bindings.
 
-It returns the associative array of the query results, or throws an exception if an error occurs.
+It returns all matching rows as an associative array, or throws an exception if an error occurs.
 
 ```php
 try {
@@ -366,7 +380,7 @@ try {
 
 ### Select statement
 
-The `select` and `selectOne` methods allow you to retrieve records from the database using a `Query` class object. The `select` method returns all matching records, while `selectOne` returns only a single record.
+The `select` and `selectOne` methods retrieve records from the database using a `Query` object. `select` returns all matching rows; `selectOne` returns only the first row.
 
 **Example using `select`:**
 ```php
@@ -398,7 +412,7 @@ try {
 ---
 
 ### Insert statement
-Works like the **select** methods, but inserts one or more records into the specified table. The method automatically detects if you are inserting a single record or multiple records.
+Inserts one or more records into the specified table. The method automatically detects whether you are inserting a single record (associative array) or multiple records (array of associative arrays), and returns the last inserted auto-increment ID in both cases.
 
 **Example inserting a single record:**
 ```php
@@ -433,9 +447,20 @@ try {
 ---
 
 ### Update statement
-Updates records in the specified table. You must provide the table, the data to update, and the `where` condition.
+Updates records in the specified table. Returns the number of affected rows.
 
-Always supply WHERE values via `$whereData` instead of inline in the SQL string to prevent SQL injection. Keys in `$whereData` must not overlap with column names in `$data`. Note: positional placeholders (`?`) are not supported in `$where` for `update()` — use named placeholders (e.g. `id = :id`) instead.
+**Signature:** `update($table, $data, $where, $whereData = [], $joins = [])`
+
+| Parameter   | Description |
+|-------------|-------------|
+| `$table`    | Table name |
+| `$data`     | Associative array of columns and new values |
+| `$where`    | WHERE clause (use named placeholders) |
+| `$whereData`| Optional named bindings for `$where` |
+| `$joins`    | Optional array of JOIN clauses |
+
+> [!CAUTION]
+> Keys in `$whereData` must not overlap with column names in `$data`. Positional placeholders (`?`) are not supported in `$where` for `update()` — use named placeholders (e.g. `id = :id`) instead.
 
 ```php
 $data = [
@@ -454,9 +479,11 @@ try {
 ---
 
 ### Delete statement
-Deletes records from the specified table. You can specify the `where` condition, `order_by`, and `limit` if needed.
+Deletes records from the specified table. Returns the number of affected rows.
 
-Always use named placeholders in `$where` and supply the actual values in the binding array to avoid SQL injection:
+**Signature:** `delete($table, $where, $whereData = [], $orderBy = "", $limit = 0)`
+
+Both named (`id = :id`) and positional (`id = ?`) placeholders are supported in `$where`.
 
 ```php
 try {
@@ -467,9 +494,14 @@ try {
 }
 ```
 
-The `order_by` parameter must be a comma-separated list of column identifiers (letters, digits, underscores, and dots), using only whitespace between tokens, with each column optionally followed by `ASC` or `DESC` (e.g. `'created_at DESC'`). Passing any other characters will throw an `InvalidArgumentException`.
+The `$orderBy` parameter must be a comma-separated list of column identifiers (letters, digits, underscores, and dots) with each column optionally followed by `ASC` or `DESC` (e.g. `'created_at DESC'`). Passing any other characters will throw an `InvalidArgumentException`.
 
-To delete all records from a table (optionally with limit and order), use `deleteAll`:
+To delete all records from a table (optionally with `$orderBy` and `$limit`), use `deleteAll`:
+
+**Signature:** `deleteAll($table, $data = [], $orderBy = "", $limit = 0)`
+
+> [!NOTE]
+> The `$data` parameter is an optional bindings array that is rarely needed for `deleteAll` (which has no WHERE clause). Pass `$orderBy` and `$limit` as the 3rd and 4th arguments when needed.
 
 ```php
 try {
@@ -483,7 +515,11 @@ try {
 ---
 
 ### Count statement
-Returns the number of records that match a condition. Always use named placeholders in `$where` and supply the actual values in the binding array to avoid SQL injection:
+Returns the number of records that match a condition.
+
+**Signature:** `count($table, $where = '', $whereData = [], $joins = [])`
+
+Both named (`active = :active`) and positional (`active = ?`) placeholders are supported in `$where`.
 
 ```php
 try {
@@ -497,7 +533,7 @@ try {
 ---
 
 ### Transactions
-You can execute multiple operations inside a transaction using `executeTransaction`:
+Execute multiple operations inside a single transaction using `executeTransaction`. The transaction is automatically committed on success or rolled back if any operation throws an exception.
 
 ```php
 try {
@@ -515,8 +551,4 @@ try {
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file
-
-
-
-
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
