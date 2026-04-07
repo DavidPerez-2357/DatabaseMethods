@@ -389,7 +389,16 @@ class Database
             }
         } else {
             foreach ($params as $key => $value) {
-                $param = ($key !== '' && $key[0] === ':') ? $key : ":{$key}";
+                if (!is_string($key)) {
+                    throw new InvalidArgumentException('Named parameter keys must be strings.');
+                }
+
+                $normalizedKey = ltrim($key, ':');
+                if ($normalizedKey === '') {
+                    throw new InvalidArgumentException('Named parameter keys must be non-empty strings.');
+                }
+
+                $param = ':' . $normalizedKey;
                 if ($value === null) {
                     $bound = $stmt->bindValue($param, null, PDO::PARAM_NULL);
                 } else {
