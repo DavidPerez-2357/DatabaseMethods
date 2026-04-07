@@ -4,7 +4,7 @@ A lightweight PHP library that cuts database boilerplate down to its essentials 
 
 > Compatible with PHP **5.4** and above. MySQL, PostgreSQL, SQLite, and SQL Server supported.
 
----
+&emsp;
 
 ## Installation & Usage
 
@@ -16,7 +16,7 @@ require_once 'DatabaseMethods.php';
 
 No Composer, no external dependencies.
 
----
+&emsp;
 
 ## What's inside
 
@@ -48,6 +48,7 @@ $db = new Mysql(['serverName' => 'localhost', 'username' => 'root', 'password' =
 $users  = $db->select($query, ['active' => 1]);
 $lastId = $db->insert('users', ['name' => 'Alice', 'email' => 'alice@example.com']);
 $rows   = $db->update('users', ['name' => 'Bob'], 'id = :id', ['id' => $lastId]);
+
 $db->executeTransaction(function($db) {
     $db->delete('orders', 'user_id = :id', ['id' => 5]);
     $db->update('users', ['active' => 0], 'id = :id', ['id' => 5]);
