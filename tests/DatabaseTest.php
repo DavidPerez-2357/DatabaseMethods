@@ -402,6 +402,7 @@ class DatabaseTest
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
         // Derive the id via SELECT to avoid relying on lastInsertId() (unreliable on PostgreSQL).
         $rows = $this->db->plainSelect('SELECT id FROM ' . self::TABLE . ' WHERE email = :email', ['email' => 'alice@example.com']);
+        assert_true(!empty($rows), 'Inserted row must be retrievable by email.');
         $id   = (int)$rows[0]['id'];
 
         $this->db->update(self::TABLE, ['name' => 'Alicia'], 'id = :row_id', ['row_id' => $id]);
@@ -440,6 +441,7 @@ class DatabaseTest
 
         // Derive the id via SELECT to avoid relying on lastInsertId() (unreliable on PostgreSQL).
         $rows = $this->db->plainSelect('SELECT id FROM ' . self::TABLE . ' WHERE email = :email', ['email' => 'alice@example.com']);
+        assert_true(!empty($rows), 'Inserted row must be retrievable by email.');
         $id   = (int)$rows[0]['id'];
 
         $this->db->delete(self::TABLE, 'id = :id', ['id' => $id]);
@@ -464,6 +466,7 @@ class DatabaseTest
 
         // Derive the id via SELECT to avoid relying on lastInsertId() (unreliable on PostgreSQL).
         $rows     = $this->db->plainSelect('SELECT id FROM ' . self::TABLE . ' WHERE email = :email', ['email' => 'alice@example.com']);
+        assert_true(!empty($rows), 'Inserted row must be retrievable by email.');
         $id       = (int)$rows[0]['id'];
         $affected = $this->db->delete(self::TABLE, 'id = ?', [$id]);
         assert_equals(1, $affected);
