@@ -174,7 +174,7 @@ function run_suite($suite, $label, $teardown = null)
     if ($teardown !== null) {
         try {
             call_user_func($teardown);
-        } catch (Throwable $e) {
+        } catch (Exception $e) {
             $results[] = '[FAIL] teardown' . "\n"
                 . '       Unexpected ' . get_class($e) . ': ' . $e->getMessage();
             $failed++;
