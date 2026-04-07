@@ -601,13 +601,16 @@ class Query
             throw new InvalidArgumentException("Number of values to insert must be at least 1.");
         }
 
+        // Validate all column names once up-front. After validation, each $col only
+        // contains [a-zA-Z_][a-zA-Z0-9_]*, so ":{$col}_{$i}" is a safe PDO placeholder.
+        foreach ($fields as $col) {
+            self::validateIdentifier($col, 'INSERT field');
+        }
+
         $placeholders = array();
         for ($i = 0; $i < $values; $i++) {
             $rowPlaceholders = array();
             foreach ($fields as $col) {
-                // validateIdentifier() guarantees $col is [a-zA-Z_][a-zA-Z0-9_]* so
-                // the resulting PDO placeholder ":{$col}_{$i}" contains only safe chars.
-                self::validateIdentifier($col, 'INSERT field');
                 $rowPlaceholders[] = ":{$col}_{$i}";
             }
             $placeholders[] = '(' . implode(', ', $rowPlaceholders) . ')';
