@@ -265,16 +265,29 @@ class Query
     /**
      * Sets the column list.
      *
-     * @param array $fields Column names. For INSERT and UPDATE queries, must be non-empty
-     *                      (an empty array will cause an exception when the query is built).
+     * A string is normalized to a single-element array. For SELECT queries an empty
+     * array defaults to ['*']. For INSERT and UPDATE queries a non-empty array is
+     * required (an empty array will cause an exception when the query is built).
+     *
+     * @param array|string $fields Column names, or a single column name string.
      * @return $this
-     * @throws InvalidArgumentException if $fields is not an array.
+     * @throws InvalidArgumentException if $fields is not an array or string.
      */
     public function fields($fields)
     {
-        if (!is_array($fields)) {
-            throw new InvalidArgumentException('Query::fields() expects an array of column names.');
+        if (is_string($fields)) {
+            $fields = [$fields];
+        } elseif (!is_array($fields)) {
+            throw new InvalidArgumentException('Query::fields() expects an array of column names or a string column name.');
         }
+
+        if (empty($fields)
+            && isset($this->data['method'])
+            && strtoupper($this->data['method']) === 'SELECT'
+        ) {
+            $fields = ['*'];
+        }
+
         $this->data['fields'] = $fields;
         $this->query = null;
         return $this;
@@ -320,12 +333,14 @@ class Query
     /**
      * Replaces all JOIN clauses with the given value.
      *
-     * Accepts an array of JOIN expressions, a single JOIN string (normalized to a one-element array),
-     * or null (clears all joins). Any other type throws an InvalidArgumentException.
+     * Accepts an array of JOIN expressions (each element must be a non-empty string),
+     * a single JOIN string (normalized to a one-element array), or null (clears all joins).
+     * Any other type throws an InvalidArgumentException.
      *
      * @param array|string|null $joins Array of JOIN expressions, a single JOIN string, or null.
      * @return $this
-     * @throws InvalidArgumentException if $joins is not an array, string, or null.
+     * @throws InvalidArgumentException if $joins is not an array, string, or null, or if any
+     *                                  array element is not a non-empty string.
      */
     public function joins($joins)
     {
@@ -334,6 +349,13 @@ class Query
         } elseif (is_string($joins)) {
             $this->data['joins'] = [$joins];
         } elseif (is_array($joins)) {
+            foreach ($joins as $join) {
+                if (!is_string($join) || trim($join) === '') {
+                    throw new InvalidArgumentException(
+                        'joins() expects each element to be a non-empty string JOIN expression.'
+                    );
+                }
+            }
             $this->data['joins'] = $joins;
         } else {
             throw new InvalidArgumentException(
@@ -535,9 +557,9 @@ class Query
             $sql .= " LIMIT " . $limit;
         }
 
-        // Offset (only valid when a positive LIMIT is also set)
+        // Offset
         $offset = filter_var(isset($this->data['offset']) ? $this->data['offset'] : null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
-        if ($limit !== false && $limit > 0 && $offset !== false) {
+        if ($offset !== false) {
             $sql .= " OFFSET " . $offset;
         }
 
