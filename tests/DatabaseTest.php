@@ -285,6 +285,13 @@ class DatabaseTest
             ['name' => 'Carol', 'email' => 'carol@example.com'],
         ];
         $lastId = $this->db->insert(self::TABLE, $data);
+
+        assert_equals(3, $this->db->count(self::TABLE), 'Multi-row insert() should persist all rows.');
+
+        if (DB_TEST_DRIVER === 'postgres') {
+            assert_true(is_int($lastId), 'Multi-row insert() should return an integer on PostgreSQL, even if PDO cannot provide a positive last-insert ID without a sequence name.');
+            return;
+        }
         assert_true(is_int($lastId) && $lastId > 0, 'Multi-row insert() should return a positive integer last-insert ID.');
     }
 
