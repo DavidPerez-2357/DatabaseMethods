@@ -2,7 +2,8 @@
 /**
  * tests/run.php
  *
- * Minimal test runner for the Query class — no external libraries required.
+ * Minimal test runner — no external libraries required.
+ * Runs QueryTest (unit tests) and DatabaseTest (integration tests).
  *
  * Usage:
  *   php tests/run.php
@@ -13,8 +14,10 @@
  * @link   https://github.com/DavidPerez-2357/DatabaseMethods
  */
 
-require_once __DIR__ . '/../src/Query.php';
+// Load all library classes (Query, Database, Mysql, Postgres, Sqlite, Sql).
+require_once __DIR__ . '/../DatabaseMethods.php';
 require_once __DIR__ . '/queryTest.php';
+require_once __DIR__ . '/DatabaseTest.php';
 
 // ---------------------------------------------------------------------------
 // Custom exception used by the assertion helpers below
@@ -170,4 +173,60 @@ if ($failed > 0) {
 }
 echo "\n" . str_repeat('-', 55) . "\n";
 
-exit($failed > 0 ? 1 : 0);
+// ---------------------------------------------------------------------------
+// Discover and run all test*() methods on the DatabaseTest class
+// ---------------------------------------------------------------------------
+
+echo "\n";
+
+$dbSuite   = null;
+$dbPassed  = 0;
+$dbFailed  = 0;
+$dbResults = [];
+
+try {
+    $dbSuite = new DatabaseTest();
+} catch (Exception $e) {
+    echo "[ERROR] DatabaseTest setup failed: " . $e->getMessage() . "\n";
+    echo "        Integration tests were skipped.\n\n";
+}
+
+if ($dbSuite !== null) {
+    $dbMethods = get_class_methods($dbSuite);
+    sort($dbMethods);
+
+    foreach ($dbMethods as $method) {
+        if (strncmp($method, 'test', 4) !== 0) {
+            continue;
+        }
+        try {
+            $dbSuite->$method();
+            $dbResults[] = '[PASS] ' . $method;
+            $dbPassed++;
+        } catch (TestAssertionException $e) {
+            $dbResults[] = '[FAIL] ' . $method . "\n"
+                . '       ' . str_replace("\n", "\n       ", $e->getMessage());
+            $dbFailed++;
+        } catch (Exception $e) {
+            $dbResults[] = '[FAIL] ' . $method . "\n"
+                . '       Unexpected ' . get_class($e) . ': ' . $e->getMessage();
+            $dbFailed++;
+        }
+    }
+
+    $dbSuite->teardown();
+
+    foreach ($dbResults as $line) {
+        echo $line . "\n";
+    }
+
+    $dbTotal = $dbPassed + $dbFailed;
+    echo "\n" . str_repeat('-', 55) . "\n";
+    printf("DB Results: %d/%d tests passed", $dbPassed, $dbTotal);
+    if ($dbFailed > 0) {
+        printf(", %d FAILED", $dbFailed);
+    }
+    echo "\n" . str_repeat('-', 55) . "\n";
+}
+
+exit(($failed + $dbFailed) > 0 ? 1 : 0);
