@@ -290,9 +290,15 @@ class Query
      *
      * @param string $join Full JOIN expression (e.g. `LEFT JOIN orders ON users.id = orders.user_id`).
      * @return $this
+     * @throws InvalidArgumentException If $join is not a non-empty string.
      */
     public function join($join)
     {
+        if (!is_string($join) || trim($join) === '') {
+            throw new InvalidArgumentException(
+                'join() expects a non-empty string JOIN expression.'
+            );
+        }
         if (!isset($this->data['joins'])) {
             $this->data['joins'] = [];
         } elseif (!is_array($this->data['joins'])) {
@@ -515,12 +521,12 @@ class Query
         }
 
         // Limit
-        if (!empty($this->data['limit']) && is_numeric($this->data['limit'])) {
+        if (isset($this->data['limit'])) {
             $sql .= " LIMIT {$this->data['limit']}";
         }
 
         // Offset
-        if (!empty($this->data['offset']) && is_numeric($this->data['offset'])) {
+        if (isset($this->data['offset'])) {
             $sql .= " OFFSET {$this->data['offset']}";
         }
 
@@ -711,11 +717,8 @@ class Query
             $sql .= " ORDER BY {$orderBy}";
         }
 
-        if (!empty($this->data["limit"])) {
-            $limit = (int) $this->data["limit"];
-            if ($limit > 0) {
-                $sql .= " LIMIT {$limit}";
-            }
+        if (isset($this->data["limit"])) {
+            $sql .= " LIMIT {$this->data['limit']}";
         }
 
         return $sql;
