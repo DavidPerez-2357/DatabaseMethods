@@ -148,7 +148,10 @@ class DatabaseTest
     }
 
     /**
-     * Drops the test table and removes the test database / file.
+     * Drops the test table and, where supported, removes the test database or
+     * file. SQLite deletes DB_TEST_FILE; MySQL and PostgreSQL drop DB_TEST_NAME.
+     * SQL Server only drops the test table — it does not create or drop a
+     * database, so no extra cleanup is needed.
      * Must be called after all tests have run.
      */
     public function teardown()
