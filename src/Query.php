@@ -125,7 +125,7 @@ class Query
         } elseif (is_string($fields)) {
             if (trim($fields) === '') {
                 throw new InvalidArgumentException(
-                    'Query::select() expects $fields to be a non-empty string, a non-empty array, or omitted.'
+                    'Query::select() expects $fields to be a non-empty string, an array (empty defaults to [\'*\']), or omitted.'
                 );
             }
             $instance->data['fields'] = [$fields];
@@ -276,6 +276,9 @@ class Query
     public function fields($fields)
     {
         if (is_string($fields)) {
+            if (trim($fields) === '') {
+                throw new InvalidArgumentException('Query::fields() expects a non-empty string column name or an array of column names.');
+            }
             $fields = [$fields];
         } elseif (!is_array($fields)) {
             throw new InvalidArgumentException('Query::fields() expects an array of column names or a string column name.');
@@ -286,6 +289,12 @@ class Query
             && strtoupper($this->data['method']) === 'SELECT'
         ) {
             $fields = ['*'];
+        } else {
+            foreach ($fields as $field) {
+                if (!is_string($field) || trim($field) === '') {
+                    throw new InvalidArgumentException('Query::fields() expects every element to be a non-empty string column name.');
+                }
+            }
         }
 
         $this->data['fields'] = $fields;
@@ -347,6 +356,11 @@ class Query
         if ($joins === null) {
             $this->data['joins'] = [];
         } elseif (is_string($joins)) {
+            if (trim($joins) === '') {
+                throw new InvalidArgumentException(
+                    'joins() expects a non-empty string JOIN expression.'
+                );
+            }
             $this->data['joins'] = [$joins];
         } elseif (is_array($joins)) {
             foreach ($joins as $join) {
@@ -559,7 +573,7 @@ class Query
 
         // Offset
         $offset = filter_var(isset($this->data['offset']) ? $this->data['offset'] : null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
-        if ($offset !== false) {
+        if ($offset !== false && $limit !== false && $limit > 0) {
             $sql .= " OFFSET " . $offset;
         }
 
