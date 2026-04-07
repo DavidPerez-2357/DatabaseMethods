@@ -461,7 +461,7 @@ class QueryTest
         assert_contains('LEFT JOIN orders ON users.id = orders.user_id', $sql);
     }
 
-    public function testJoinAppendsMutipleJoins()
+    public function testJoinAppendsMultipleJoins()
     {
         $sql = Query::select()->from('users')
             ->join('LEFT JOIN orders ON users.id = orders.user_id')
