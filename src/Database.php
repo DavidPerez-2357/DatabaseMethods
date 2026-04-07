@@ -331,6 +331,8 @@ class Database
 
     /**
      * Prepares and executes a SQL statement with the given parameters.
+     * PHP null values are explicitly bound as SQL NULL (PDO::PARAM_NULL) so that
+     * they are stored as NULL rather than being cast to an empty string by some drivers.
      * @param string $sql The SQL query to prepare and execute.
      * @param array $params Optional parameter bindings for the statement.
      * @throws RuntimeException if preparation or execution fails.
@@ -345,7 +347,20 @@ class Database
             throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
-        if (!$stmt->execute($params)) {
+        // Bind each parameter explicitly so that PHP null maps to SQL NULL
+        // (PDO::PARAM_NULL) instead of being silently cast to an empty string.
+        // For positional placeholders the key is a 0-based integer; PDO bindValue()
+        // expects 1-based positions, so add 1.
+        foreach ($params as $key => $value) {
+            $param = is_int($key) ? $key + 1 : $key;
+            if ($value === null) {
+                $stmt->bindValue($param, null, PDO::PARAM_NULL);
+            } else {
+                $stmt->bindValue($param, $value);
+            }
+        }
+
+        if (!$stmt->execute()) {
             $errorInfo = $stmt->errorInfo();
             throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }

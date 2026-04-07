@@ -647,4 +647,100 @@ class DatabaseTest
         $lastId     = $this->db->getLastInsertId();
         assert_equals($insertedId, $lastId);
     }
+
+    // =========================================================================
+    // Tests — NULL value handling
+    // Requires a table with a nullable column. A dedicated table is created and
+    // dropped within each test to keep them fully independent.
+    // =========================================================================
+
+    /** Table used by the NULL-value tests (has a nullable 'notes' column). */
+    const NULLABLE_TABLE = 'test_nullable';
+
+    /** Returns the CREATE TABLE SQL for the nullable test table. */
+    private function getNullableCreateTableSql()
+    {
+        switch (DB_TEST_DRIVER) {
+            case 'mysql':
+                return 'CREATE TABLE IF NOT EXISTS ' . self::NULLABLE_TABLE . ' ('
+                    . 'id INT AUTO_INCREMENT PRIMARY KEY, '
+                    . 'name VARCHAR(255) NOT NULL, '
+                    . 'notes VARCHAR(255) NULL)';
+
+            case 'postgres':
+                return 'CREATE TABLE IF NOT EXISTS ' . self::NULLABLE_TABLE . ' ('
+                    . 'id SERIAL PRIMARY KEY, '
+                    . 'name VARCHAR(255) NOT NULL, '
+                    . 'notes VARCHAR(255) NULL)';
+
+            case 'sql':
+                return "IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='" . self::NULLABLE_TABLE . "' AND xtype='U') "
+                    . 'CREATE TABLE ' . self::NULLABLE_TABLE . ' ('
+                    . 'id INT IDENTITY(1,1) PRIMARY KEY, '
+                    . 'name NVARCHAR(255) NOT NULL, '
+                    . 'notes NVARCHAR(255) NULL)';
+
+            default: // sqlite
+                return 'CREATE TABLE IF NOT EXISTS ' . self::NULLABLE_TABLE . ' ('
+                    . 'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+                    . 'name TEXT NOT NULL, '
+                    . 'notes TEXT NULL)';
+        }
+    }
+
+    /** Returns the DROP TABLE SQL for the nullable test table. */
+    private function getNullableDropTableSql()
+    {
+        if (DB_TEST_DRIVER === 'sql') {
+            return "IF EXISTS (SELECT * FROM sysobjects WHERE name='" . self::NULLABLE_TABLE . "' AND xtype='U') "
+                . 'DROP TABLE ' . self::NULLABLE_TABLE;
+        }
+        return 'DROP TABLE IF EXISTS ' . self::NULLABLE_TABLE;
+    }
+
+    /** Drops and recreates the nullable test table. */
+    private function resetNullableTable()
+    {
+        $this->db->executePlainQuery($this->getNullableDropTableSql());
+        $this->db->executePlainQuery($this->getNullableCreateTableSql());
+    }
+
+    public function testInsertNullValueStoresNull()
+    {
+        $this->resetNullableTable();
+        $this->db->insert(self::NULLABLE_TABLE, ['name' => 'Alice', 'notes' => null]);
+        $rows = $this->db->plainSelect('SELECT * FROM ' . self::NULLABLE_TABLE);
+        assert_equals(1, count($rows));
+        assert_equals('Alice', $rows[0]['name']);
+        assert_true($rows[0]['notes'] === null, 'NULL value must be stored as SQL NULL, not an empty string.');
+        $this->db->executePlainQuery($this->getNullableDropTableSql());
+    }
+
+    public function testInsertManyWithNullValueStoresNull()
+    {
+        $this->resetNullableTable();
+        $this->db->insert(self::NULLABLE_TABLE, [
+            ['name' => 'Alice', 'notes' => 'has notes'],
+            ['name' => 'Bob',   'notes' => null],
+        ]);
+        $rows = $this->db->plainSelect('SELECT * FROM ' . self::NULLABLE_TABLE . ' ORDER BY name');
+        assert_equals(2, count($rows));
+        assert_equals('has notes', $rows[0]['notes']);
+        assert_true($rows[1]['notes'] === null, 'NULL value in multi-row insert must be stored as SQL NULL.');
+        $this->db->executePlainQuery($this->getNullableDropTableSql());
+    }
+
+    public function testUpdateToNullValueStoresNull()
+    {
+        $this->resetNullableTable();
+        $this->db->insert(self::NULLABLE_TABLE, ['name' => 'Alice', 'notes' => 'original']);
+        $rows = $this->db->plainSelect('SELECT id FROM ' . self::NULLABLE_TABLE . ' WHERE name = :name', ['name' => 'Alice']);
+        $id   = (int)$rows[0]['id'];
+
+        $this->db->update(self::NULLABLE_TABLE, ['notes' => null], 'id = :id', ['id' => $id]);
+
+        $updated = $this->db->plainSelect('SELECT notes FROM ' . self::NULLABLE_TABLE . ' WHERE id = :id', ['id' => $id]);
+        assert_true($updated[0]['notes'] === null, 'Updating a column to null must store SQL NULL.');
+        $this->db->executePlainQuery($this->getNullableDropTableSql());
+    }
 }
