@@ -117,9 +117,14 @@ class Query
         $instance = new static();
         $instance->data['method'] = 'SELECT';
 
-        if (empty($fields)) {
+        if ($fields === [] || $fields === null) {
             $instance->data['fields'] = ['*'];
         } elseif (is_string($fields)) {
+            if (trim($fields) === '') {
+                throw new InvalidArgumentException(
+                    'Query::select() expects $fields to be a non-empty string, a non-empty array, or omitted.'
+                );
+            }
             $instance->data['fields'] = [$fields];
         } elseif (is_array($fields)) {
             $instance->data['fields'] = $fields;
@@ -522,7 +527,7 @@ class Query
 
         // Limit
         $limit = filter_var(isset($this->data['limit']) ? $this->data['limit'] : null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
-        if ($limit !== false) {
+        if ($limit !== false && $limit > 0) {
             $sql .= " LIMIT " . $limit;
         }
 
