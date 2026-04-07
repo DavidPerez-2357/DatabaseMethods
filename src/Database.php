@@ -351,8 +351,14 @@ class Database
         // (PDO::PARAM_NULL) instead of being silently cast to an empty string.
         // For positional placeholders the key is a 0-based integer; PDO bindValue()
         // expects 1-based positions, so add 1.
+        // For named placeholders, normalize the key so that both ':name' and 'name'
+        // forms work across all PDO drivers (add ':' prefix when missing).
         foreach ($params as $key => $value) {
-            $param = is_int($key) ? $key + 1 : $key;
+            if (is_int($key)) {
+                $param = $key + 1;
+            } else {
+                $param = ($key !== '' && $key[0] === ':') ? $key : ":{$key}";
+            }
             if ($value === null) {
                 $stmt->bindValue($param, null, PDO::PARAM_NULL);
             } else {

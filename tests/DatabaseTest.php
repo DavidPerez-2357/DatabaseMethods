@@ -708,39 +708,50 @@ class DatabaseTest
     public function testInsertNullValueStoresNull()
     {
         $this->resetNullableTable();
-        $this->db->insert(self::NULLABLE_TABLE, ['name' => 'Alice', 'notes' => null]);
-        $rows = $this->db->plainSelect('SELECT * FROM ' . self::NULLABLE_TABLE);
-        assert_equals(1, count($rows));
-        assert_equals('Alice', $rows[0]['name']);
-        assert_true($rows[0]['notes'] === null, 'NULL value must be stored as SQL NULL, not an empty string.');
-        $this->db->executePlainQuery($this->getNullableDropTableSql());
+        try {
+            $this->db->insert(self::NULLABLE_TABLE, ['name' => 'Alice', 'notes' => null]);
+            $rows = $this->db->plainSelect('SELECT * FROM ' . self::NULLABLE_TABLE);
+            assert_equals(1, count($rows));
+            assert_equals('Alice', $rows[0]['name']);
+            assert_true($rows[0]['notes'] === null, 'NULL value must be stored as SQL NULL, not an empty string.');
+        } finally {
+            $this->db->executePlainQuery($this->getNullableDropTableSql());
+        }
     }
 
     public function testInsertManyWithNullValueStoresNull()
     {
         $this->resetNullableTable();
-        $this->db->insert(self::NULLABLE_TABLE, [
-            ['name' => 'Alice', 'notes' => 'has notes'],
-            ['name' => 'Bob',   'notes' => null],
-        ]);
-        $rows = $this->db->plainSelect('SELECT * FROM ' . self::NULLABLE_TABLE . ' ORDER BY name');
-        assert_equals(2, count($rows));
-        assert_equals('has notes', $rows[0]['notes']);
-        assert_true($rows[1]['notes'] === null, 'NULL value in multi-row insert must be stored as SQL NULL.');
-        $this->db->executePlainQuery($this->getNullableDropTableSql());
+        try {
+            $this->db->insert(self::NULLABLE_TABLE, [
+                ['name' => 'Alice', 'notes' => 'has notes'],
+                ['name' => 'Bob',   'notes' => null],
+            ]);
+            $rows = $this->db->plainSelect('SELECT * FROM ' . self::NULLABLE_TABLE . ' ORDER BY name');
+            assert_equals(2, count($rows));
+            assert_equals('has notes', $rows[0]['notes']);
+            assert_true($rows[1]['notes'] === null, 'NULL value in multi-row insert must be stored as SQL NULL.');
+        } finally {
+            $this->db->executePlainQuery($this->getNullableDropTableSql());
+        }
     }
 
     public function testUpdateToNullValueStoresNull()
     {
         $this->resetNullableTable();
-        $this->db->insert(self::NULLABLE_TABLE, ['name' => 'Alice', 'notes' => 'original']);
-        $rows = $this->db->plainSelect('SELECT id FROM ' . self::NULLABLE_TABLE . ' WHERE name = :name', ['name' => 'Alice']);
-        $id   = (int)$rows[0]['id'];
+        try {
+            $this->db->insert(self::NULLABLE_TABLE, ['name' => 'Alice', 'notes' => 'original']);
+            $rows = $this->db->plainSelect('SELECT id FROM ' . self::NULLABLE_TABLE . ' WHERE name = :name', ['name' => 'Alice']);
+            assert_equals(1, count($rows), 'Inserted row must be retrievable by name.');
+            $id   = (int)$rows[0]['id'];
 
-        $this->db->update(self::NULLABLE_TABLE, ['notes' => null], 'id = :id', ['id' => $id]);
+            $this->db->update(self::NULLABLE_TABLE, ['notes' => null], 'id = :id', ['id' => $id]);
 
-        $updated = $this->db->plainSelect('SELECT notes FROM ' . self::NULLABLE_TABLE . ' WHERE id = :id', ['id' => $id]);
-        assert_true($updated[0]['notes'] === null, 'Updating a column to null must store SQL NULL.');
-        $this->db->executePlainQuery($this->getNullableDropTableSql());
+            $updated = $this->db->plainSelect('SELECT notes FROM ' . self::NULLABLE_TABLE . ' WHERE id = :id', ['id' => $id]);
+            assert_equals(1, count($updated));
+            assert_true($updated[0]['notes'] === null, 'Updating a column to null must store SQL NULL.');
+        } finally {
+            $this->db->executePlainQuery($this->getNullableDropTableSql());
+        }
     }
 }
