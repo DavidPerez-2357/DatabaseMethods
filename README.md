@@ -33,22 +33,53 @@ src/
 ```
 
 ## Query class
-The Query class is used to build a query from an object. You can use the class as a string directly.
+The `Query` class builds SQL query strings from PHP. It supports two equivalent styles:
 
-```PHP
-$query = new Query([
-    'method' => 'SELECT',
-    'fields' => ['id', 'name'],
-    'table' => 'users',
-]);
+* **Array constructor** — the original API, fully supported.
+* **Fluent API** — static factory methods combined with chainable setters for a more readable, IDE-friendly experience.
 
-echo $query;
-```
+Both styles produce identical SQL and can be used interchangeably. You can cast a `Query` object to a string with `echo`, string concatenation, or the explicit `getQuery()` method.
 
-Here are some examples:
+### Fluent API — quick reference
+
+| Factory method | Description |
+|---|---|
+| `Query::select($fields)` | Start a SELECT query |
+| `Query::insert($table[, $fields])` | Start an INSERT query (`$fields` is optional; you can also call `->fields(...)` later) |
+| `Query::update($table[, $fields])` | Start an UPDATE query (`$fields` is optional; you can also call `->fields(...)` later) |
+| `Query::delete($table)` | Start a DELETE query |
+
+| Chainable setter | Applies to | Description |
+|---|---|---|
+| `->from($table)` / `->table($table)` | SELECT | Set the target table |
+| `->fields($fields)` | SELECT, INSERT, UPDATE | Set the column list |
+| `->where($expr)` | SELECT, UPDATE, DELETE | Set the WHERE clause |
+| `->join($join)` | SELECT, UPDATE | Append one JOIN clause |
+| `->joins($joins)` | SELECT, UPDATE | Replace all JOINs at once |
+| `->groupBy($expr)` | SELECT | Set GROUP BY |
+| `->having($expr)` | SELECT | Set HAVING |
+| `->orderBy($expr)` | SELECT, DELETE | Set ORDER BY |
+| `->limit($n)` | SELECT, DELETE | Set LIMIT |
+| `->offset($n)` | SELECT | Set OFFSET |
+| `->valuesCount($n)` | INSERT | Number of rows to insert (default 1) |
+
+---
 
 ### Select query
-This is an example of a SELECT query using all available fields:
+
+**Fluent API:**
+```PHP
+$query = Query::select(['id', 'name'])
+    ->from('users')
+    ->join('LEFT JOIN orders ON users.id = orders.user_id')
+    ->where('users.active = 1')
+    ->groupBy('users.id')
+    ->having('COUNT(orders.id) > 0')
+    ->orderBy('users.name ASC')
+    ->limit(10);
+```
+
+**Array constructor (equivalent):**
 ```PHP
 $query = new Query([
     'method' => 'SELECT',
@@ -59,8 +90,7 @@ $query = new Query([
     'group_by' => 'users.id',
     'having' => 'COUNT(orders.id) > 0',
     'order_by' => 'users.name ASC',
-    'limit' => 10,
-    'offset' => 0
+    'limit' => 10
 ]);
 ```
 
@@ -75,8 +105,13 @@ LIMIT 10
 ``` 
 
 ### PDO Insert query
-This is an example of a PDO INSERT query using all available fields:
 
+**Fluent API:**
+```PHP
+$query = Query::insert('users', ['name', 'email'])->valuesCount(3);
+```
+
+**Array constructor (equivalent):**
 ```PHP
 $query = new Query([
     'method' => 'INSERT',
@@ -85,7 +120,7 @@ $query = new Query([
     'values_to_insert' => 3
 ]);
 ```
-The **values_to_insert** field determine how many registers are going to be inserted in this query.
+The `valuesCount()` / `values_to_insert` field determines how many rows are prepared in the query. It defaults to 1 when omitted.
 
 The resulting query will be:
 ```SQL
@@ -94,14 +129,21 @@ VALUES (:name_0, :email_0), (:name_1, :email_1), (:name_2, :email_2)
 ```
 
 ### PDO Update query
-This is an example of a PDO UPDATE query using all available fields:
 
+**Fluent API:**
+```PHP
+$query = Query::update('users', ['name', 'email'])
+    ->join('LEFT JOIN orders ON users.id = orders.user_id')
+    ->where('id = :id');
+```
+
+**Array constructor (equivalent):**
 ```PHP
 $query = new Query([
     'method' => 'UPDATE',
     'table' => 'users',
     'fields' => ['name', 'email'],
-    'where' => 'id = 1',
+    'where' => 'id = :id',
     'joins' => ['LEFT JOIN orders ON users.id = orders.user_id']
 ]);
 ```
@@ -109,13 +151,22 @@ $query = new Query([
 The resulting query will be:
 ```SQL
 UPDATE users
+LEFT JOIN orders ON users.id = orders.user_id
 SET name = :name, email = :email
-LEFT JOIN orders ON users.id = orders.user_id WHERE id = 1
+WHERE id = :id
 ```
 
 ### Delete query
-This is an example of a DELETE query using all available fields:
 
+**Fluent API:**
+```PHP
+$query = Query::delete('users')
+    ->where('id = :id')
+    ->orderBy('created_at DESC')
+    ->limit(10);
+```
+
+**Array constructor (equivalent):**
 ```PHP
 $query = new Query([
     'method' => 'DELETE',
@@ -134,7 +185,30 @@ ORDER BY created_at DESC
 LIMIT 10
 ```
 
-> **Security note:** The `where` value is embedded as a raw SQL fragment, so always use named placeholders (e.g. `id = :id`) and pass the actual values via the binding array when executing the query through the `Database` class. The `order_by` value is validated against a strict pattern that allows only identifiers made of letters, digits, and underscores (optionally qualified with dots), separated by commas and arbitrary whitespace, with optional `ASC`/`DESC` keywords — any other characters will throw an `InvalidArgumentException`.
+> **Security note:** The `where` value is embedded as a raw SQL fragment, so always use named placeholders (e.g. `id = :id`) and pass the actual values via the binding array when executing the query through the `Database` class. The `order_by` / `orderBy()` value is validated against a strict pattern that allows only identifiers made of letters, digits, and underscores (optionally qualified with dots), separated by commas and arbitrary whitespace, with optional `ASC`/`DESC` keywords — any other characters will throw an `InvalidArgumentException`.
+
+### Identifier validation rules
+
+Some inputs are validated strictly and will throw `InvalidArgumentException` for values that would previously have been passed through unchecked.
+
+**Table names** (`->from()`, `->table()`, `Query::delete($table)`, etc.):
+- Must be a plain identifier: letters, digits, and underscores, starting with a letter or underscore (e.g. `users`, `order_items`).
+- Optionally schema-qualified with a single dot: `schema.table` (e.g. `myschema.orders`).
+- Must **not** include quoting, whitespace, aliases, or arbitrary SQL fragments (e.g. `` `users` ``, `"users"`, `users u`, `users AS u` are all rejected).
+
+**INSERT / UPDATE column names** (`->fields()`, `Query::insert($table, $fields)`, etc.):
+- Must be plain, **unqualified** identifiers (no dots) — e.g. `email`, `created_at`.
+- Qualified names like `users.email` are **rejected** because the column name is also used to construct a PDO named-placeholder token (e.g. `:email_0`), and PDO does not allow dots in placeholder names.
+
+**GROUP BY / ORDER BY**:
+- Must be one or more plain identifiers (optionally table-qualified), separated by commas.
+- `ORDER BY` additionally allows optional `ASC` / `DESC` per column.
+- Raw SQL expressions, function calls, or subqueries are not accepted.
+
+**WHERE, HAVING, JOIN** (raw SQL fragments):
+- These are passed through as-is. **Never interpolate user-controlled values directly into these strings** — doing so creates an SQL injection vulnerability.
+- Always use PDO named placeholders for any user-supplied values (e.g. `age > :min_age`) and bind the actual values through `Database`.
+- Only hard-coded or otherwise fully-trusted strings should appear directly in these expressions.
 
 # Database class
 The Database class provides a comprehensive set of methods for performing essential database operations such as select, insert, update, and delete. It also includes advanced features like transaction management, record counting, and inserting many records, making it easier to handle both simple and complex database tasks efficiently.
@@ -296,12 +370,9 @@ The `select` and `selectOne` methods allow you to retrieve records from the data
 
 **Example using `select`:**
 ```php
-$query = new Query([
-    'method' => 'SELECT',
-    'fields' => ['id', 'name'],
-    'table' => 'users',
-    'where' => 'id = :userId'
-]);
+$query = Query::select(['id', 'name'])
+    ->from('users')
+    ->where('id = :userId');
 
 try {
     $result = $database->select($query, ["userId" => 2]);
@@ -313,12 +384,9 @@ try {
 
 **Example using `selectOne`:**
 ```php
-$query = new Query([
-    'method' => 'SELECT',
-    'fields' => ['id', 'name'],
-    'table' => 'users',
-    'where' => 'id = :userId'
-]);
+$query = Query::select(['id', 'name'])
+    ->from('users')
+    ->where('id = :userId');
 
 try {
     $result = $database->selectOne($query, ["userId" => 2]);
