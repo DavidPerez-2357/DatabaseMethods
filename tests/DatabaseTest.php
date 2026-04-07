@@ -62,7 +62,9 @@ class DatabaseTest
 
     /**
      * Creates and returns a driver instance for the configured DB_TEST_DRIVER.
-     * For server-based drivers a test database is created automatically.
+     * SQLite uses the temporary file configured in DB_TEST_FILE. Server-based
+     * drivers may require the target test database to exist already, depending
+     * on the setup method used for the selected driver.
      */
     private function createDriver()
     {
