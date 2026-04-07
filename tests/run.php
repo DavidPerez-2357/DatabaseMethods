@@ -14,7 +14,7 @@
  */
 
 require_once __DIR__ . '/../src/Query.php';
-require_once __DIR__ . '/QueryTest.php';
+require_once __DIR__ . '/queryTest.php';
 
 // ---------------------------------------------------------------------------
 // Custom exception used by the assertion helpers below
