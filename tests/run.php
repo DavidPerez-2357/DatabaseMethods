@@ -209,9 +209,10 @@ $totalFailed += run_suite(new QueryTests(), 'Query');
 $dbSuite = null;
 try {
     $dbSuite = new DatabaseTest();
-} catch (Exception $e) {
+} catch (Throwable $e) {
     echo "[ERROR] DatabaseTest setup failed: " . $e->getMessage() . "\n";
-    echo "        Integration tests were skipped.\n\n";
+    echo "        Integration tests were skipped and counted as failed.\n\n";
+    $totalFailed++;
 }
 
 if ($dbSuite !== null) {
