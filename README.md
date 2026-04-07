@@ -1,6 +1,6 @@
 # DatabaseMethods
 
-A lightweight PHP library that cuts database boilerplate down to its essentials — two focused classes that let you write less and do more.
+A lightweight PHP library that cuts database boilerplate down to its essentials: two focused classes that let you write less and do more.
 
 > Compatible with PHP **5.4** and above. MySQL, PostgreSQL, SQLite, and SQL Server supported.
 
@@ -8,7 +8,7 @@ A lightweight PHP library that cuts database boilerplate down to its essentials 
 
 ## Installation & Usage
 
-Download or clone the repository and require the single entry-point file — it automatically loads every module:
+Download or clone the repository and require the single entry-point file; it automatically loads every module:
 
 ```php
 require_once 'DatabaseMethods.php';
@@ -20,7 +20,7 @@ No Composer, no external dependencies.
 
 ## What's inside
 
-### [`Query`](docs/Query.md) — SQL builder
+### [`Query`](docs/Query.md) - SQL builder
 
 Build any SELECT, INSERT, UPDATE, or DELETE with a clean fluent API (or the classic array constructor):
 
@@ -38,7 +38,7 @@ $query = Query::select(['id', 'name'])
 
 ---
 
-### [`Database`](docs/Database.md) — PDO wrapper
+### [`Database`](docs/Database.md) - PDO wrapper
 
 Connect once, then select, insert, update, delete, count, and run transactions with no boilerplate:
 
@@ -61,4 +61,4 @@ $db->executeTransaction(function($db) {
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).
