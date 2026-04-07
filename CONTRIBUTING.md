@@ -46,7 +46,7 @@ The runner exits with code `0` when every test passes and `1` when any test fail
 
 - **PHP 5.4+ compatibility** – avoid language features introduced in PHP 7 or later (e.g., scalar type declarations, `Throwable`, return-type hints, spread operator).
 - **No external dependencies** – the library must work with a plain `require_once` and zero Composer packages.
-- **Fluent API style** – new `Query` setter methods should return `$this` (or a new/cloned instance) and invalidate the cached SQL string so the query is rebuilt lazily on the next call to `getQuery()` / `__toString()`.
+- **Fluent API style** – new `Query` setter methods should mutate the current instance, return `$this`, and invalidate the cached SQL string by setting `$this->query = null` so the query is rebuilt lazily on the next call to `getQuery()` / `__toString()`.
 - **Validate identifiers** – any table name or column name that is interpolated directly into SQL must pass through `validateIdentifier()` or `validateUnqualifiedIdentifier()` to prevent SQL injection.
 - **Follow existing file structure** – driver classes live in `src/drivers/`, core classes in `src/`. The single entry-point `DatabaseMethods.php` loads everything automatically.
 - **Add or update tests** – every new public method or behaviour change should be accompanied by a test in `tests/QueryTests.php` (for `Query`) or `tests/DatabaseTest.php` (for `Database`).
