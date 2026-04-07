@@ -421,7 +421,7 @@ class QueryTest
     public function testFieldsWithNonArrayThrows()
     {
         assert_throws('InvalidArgumentException', function () {
-            Query::select()->fields('id');
+            Query::select()->fields(true);
         });
     }
 
