@@ -76,8 +76,7 @@ $query = Query::select(['id', 'name'])
     ->groupBy('users.id')
     ->having('COUNT(orders.id) > 0')
     ->orderBy('users.name ASC')
-    ->limit(10)
-    ->offset(0);
+    ->limit(10);
 ```
 
 **Array constructor (equivalent):**
@@ -91,8 +90,7 @@ $query = new Query([
     'group_by' => 'users.id',
     'having' => 'COUNT(orders.id) > 0',
     'order_by' => 'users.name ASC',
-    'limit' => 10,
-    'offset' => 0
+    'limit' => 10
 ]);
 ```
 

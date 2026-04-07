@@ -102,10 +102,13 @@ class Query
     /**
      * Creates a SELECT Query for the given fields.
      *
-     * @param array|string $fields Column list (defaults to ['*'] when omitted).
-     *                             A string is normalized to a single-element array.
+     * @param array|string|null $fields Column list. When omitted, null, or an empty array,
+     *                                  defaults to ['*']. A string is normalized to a
+     *                                  single-element array. An empty/whitespace-only string
+     *                                  throws InvalidArgumentException.
      * @return static
-     * @throws InvalidArgumentException If $fields is not an array, string, or empty.
+     * @throws InvalidArgumentException If $fields is an empty/whitespace-only string, or
+     *                                  not an array, string, or null.
      * @example
      * ```php
      * $query = Query::select(['id', 'name'])->from('users')->where('active = 1');
@@ -499,7 +502,8 @@ class Query
 
         // Joins
         if (!empty($this->data['joins'])) {
-            foreach ($this->data['joins'] as $join) {
+            $joins = is_array($this->data['joins']) ? $this->data['joins'] : [$this->data['joins']];
+            foreach ($joins as $join) {
                 $sql .= " {$join}";
             }
         }
@@ -531,9 +535,9 @@ class Query
             $sql .= " LIMIT " . $limit;
         }
 
-        // Offset
+        // Offset (only valid when a positive LIMIT is also set)
         $offset = filter_var(isset($this->data['offset']) ? $this->data['offset'] : null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
-        if ($offset !== false) {
+        if ($limit !== false && $limit > 0 && $offset !== false) {
             $sql .= " OFFSET " . $offset;
         }
 
@@ -643,7 +647,8 @@ class Query
         $sql = "UPDATE {$table}";
 
         if (!empty($this->data['joins'])) {
-            foreach ($this->data['joins'] as $join) {
+            $joins = is_array($this->data['joins']) ? $this->data['joins'] : [$this->data['joins']];
+            foreach ($joins as $join) {
                 $sql .= " {$join}";
             }
         }
