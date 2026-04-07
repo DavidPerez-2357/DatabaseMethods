@@ -109,8 +109,16 @@ class DatabaseTest
             DB_TEST_PASS
         );
         $adminConn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $adminConn->exec('CREATE DATABASE ' . DB_TEST_NAME);
 
+        try {
+            $adminConn->exec('CREATE DATABASE ' . DB_TEST_NAME);
+        } catch (PDOException $e) {
+            // PostgreSQL does not support "CREATE DATABASE IF NOT EXISTS".
+            // Ignore the duplicate_database error so test setup is idempotent.
+            if ($e->getCode() !== '42P04') {
+                throw $e;
+            }
+        }
         return new Postgres([
             'serverName'   => DB_TEST_HOST,
             'username'     => DB_TEST_USER,
