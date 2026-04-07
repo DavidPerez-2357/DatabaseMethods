@@ -46,7 +46,13 @@ define(
 define('DB_TEST_HOST',         'localhost');
 define('DB_TEST_USER',         'root');
 define('DB_TEST_PASS',         '');
-define('DB_TEST_NAME',         'test_dbmethods');  // Database to CREATE / DROP
+define(
+    'DB_TEST_NAME',
+    'test_dbmethods_'
+    . getmypid()
+    . '_'
+    . str_replace('.', '', uniqid('', true))
+);  // Database to CREATE / DROP (unique per run to avoid collisions)
 define('DB_TEST_CODIFICATION', 'utf8mb4');         // MySQL / PostgreSQL only
 
 // ============================================================
@@ -164,6 +170,9 @@ class DatabaseTest
 
         switch (DB_TEST_DRIVER) {
             case 'sqlite':
+                // Release the PDO connection before deleting the file; on
+                // Windows an open handle prevents file deletion.
+                $this->db = null;
                 if (file_exists(DB_TEST_FILE)) {
                     @unlink(DB_TEST_FILE);
                 }
