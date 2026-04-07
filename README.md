@@ -189,7 +189,7 @@ LIMIT 10
 ```
 
 > [!WARNING]
-> The `where` value is embedded as a raw SQL fragment. Always use named placeholders (e.g. `id = :id`) and pass the actual values via the binding array when executing the query through the `Database` class. The `order_by` / `orderBy()` value is validated against a strict pattern that allows only identifiers made of letters, digits, and underscores (optionally qualified with dots), separated by commas and arbitrary whitespace, with optional `ASC`/`DESC` keywords — any other characters will throw an `InvalidArgumentException`.
+> The `where` value is embedded as a raw SQL fragment. Always use PDO placeholders (named or positional, e.g. `id = :id` or `id = ?`) and pass the actual values via the binding array when executing the query through the `Database` class. The `order_by` / `orderBy()` value is validated against a strict pattern that allows only identifiers made of letters, digits, and underscores (optionally qualified with dots), separated by commas and arbitrary whitespace, with optional `ASC`/`DESC` keywords — any other characters will throw an `InvalidArgumentException`.
 
 ### Identifier validation rules
 
@@ -214,7 +214,7 @@ Some inputs are validated strictly and will throw `InvalidArgumentException` for
 - Only hard-coded or otherwise fully-trusted strings should appear directly in these expressions.
 
 > [!WARNING]
-> **Never interpolate user-controlled values directly into WHERE, HAVING, or JOIN strings** — doing so creates an SQL injection vulnerability. Always use PDO named placeholders for any user-supplied values (e.g. `age > :min_age`) and bind the actual values through `Database`.
+> **Never interpolate user-controlled values directly into WHERE, HAVING, or JOIN strings** — doing so creates an SQL injection vulnerability. Always use PDO placeholders (named or positional) for any user-supplied values (e.g. `age > :min_age` or `age > ?`) and bind the actual values through `Database`.
 
 ## Database class
 The Database class provides a comprehensive set of methods for essential database operations such as select, insert, update, delete, record counting, and transaction management, making it straightforward to handle both simple and complex database tasks.
@@ -334,7 +334,7 @@ If you don't want to use the specific methods described below, you can execute a
 
 * **query**: A SQL string or a `Query` object.
 
-* **data**: An optional associative array of query bindings.
+* **data**: An optional array of query bindings. Use an associative array for named placeholders (e.g. `['userId' => 2]`) or a list-style array for positional placeholders (e.g. `[2]`).
 
 This method returns `true` on success, or throws an exception if an error occurs.
 
@@ -351,7 +351,7 @@ try {
 ```
 
 > [!NOTE]
-> Query parameters must use named PDO placeholders prefixed with `:` (e.g. `:userId`).
+> Query parameters may use standard PDO placeholders, including named placeholders prefixed with `:` (e.g. `:userId`) or positional placeholders (`?`). Ensure the `data` bindings match the placeholder style used in the query.
 
 ---
 
@@ -360,9 +360,9 @@ This method works similarly to `executePlainQuery`, but is specifically designed
 
 * **query**: A SQL string or a `Query` object.
 
-* **data**: An optional associative array of query bindings.
+* **data**: An optional array of query bindings. Use an associative array for named placeholders or a list-style array for positional placeholders.
 
-It returns all matching rows as an associative array, or throws an exception if an error occurs.
+It returns all matching rows as an associative array by default, or as a JSON string when `setJsonEncode(true)` is enabled, and throws an exception if an error occurs.
 
 ```php
 try {
