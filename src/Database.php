@@ -202,6 +202,7 @@ class Database
     {
         $this->requireConnection();
 
+        $query->limit(1);
         $stmt = $this->prepareAndExecute((string) $query, $data);
 
         // Fetch a single row as an associative array
