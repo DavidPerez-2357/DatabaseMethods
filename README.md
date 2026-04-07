@@ -57,7 +57,13 @@ $db->executeTransaction(function($db) {
 
 [Full Database documentation →](docs/Database.md)
 
----
+&emsp;
+
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup instructions, how to run the test suite, and the project's coding guidelines.
+
+&emsp;
 
 ## License
 
