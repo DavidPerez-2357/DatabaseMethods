@@ -10,7 +10,7 @@ Both styles produce identical SQL. Cast a `Query` object to string with `echo` /
 > [!TIP]
 > Prefer `getQuery()` over string casting when you need reliable error handling. String casting catches build errors internally and returns an empty string with an `E_USER_WARNING`; `getQuery()` propagates the exception to the caller.
 
----
+&emsp;
 
 ## Fluent API reference
 
@@ -35,7 +35,7 @@ Both styles produce identical SQL. Cast a `Query` object to string with `echo` /
 | `->offset($n)` | SELECT | Set OFFSET |
 | `->valuesCount($n)` | INSERT | Number of rows to insert (default 1) |
 
----
+&emsp;
 
 ## SELECT
 
@@ -76,7 +76,7 @@ ORDER BY users.name ASC
 LIMIT 10
 ```
 
----
+&emsp;
 
 ## INSERT
 
@@ -103,7 +103,7 @@ INSERT INTO users (name, email)
 VALUES (:name_0, :email_0), (:name_1, :email_1), (:name_2, :email_2)
 ```
 
----
+&emsp;
 
 ## UPDATE
 
@@ -133,7 +133,7 @@ SET name = :name, email = :email
 WHERE id = :id
 ```
 
----
+&emsp;
 
 ## DELETE
 
@@ -167,7 +167,7 @@ LIMIT 10
 > [!WARNING]
 > The `where` value is embedded as a raw SQL fragment. Always use PDO placeholders (`id = :id` or `id = ?`) and bind values through `Database`. **Never interpolate user-controlled values directly into WHERE, HAVING, or JOIN strings** — that creates an SQL injection vulnerability.
 
----
+&emsp;
 
 ## Identifier validation
 
