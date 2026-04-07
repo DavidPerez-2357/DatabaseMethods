@@ -553,8 +553,13 @@ class DatabaseTest
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
 
         $this->db->setJsonEncode(true);
-        $result = $this->db->select(Query::select(['name', 'email'])->from(self::TABLE));
-        $this->db->setJsonEncode(false); // restore default
+        try {
+            $result = $this->db->select(Query::select(['name', 'email'])->from(self::TABLE));
+            $this->db->setJsonEncode(false); // restore default
+        } catch (Exception $e) {
+            $this->db->setJsonEncode(false); // restore default on failure
+            throw $e;
+        }
 
         assert_true(is_string($result), 'select() should return a JSON string when setJsonEncode(true).');
         $decoded = json_decode($result, true);
