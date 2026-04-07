@@ -3,7 +3,7 @@
  * tests/run.php
  *
  * Minimal test runner — no external libraries required.
- * Runs QueryTest (unit tests) and DatabaseTest (integration tests).
+ * Runs QueryTests (unit tests) and DatabaseTest (integration tests).
  *
  * Usage:
  *   php tests/run.php
@@ -16,7 +16,7 @@
 
 // Load all library classes (Query, Database, Mysql, Postgres, Sqlite, Sql).
 require_once __DIR__ . '/../DatabaseMethods.php';
-require_once __DIR__ . '/queryTest.php';
+require_once __DIR__ . '/QueryTests.php';
 require_once __DIR__ . '/DatabaseTest.php';
 
 // ---------------------------------------------------------------------------
@@ -131,59 +131,76 @@ function assert_throws($expectedClass, $fn, $msg = '')
 }
 
 // ---------------------------------------------------------------------------
-// Discover and run all test*() methods on the QueryTest class
+// Test runner
 // ---------------------------------------------------------------------------
 
-$suite   = new QueryTest();
-$methods = get_class_methods($suite);
-sort($methods);
+/**
+ * Discovers and runs all test*() methods on $suite, prints per-test results,
+ * prints a summary line, and returns the number of failed tests.
+ *
+ * @param  object        $suite    The test suite instance.
+ * @param  string        $label    Human-readable label shown in the summary.
+ * @param  callable|null $teardown Optional callback invoked after all tests run.
+ * @return int Number of failed tests.
+ */
+function run_suite($suite, $label, $teardown = null)
+{
+    $methods = get_class_methods($suite);
+    sort($methods);
 
-$passed  = 0;
-$failed  = 0;
-$results = [];
+    $passed  = 0;
+    $failed  = 0;
+    $results = [];
 
-foreach ($methods as $method) {
-    if (strncmp($method, 'test', 4) !== 0) {
-        continue;
+    foreach ($methods as $method) {
+        if (strncmp($method, 'test', 4) !== 0) {
+            continue;
+        }
+        try {
+            $suite->$method();
+            $results[] = '[PASS] ' . $method;
+            $passed++;
+        } catch (TestAssertionException $e) {
+            $results[] = '[FAIL] ' . $method . "\n"
+                . '       ' . str_replace("\n", "\n       ", $e->getMessage());
+            $failed++;
+        } catch (Exception $e) {
+            $results[] = '[FAIL] ' . $method . "\n"
+                . '       Unexpected ' . get_class($e) . ': ' . $e->getMessage();
+            $failed++;
+        }
     }
-    try {
-        $suite->$method();
-        $results[] = '[PASS] ' . $method;
-        $passed++;
-    } catch (TestAssertionException $e) {
-        $results[] = '[FAIL] ' . $method . "\n"
-            . '       ' . str_replace("\n", "\n       ", $e->getMessage());
-        $failed++;
-    } catch (Exception $e) {
-        $results[] = '[FAIL] ' . $method . "\n"
-            . '       Unexpected ' . get_class($e) . ': ' . $e->getMessage();
-        $failed++;
+
+    if ($teardown !== null) {
+        call_user_func($teardown);
     }
-}
 
-foreach ($results as $line) {
-    echo $line . "\n";
-}
+    foreach ($results as $line) {
+        echo $line . "\n";
+    }
 
-$total = $passed + $failed;
-echo "\n" . str_repeat('-', 55) . "\n";
-printf("Results: %d/%d tests passed", $passed, $total);
-if ($failed > 0) {
-    printf(", %d FAILED", $failed);
+    $total = $passed + $failed;
+    echo "\n" . str_repeat('-', 55) . "\n";
+    printf("%s: %d/%d tests passed", $label, $passed, $total);
+    if ($failed > 0) {
+        printf(", %d FAILED", $failed);
+    }
+    echo "\n" . str_repeat('-', 55) . "\n\n";
+
+    return $failed;
 }
-echo "\n" . str_repeat('-', 55) . "\n";
 
 // ---------------------------------------------------------------------------
-// Discover and run all test*() methods on the DatabaseTest class
+// Run suites
 // ---------------------------------------------------------------------------
 
-echo "\n";
+$totalFailed = 0;
 
-$dbSuite   = null;
-$dbPassed  = 0;
-$dbFailed  = 0;
-$dbResults = [];
+// Unit tests — Query class
+$totalFailed += run_suite(new QueryTests(), 'Query');
 
+// Integration tests — Database class (SQLite by default; configure in DatabaseTest.php)
+$dbSuite = null;
 try {
     $dbSuite = new DatabaseTest();
 } catch (Exception $e) {
@@ -192,41 +209,11 @@ try {
 }
 
 if ($dbSuite !== null) {
-    $dbMethods = get_class_methods($dbSuite);
-    sort($dbMethods);
-
-    foreach ($dbMethods as $method) {
-        if (strncmp($method, 'test', 4) !== 0) {
-            continue;
-        }
-        try {
-            $dbSuite->$method();
-            $dbResults[] = '[PASS] ' . $method;
-            $dbPassed++;
-        } catch (TestAssertionException $e) {
-            $dbResults[] = '[FAIL] ' . $method . "\n"
-                . '       ' . str_replace("\n", "\n       ", $e->getMessage());
-            $dbFailed++;
-        } catch (Exception $e) {
-            $dbResults[] = '[FAIL] ' . $method . "\n"
-                . '       Unexpected ' . get_class($e) . ': ' . $e->getMessage();
-            $dbFailed++;
-        }
-    }
-
-    $dbSuite->teardown();
-
-    foreach ($dbResults as $line) {
-        echo $line . "\n";
-    }
-
-    $dbTotal = $dbPassed + $dbFailed;
-    echo "\n" . str_repeat('-', 55) . "\n";
-    printf("DB Results: %d/%d tests passed", $dbPassed, $dbTotal);
-    if ($dbFailed > 0) {
-        printf(", %d FAILED", $dbFailed);
-    }
-    echo "\n" . str_repeat('-', 55) . "\n";
+    $totalFailed += run_suite(
+        $dbSuite,
+        'Database',
+        function () use ($dbSuite) { $dbSuite->teardown(); }
+    );
 }
 
-exit(($failed + $dbFailed) > 0 ? 1 : 0);
+exit($totalFailed > 0 ? 1 : 0);

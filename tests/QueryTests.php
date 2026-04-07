@@ -1,6 +1,6 @@
 <?php
 /**
- * tests/QueryTest.php
+ * tests/QueryTests.php
  *
  * Comprehensive test suite for the Query class.
  *
@@ -23,7 +23,7 @@
  * @author DavidPerez-2357
  * @link   https://github.com/DavidPerez-2357/DatabaseMethods
  */
-class QueryTest
+class QueryTests
 {
     // =========================================================================
     // Helper: capture E_USER_WARNING emissions without letting them propagate
