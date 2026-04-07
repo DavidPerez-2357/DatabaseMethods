@@ -53,7 +53,7 @@ define(
     . '_'
     . str_replace('.', '', uniqid('', true))
 );  // Database to CREATE / DROP (unique per run to avoid collisions)
-define('DB_TEST_CODIFICATION', 'utf8mb4');         // MySQL / PostgreSQL only
+define('DB_TEST_CODIFICATION', 'utf8');            // MySQL / PostgreSQL safe default
 
 // ============================================================
 
