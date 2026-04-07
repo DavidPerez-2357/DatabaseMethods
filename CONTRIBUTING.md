@@ -44,7 +44,7 @@ The runner exits with code `0` when every test passes and `1` when any test fail
 
 ## Coding Guidelines
 
-- **PHP 5.4+ compatibility** – avoid language features introduced in PHP 7 or later (e.g., scalar type declarations, `Throwable`, return-type hints, spread operator).
+- **PHP 5.4+ compatibility** – avoid language features introduced after PHP 5.4 (e.g., variadic functions / argument unpacking, scalar type declarations, `Throwable`, return-type hints).
 - **No external dependencies** – the library must work with a plain `require_once` and zero Composer packages.
 - **Fluent API style** – new `Query` setter methods should mutate the current instance, return `$this`, and invalidate the cached SQL string by setting `$this->query = null` so the query is rebuilt lazily on the next call to `getQuery()` / `__toString()`.
 - **Validate identifiers** – any table name or column name that is interpolated directly into SQL must pass through `validateIdentifier()` or `validateUnqualifiedIdentifier()` to prevent SQL injection.
