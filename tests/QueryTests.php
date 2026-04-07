@@ -543,9 +543,9 @@ class QueryTests
         // Simulate the array-constructor path where 'joins' is stored as a plain
         // string and then join() is called — join() must normalize it first.
         $q = new Query([
-            'type' => 'select',
+            'method' => 'SELECT',
             'fields' => ['*'],
-            'from' => 'users',
+            'table' => 'users',
             'joins' => 'LEFT JOIN orders ON users.id = orders.user_id',
         ]);
         $q->join('INNER JOIN roles ON users.role_id = roles.id');
