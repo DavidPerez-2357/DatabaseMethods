@@ -2,11 +2,19 @@
 
 A lightweight PHP library that cuts database boilerplate down to its essentials — two focused classes that let you write less and do more.
 
+> Compatible with PHP **5.4** and above. MySQL, PostgreSQL, SQLite, and SQL Server supported.
+
+---
+
+## Installation & Usage
+
+Download or clone the repository and require the single entry-point file — it automatically loads every module:
+
 ```php
 require_once 'DatabaseMethods.php';
 ```
 
-> Compatible with PHP **5.4** and above. MySQL, PostgreSQL, SQLite, and SQL Server supported.
+No Composer, no external dependencies.
 
 ---
 
