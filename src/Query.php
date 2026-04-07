@@ -32,6 +32,12 @@
  */
 class Query
 {
+    /**
+     * Regex segment matching a single SQL identifier: letters, digits, and underscores,
+     * must start with a letter or underscore. Used by all identifier-validation methods.
+     */
+    const IDENTIFIER = '[a-zA-Z_][a-zA-Z0-9_]*';
+
     private $data;
     private $query;
 
@@ -291,6 +297,10 @@ class Query
     /**
      * Sets the WHERE clause.
      *
+     * This is a raw SQL fragment. To prevent SQL injection, always pass user-supplied
+     * values via PDO placeholders (e.g. `'id = :id'`) and bind them through Database.
+     * Never interpolate untrusted strings directly into this value.
+     *
      * @param string $where Raw SQL WHERE fragment (use named placeholders, e.g. `id = :id`).
      * @return $this
      */
@@ -303,6 +313,11 @@ class Query
 
     /**
      * Appends a single JOIN clause.
+     *
+     * This is a raw SQL fragment. To prevent SQL injection, use only hard-coded or
+     * pre-validated table/column names in JOIN expressions. Never interpolate untrusted
+     * strings directly into the expression; any filter values belong in the WHERE clause
+     * with PDO placeholders.
      *
      * @param string $join Full JOIN expression (e.g. `LEFT JOIN orders ON users.id = orders.user_id`).
      * @return $this
@@ -327,6 +342,9 @@ class Query
 
     /**
      * Replaces all JOIN clauses with the given value.
+     *
+     * Each JOIN expression is a raw SQL fragment — see join() for the SQL injection
+     * warning that applies here as well.
      *
      * Accepts an array of JOIN expressions (each element must be a non-empty string),
      * a single JOIN string (normalized to a one-element array), or null (clears all joins).
@@ -369,7 +387,11 @@ class Query
     /**
      * Sets the GROUP BY clause.
      *
-     * @param string $groupBy Column or expression to group by.
+     * The value is validated by validateGroupBy() when the query is built.
+     * Only plain column names (optionally table-qualified) are allowed, e.g.
+     * `'users.id'` or `'id, name'`.
+     *
+     * @param string $groupBy Column(s) to group by, separated by commas.
      * @return $this
      */
     public function groupBy($groupBy)
@@ -382,7 +404,11 @@ class Query
     /**
      * Sets the HAVING clause.
      *
-     * @param string $having HAVING condition.
+     * This is a raw SQL fragment. To prevent SQL injection, always pass user-supplied
+     * values via PDO placeholders and bind them through Database.
+     * Never interpolate untrusted strings directly into this value.
+     *
+     * @param string $having HAVING condition (use named placeholders for user data).
      * @return $this
      */
     public function having($having)
@@ -523,7 +549,7 @@ class Query
         }
 
         if (!empty($this->data['group_by'])) {
-            $sql .= " GROUP BY {$this->data['group_by']}";
+            $sql .= " GROUP BY " . self::validateGroupBy($this->data['group_by']);
         }
 
         if (!empty($this->data['having'])) {
@@ -579,6 +605,9 @@ class Query
         for ($i = 0; $i < $values; $i++) {
             $rowPlaceholders = array();
             foreach ($fields as $col) {
+                // validateIdentifier() guarantees $col is [a-zA-Z_][a-zA-Z0-9_]* so
+                // the resulting PDO placeholder ":{$col}_{$i}" contains only safe chars.
+                self::validateIdentifier($col, 'INSERT field');
                 $rowPlaceholders[] = ":{$col}_{$i}";
             }
             $placeholders[] = '(' . implode(', ', $rowPlaceholders) . ')';
@@ -609,6 +638,9 @@ class Query
 
         $setClauses = array();
         foreach ($fields as $col) {
+            // validateIdentifier() guarantees $col is [a-zA-Z_][a-zA-Z0-9_]* so
+            // the resulting PDO placeholder ":{$col}" contains only safe chars.
+            self::validateIdentifier($col, 'UPDATE field');
             $setClauses[] = "{$col} = :{$col}";
         }
 
@@ -638,10 +670,11 @@ class Query
         }
 
         $orderBy = trim($orderBy);
+        $id = self::IDENTIFIER;
 
         // Each token: optional_table.column_name optional_ASC_DESC, separated by commas
-        $pattern = '/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?\s*(ASC|DESC)?'
-            . '(\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?\s*(ASC|DESC)?)*$/i';
+        $pattern = '/^' . $id . '(\.' . $id . ')?\s*(ASC|DESC)?'
+            . '(\s*,\s*' . $id . '(\.' . $id . ')?\s*(ASC|DESC)?)*$/i';
 
         if (!preg_match($pattern, $orderBy)) {
             throw new InvalidArgumentException(
@@ -650,6 +683,35 @@ class Query
         }
 
         return $orderBy;
+    }
+
+    /**
+     * Validates a GROUP BY value to prevent SQL injection.
+     * Each token must be a valid SQL identifier (optionally table-qualified).
+     * Multiple columns may be separated by commas.
+     * @param string $groupBy The GROUP BY value to validate.
+     * @throws InvalidArgumentException if the value is not a string or contains disallowed characters.
+     * @return string The trimmed, validated GROUP BY string.
+     */
+    public static function validateGroupBy($groupBy)
+    {
+        if (!is_string($groupBy)) {
+            throw new InvalidArgumentException("group_by must be a string.");
+        }
+
+        $groupBy = trim($groupBy);
+        $id = self::IDENTIFIER;
+
+        // Each token: optional_table.column_name, separated by commas (no ASC/DESC)
+        $pattern = '/^' . $id . '(\.' . $id . ')?(\s*,\s*' . $id . '(\.' . $id . ')?)*$/';
+
+        if (!preg_match($pattern, $groupBy)) {
+            throw new InvalidArgumentException(
+                "Invalid group_by value. Use plain column names, e.g. 'users.id' or 'id, name'."
+            );
+        }
+
+        return $groupBy;
     }
 
     /**
@@ -706,7 +768,7 @@ class Query
     }
 
     /**
-     * Returns the table name from data, throwing if it is missing.
+     * Returns the table name from data, throwing if it is missing or not a valid identifier.
      * @throws InvalidArgumentException
      * @return string
      */
@@ -715,6 +777,7 @@ class Query
         if (!isset($this->data['table'])) {
             throw new InvalidArgumentException("Table is required.");
         }
+        self::validateIdentifier($this->data['table'], 'table name');
         return $this->data['table'];
     }
 
@@ -776,5 +839,28 @@ class Query
             return $fields;
         }
         throw new InvalidArgumentException("{$context} expects \$fields to be an array or string.");
+    }
+
+    /**
+     * Validates that a value is a safe SQL identifier (or schema-qualified identifier).
+     * Allows `identifier` or `schema.identifier` — the same character set used by
+     * validateOrderBy() and validateGroupBy().
+     *
+     * This is the primary guard against SQL injection for table names and column names
+     * that are interpolated directly into the query string.
+     *
+     * @param string $name    The identifier to validate.
+     * @param string $context Human-readable name used in exception messages (e.g. 'table name').
+     * @throws InvalidArgumentException if $name is not a safe SQL identifier.
+     */
+    private static function validateIdentifier($name, $context)
+    {
+        $id = self::IDENTIFIER;
+        if (!is_string($name) || !preg_match('/^' . $id . '(\.' . $id . ')?$/', $name)) {
+            throw new InvalidArgumentException(
+                "Invalid {$context}: only alphanumeric characters and underscores are allowed"
+                . " (optionally schema-qualified, e.g. 'schema.table')."
+            );
+        }
     }
 }
