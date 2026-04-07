@@ -30,8 +30,17 @@
 /** Driver to use: 'sqlite', 'mysql', 'postgres', or 'sql'. */
 define('DB_TEST_DRIVER', 'sqlite');
 
-/** SQLite only: absolute path for the temporary database file. */
-define('DB_TEST_FILE', sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'dbmethods_test.sqlite');
+/** SQLite only: absolute path for a unique temporary database file. */
+define(
+    'DB_TEST_FILE',
+    sys_get_temp_dir()
+    . DIRECTORY_SEPARATOR
+    . 'dbmethods_test_'
+    . getmypid()
+    . '_'
+    . uniqid('', true)
+    . '.sqlite'
+);
 
 // MySQL / PostgreSQL / SQL Server — fill in your credentials:
 define('DB_TEST_HOST',         'localhost');
