@@ -27,12 +27,12 @@ Build any SELECT, INSERT, UPDATE, or DELETE with a clean fluent API (or the clas
 ```php
 $query = Query::select(['id', 'name'])
     ->from('users')
-    ->where('active = 1')
+    ->where('active = :active')
     ->orderBy('name ASC')
     ->limit(20);
 ```
 
-→ `SELECT id, name FROM users WHERE active = 1 ORDER BY name ASC LIMIT 20`
+→ `SELECT id, name FROM users WHERE active = :active ORDER BY name ASC LIMIT 20`
 
 [Full Query documentation →](docs/Query.md)
 
