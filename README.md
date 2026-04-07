@@ -206,7 +206,9 @@ Some inputs are validated strictly and will throw `InvalidArgumentException` for
 - Raw SQL expressions, function calls, or subqueries are not accepted.
 
 **WHERE, HAVING, JOIN** (raw SQL fragments):
-- These are passed through as-is. Always use PDO named placeholders (e.g. `age > :min_age`) for any user-supplied values, and bind them through `Database`.
+- These are passed through as-is. **Never interpolate user-controlled values directly into these strings** — doing so creates an SQL injection vulnerability.
+- Always use PDO named placeholders for any user-supplied values (e.g. `age > :min_age`) and bind the actual values through `Database`.
+- Only hard-coded or otherwise fully-trusted strings should appear directly in these expressions.
 
 # Database class
 The Database class provides a comprehensive set of methods for performing essential database operations such as select, insert, update, and delete. It also includes advanced features like transaction management, record counting, and inserting many records, making it easier to handle both simple and complex database tasks efficiently.

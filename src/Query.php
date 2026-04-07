@@ -884,8 +884,8 @@ class Query
     {
         if (!is_string($name) || !preg_match('/^' . self::IDENTIFIER . '$/', $name)) {
             throw new InvalidArgumentException(
-                "Invalid {$context}: only alphanumeric characters and underscores are allowed"
-                . " (unqualified column name, e.g. 'email' or 'created_at')."
+                "Invalid {$context}: must start with a letter or underscore and contain only"
+                . " alphanumeric characters and underscores (unqualified column name, e.g. 'email' or 'created_at')."
             );
         }
     }
