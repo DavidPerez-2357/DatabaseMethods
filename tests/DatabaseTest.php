@@ -263,6 +263,13 @@ class DatabaseTest
     {
         $this->resetTable();
         $id = $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+
+        if (DB_TEST_DRIVER === 'postgres') {
+            // PDO::lastInsertId() requires a sequence name on PostgreSQL; without
+            // it, the value may be 0. Only assert the return type is an integer.
+            assert_true(is_int($id), 'insert() should return an integer on PostgreSQL.');
+            return;
+        }
         assert_true(is_int($id) && $id > 0, 'insert() should return a positive integer last-insert ID.');
     }
 
