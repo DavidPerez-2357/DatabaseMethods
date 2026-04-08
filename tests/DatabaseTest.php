@@ -65,6 +65,9 @@ class DatabaseTest
     /** Table name used by all tests. */
     const TABLE = 'test_users';
 
+    /** Table used by the NULL-value tests (has a nullable 'notes' column). */
+    const NULLABLE_TABLE = 'test_nullable';
+
     public function __construct()
     {
         $this->db = $this->createDriver();
@@ -653,9 +656,6 @@ class DatabaseTest
     // Requires a table with a nullable column. A dedicated table is created and
     // dropped within each test to keep them fully independent.
     // =========================================================================
-
-    /** Table used by the NULL-value tests (has a nullable 'notes' column). */
-    const NULLABLE_TABLE = 'test_nullable';
 
     /** Returns the CREATE TABLE SQL for the nullable test table. */
     private function getNullableCreateTableSql()
