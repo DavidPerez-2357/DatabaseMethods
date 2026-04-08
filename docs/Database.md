@@ -40,10 +40,13 @@ $sqlite   = new Sqlite(['DB' => '/path/to/database.sqlite']);
 
 ## JSON encode
 
-To receive results as a JSON string instead of a PHP array:
+`setJsonEncode` returns `$this` for chaining, so you can configure the instance inline:
 
 ```php
-$mysql->setJsonEncode(true);   // enable
+$mysql->setJsonEncode(true);   // enable — returns $this
+
+// Fluent example:
+$rows = $mysql->setJsonEncode(true)->select(Query::select()->from('users'));
 $mysql->setJsonEncode(false);  // disable (default)
 ```
 
@@ -87,7 +90,7 @@ $database->update('users',
 
 ## Methods
 
-### `executePlainQuery($query, $data = [])`
+### `executePlainQuery(string $query, array $data = [])`
 
 Execute any SQL statement directly. Returns `true` on success or throws on error.
 
@@ -100,7 +103,7 @@ $database->executePlainQuery(
 
 ---
 
-### `plainSelect($query, $data = [])`
+### `plainSelect(string $query, array $data = [])`
 
 Like `executePlainQuery` but for SELECT statements. Returns all rows as an array (or JSON string when encode is enabled).
 
@@ -113,20 +116,24 @@ $result = $database->plainSelect(
 
 ---
 
-### `select($query, $data = [])` / `selectOne($query, $data = [])`
+### `select(Query|string $query, array $data = [])` / `selectOne(Query|string $query, array $data = [])`
 
-Execute a `Query` object. `select` returns all matching rows; `selectOne` returns only the first row.
+Execute a `Query` object **or a raw SQL string**. `select` returns all matching rows; `selectOne` returns only the first row (empty array when no row matches).
 
 ```php
+// Using a Query object (recommended — builds safe, validated SQL):
 $query = Query::select(['id', 'name'])->from('users')->where('id = :userId');
+$rows  = $database->select($query, ['userId' => 2]);
+$row   = $database->selectOne($query, ['userId' => 2]);
 
-$rows = $database->select($query, ['userId' => 2]);
-$row  = $database->selectOne($query, ['userId' => 2]);
+// Using a raw SQL string (convenient for quick queries):
+$rows = $database->select('SELECT id, name FROM users WHERE active = 1');
+$row  = $database->selectOne('SELECT * FROM users WHERE id = :id', ['id' => 5]);
 ```
 
 ---
 
-### `insert($table, $data)`
+### `insert(string $table, array $data)`
 
 Insert one or more records. Auto-detects single (associative array) vs. multiple (array of associative arrays). Returns the last inserted auto-increment ID.
 
@@ -143,12 +150,14 @@ $lastId = $database->insert('users', [
 
 ---
 
-### `update($table, $data, $where, $whereData = [], $joins = [])`
+### `update(string $table, array $data, string $where, array $whereData = [], array $joins = [])`
 
 Update records. Returns the number of affected rows.
 
-> [!CAUTION]
-> Keys in `$whereData` must not overlap with column names in `$data`. Positional placeholders (`?`) are not supported in `$where` - use named placeholders (e.g. `id = :id`).
+The same column name may appear in both `$data` (SET) and `$whereData` (WHERE) without conflict — SET bindings are distinguished internally with a `set_` prefix.
+
+> [!NOTE]
+> Positional placeholders (`?`) are not supported in `$where`. Use named placeholders (e.g. `id = :id`).
 
 ```php
 $affected = $database->update('users',
@@ -156,11 +165,14 @@ $affected = $database->update('users',
     'id = :id',
     ['id' => 5]
 );
+
+// Same column name in SET and WHERE — works fine:
+$database->update('users', ['active' => 0], 'active = :active', ['active' => 1]);
 ```
 
 ---
 
-### `delete($table, $where, $whereData = [], $orderBy = "", $limit = 0)`
+### `delete(string $table, string $where, array $whereData = [], string $orderBy = '', int $limit = 0)`
 
 Delete records matching `$where`. Returns the number of affected rows. Both named and positional placeholders are supported.
 
@@ -172,17 +184,20 @@ $deleted = $database->delete('users', 'id = :id', ['id' => 2]);
 
 ---
 
-### `deleteAll($table, $data = [], $orderBy = "", $limit = 0)`
+### `deleteAll(string $table, string $orderBy = '', int $limit = 0)`
 
-Delete all records from a table (no WHERE clause). `$data` should always be `[]`; pass `$orderBy` and `$limit` as the 3rd and 4th arguments when needed.
+Delete all records from a table (no WHERE clause). Returns the number of affected rows.
 
 ```php
 $deleted = $database->deleteAll('users');
+
+// With ordering and a limit:
+$deleted = $database->deleteAll('users', 'created_at ASC', 10);
 ```
 
 ---
 
-### `count($table, $where = '', $whereData = [], $joins = [])`
+### `count(string $table, string $where = '', array $whereData = [], array $joins = [])`
 
 Return the number of records matching a condition. Both named and positional placeholders are supported.
 

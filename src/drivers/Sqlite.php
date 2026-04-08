@@ -23,12 +23,12 @@ class Sqlite extends Database
      *
      * @var array
      */
-    protected $supportedJoins = array(
+    protected array $supportedJoins = [
         'INNER' => 'INNER JOIN',
         'LEFT'  => 'LEFT JOIN',
         'RIGHT' => 'RIGHT JOIN',
         'FULL'  => 'FULL JOIN',
-    );
+    ];
     public function __construct($ppt)
     {
         parent::__construct($ppt);

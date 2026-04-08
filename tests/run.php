@@ -114,7 +114,7 @@ function assert_throws($expectedClass, $fn, $msg = '')
 {
     try {
         call_user_func($fn);
-    } catch (Exception $e) {
+    } catch (\Throwable $e) {
         if (!($e instanceof $expectedClass)) {
             throw new TestAssertionException(
                 $msg ?: sprintf(

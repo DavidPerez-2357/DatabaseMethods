@@ -85,21 +85,21 @@ class QueryTests
 
     public function testConstructorWithStringThrows()
     {
-        assert_throws('InvalidArgumentException', function () {
+        assert_throws('TypeError', function () {
             new Query('SELECT * FROM users');
         });
     }
 
     public function testConstructorWithNullThrows()
     {
-        assert_throws('InvalidArgumentException', function () {
+        assert_throws('TypeError', function () {
             new Query(null);
         });
     }
 
     public function testConstructorWithIntegerThrows()
     {
-        assert_throws('InvalidArgumentException', function () {
+        assert_throws('TypeError', function () {
             new Query(42);
         });
     }
@@ -220,20 +220,6 @@ class QueryTests
         });
     }
 
-    public function testSelectWithIntegerThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            Query::select(123);
-        });
-    }
-
-    public function testSelectWithBooleanThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            Query::select(true);
-        });
-    }
-
     // =========================================================================
     // Factory: insert()
     // =========================================================================
@@ -267,13 +253,6 @@ class QueryTests
     {
         $sql = Query::insert('t', ['a'])->valuesCount(3)->getQuery();
         assert_equals('INSERT INTO t (a) VALUES (:a_0), (:a_1), (:a_2)', $sql);
-    }
-
-    public function testInsertWithInvalidFieldsTypeThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            Query::insert('users', 42);
-        });
     }
 
     public function testInsertMissingFieldsThrowsAtBuildTime()
@@ -325,13 +304,6 @@ class QueryTests
     {
         $sql = Query::update('users')->fields(['name'])->where('id = :id')->getQuery();
         assert_equals('UPDATE users SET name = :name WHERE id = :id', $sql);
-    }
-
-    public function testUpdateWithInvalidFieldsTypeThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            Query::update('users', 42);
-        });
     }
 
     public function testUpdateMissingFieldsThrowsAtBuildTime()
@@ -424,20 +396,6 @@ class QueryTests
         assert_equals('SELECT x, y FROM t', $sql);
     }
 
-    public function testFieldsWithNonArrayThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            Query::select()->fields(true);
-        });
-    }
-
-    public function testFieldsWithIntegerThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            Query::select()->fields(42);
-        });
-    }
-
     // =========================================================================
     // Fluent setters: where()
     // =========================================================================
@@ -491,20 +449,6 @@ class QueryTests
         });
     }
 
-    public function testJoinWithIntegerThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            Query::select()->from('t')->join(42);
-        });
-    }
-
-    public function testJoinWithArrayThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            Query::select()->from('t')->join(['LEFT JOIN foo ON bar']);
-        });
-    }
-
     public function testJoinsWithNullClearsAllJoins()
     {
         $sql = Query::select()->from('users')
@@ -530,13 +474,6 @@ class QueryTests
             ->getQuery();
         assert_not_contains('INNER JOIN old_tbl', $sql);
         assert_contains('LEFT JOIN orders', $sql);
-    }
-
-    public function testJoinsWithIntegerThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            Query::select()->from('t')->joins(42);
-        });
     }
 
     public function testJoinNormalizesNonArrayExistingJoins()
@@ -610,16 +547,9 @@ class QueryTests
         });
     }
 
-    public function testLimitWithFloatThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            Query::select()->from('t')->limit(1.5);
-        });
-    }
-
     public function testLimitWithNonNumericStringThrows()
     {
-        assert_throws('InvalidArgumentException', function () {
+        assert_throws('TypeError', function () {
             Query::select()->from('t')->limit('ten');
         });
     }
@@ -648,16 +578,9 @@ class QueryTests
         });
     }
 
-    public function testOffsetWithFloatThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            Query::select()->from('t')->offset(2.9);
-        });
-    }
-
     public function testOffsetWithNonNumericStringThrows()
     {
-        assert_throws('InvalidArgumentException', function () {
+        assert_throws('TypeError', function () {
             Query::select()->from('t')->offset('many');
         });
     }
@@ -693,16 +616,9 @@ class QueryTests
         });
     }
 
-    public function testValuesCountWithFloatThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            Query::insert('t', ['a'])->valuesCount(2.5);
-        });
-    }
-
     public function testValuesCountWithNonNumericStringThrows()
     {
-        assert_throws('InvalidArgumentException', function () {
+        assert_throws('TypeError', function () {
             Query::insert('t', ['a'])->valuesCount('many');
         });
     }
@@ -1123,7 +1039,7 @@ class QueryTests
 
     public function testValidateOrderByNonStringArrayThrows()
     {
-        assert_throws('InvalidArgumentException', function () {
+        assert_throws('TypeError', function () {
             Query::validateOrderBy(['name']);
         });
     }
@@ -1244,13 +1160,6 @@ class QueryTests
         });
     }
 
-    public function testInnerJoinWithNonStringTableThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            Query::select()->from('t')->innerJoin(42, 'a.id = b.id');
-        });
-    }
-
     public function testInnerJoinWithEmptyConditionThrows()
     {
         assert_throws('InvalidArgumentException', function () {
@@ -1267,7 +1176,7 @@ class QueryTests
 
     public function testInnerJoinWithNonStringConditionThrows()
     {
-        assert_throws('InvalidArgumentException', function () {
+        assert_throws('TypeError', function () {
             Query::select()->from('t')->innerJoin('orders', null);
         });
     }

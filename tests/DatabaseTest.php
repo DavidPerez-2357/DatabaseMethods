@@ -656,6 +656,81 @@ class DatabaseTest
         assert_true(is_array($result));
     }
 
+    public function testSetJsonEncodeReturnsSelf()
+    {
+        $returned = $this->db->setJsonEncode(false);
+        assert_true($returned === $this->db, 'setJsonEncode() must return $this for chaining.');
+    }
+
+    // =========================================================================
+    // Tests — select() and selectOne() with raw SQL string
+    // =========================================================================
+
+    public function testSelectAcceptsRawSqlString()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com']);
+
+        $rows = $this->db->select('SELECT * FROM ' . self::TABLE);
+        assert_equals(2, count($rows));
+    }
+
+    public function testSelectWithStringAndBindings()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 0]);
+
+        $rows = $this->db->select(
+            'SELECT * FROM ' . self::TABLE . ' WHERE active = :active',
+            ['active' => 1]
+        );
+        assert_equals(1, count($rows));
+        assert_equals('Alice', $rows[0]['name']);
+    }
+
+    public function testSelectOneAcceptsRawSqlString()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com']);
+
+        $row = $this->db->selectOne(
+            'SELECT * FROM ' . self::TABLE . ' WHERE name = :name',
+            ['name' => 'Alice']
+        );
+        assert_equals('Alice', $row['name']);
+    }
+
+    public function testSelectOneWithStringReturnsEmptyArrayWhenNoMatch()
+    {
+        $this->resetTable();
+        $row = $this->db->selectOne(
+            'SELECT * FROM ' . self::TABLE . ' WHERE name = :name',
+            ['name' => 'Nobody']
+        );
+        assert_equals([], $row);
+    }
+
+    // =========================================================================
+    // Tests — update() same-column-name in SET and WHERE
+    // =========================================================================
+
+    public function testUpdateWithSameColumnNameInSetAndWhere()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
+
+        // Using the same column name 'active' in both $data (SET) and $whereData (WHERE)
+        // should work without any conflict error.
+        $affected = $this->db->update(self::TABLE, ['active' => 0], 'active = :active', ['active' => 1]);
+        assert_equals(2, $affected, 'update() must accept the same column name in $data and $whereData.');
+        assert_equals(0, $this->db->count(self::TABLE, 'active = :a', ['a' => 1]));
+        assert_equals(2, $this->db->count(self::TABLE, 'active = :a', ['a' => 0]));
+    }
+
     // =========================================================================
     // Tests — getLastInsertId
     // =========================================================================

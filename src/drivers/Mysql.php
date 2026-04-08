@@ -23,11 +23,11 @@ class Mysql extends Database
      *
      * @var array
      */
-    protected $supportedJoins = array(
+    protected array $supportedJoins = [
         'INNER' => 'INNER JOIN',
         'LEFT'  => 'LEFT JOIN',
         'RIGHT' => 'RIGHT JOIN',
-    );
+    ];
     public function __construct($ppt)
     {
         parent::__construct($ppt);

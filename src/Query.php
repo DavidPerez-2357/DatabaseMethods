@@ -53,30 +53,22 @@ class Query
      * @param array $queryData Configuration array (optional when using factory methods).
      * @throws InvalidArgumentException if $queryData is not an array.
      */
-    public function __construct($queryData = [])
+    public function __construct(array $queryData = [])
     {
-        if (!is_array($queryData)) {
-            throw new InvalidArgumentException('Query constructor expects an array.');
-        }
         $this->data = $queryData;
         if (!empty($queryData)) {
             $this->query = $this->buildQuery();
         }
     }
 
-    public function __toString()
+    public function __toString(): string
     {
         try {
             if ($this->query === null) {
                 $this->query = $this->buildQuery();
             }
             return (string) $this->query;
-        } catch (Exception $e) {
-            // Throwing from __toString() is fatal in PHP 5.4–6.x, so we emit a warning instead.
-            // Note: `Throwable` (which also covers `Error`) was introduced in PHP 7.0 and cannot
-            // be used here without breaking the library's PHP 5.4+ compatibility guarantee.
-            // In practice, buildQuery() only throws InvalidArgumentException (extends Exception),
-            // so this catch is sufficient for all real-world error paths.
+        } catch (\Throwable $e) {
             trigger_error(
                 'Error building SQL query in ' . __METHOD__ . ': ' . $e->getMessage(),
                 E_USER_WARNING
@@ -92,9 +84,8 @@ class Query
      * during query building propagate to the caller.
      *
      * @throws InvalidArgumentException if the query configuration is invalid.
-     * @return string
      */
-    public function getQuery()
+    public function getQuery(): string
     {
         if ($this->query === null) {
             $this->query = $this->buildQuery();
@@ -122,7 +113,7 @@ class Query
      * $query = Query::select('id')->from('users');
      * ```
      */
-    public static function select($fields = [])
+    public static function select(array|string|null $fields = []): static
     {
         $instance = new static();
         $instance->data['method'] = 'SELECT';
@@ -168,7 +159,7 @@ class Query
      * $query = Query::insert('users')->fields(['name', 'email'])->valuesCount(3);
      * ```
      */
-    public static function insert($table, $fields = [])
+    public static function insert(string $table, array|string $fields = []): static
     {
         $instance = new static();
         $instance->data['method'] = 'INSERT';
@@ -198,7 +189,7 @@ class Query
      * $query = Query::update('users')->fields(['name', 'email'])->where('id = :id');
      * ```
      */
-    public static function update($table, $fields = [])
+    public static function update(string $table, array|string $fields = []): static
     {
         $instance = new static();
         $instance->data['method'] = 'UPDATE';
@@ -219,7 +210,7 @@ class Query
      * $query = Query::delete('users')->where('id = :id')->limit(10);
      * ```
      */
-    public static function delete($table)
+    public static function delete(string $table): static
     {
         $instance = new static();
         $instance->data['method'] = 'DELETE';
@@ -237,7 +228,7 @@ class Query
      * @param string $table Table name.
      * @return $this
      */
-    public function from($table)
+    public function from(string $table): static
     {
         $this->data['table'] = $table;
         $this->query = null;
@@ -250,7 +241,7 @@ class Query
      * @param string $table Table name.
      * @return $this
      */
-    public function table($table)
+    public function table(string $table): static
     {
         return $this->from($table);
     }
@@ -266,7 +257,7 @@ class Query
      * @return $this
      * @throws InvalidArgumentException if $fields is not an array or string.
      */
-    public function fields($fields)
+    public function fields(array|string $fields): static
     {
         if (is_string($fields)) {
             if (trim($fields) === '') {
@@ -275,10 +266,6 @@ class Query
                 );
             }
             $fields = [$fields];
-        } elseif (!is_array($fields)) {
-            throw new InvalidArgumentException(
-                'Query::fields() expects an array of column names or a string column name.'
-            );
         }
 
         // Validate every element before applying any default.
@@ -314,7 +301,7 @@ class Query
      * @param string $where Raw SQL WHERE fragment (use named placeholders, e.g. `id = :id`).
      * @return $this
      */
-    public function where($where)
+    public function where(string $where): static
     {
         $this->data['where'] = $where;
         $this->query = null;
@@ -333,9 +320,9 @@ class Query
      * @return $this
      * @throws InvalidArgumentException If $join is not a non-empty string.
      */
-    public function join($join)
+    public function join(string $join): static
     {
-        if (!is_string($join) || trim($join) === '') {
+        if (trim($join) === '') {
             throw new InvalidArgumentException(
                 'join() expects a non-empty string JOIN expression.'
             );
@@ -361,7 +348,7 @@ class Query
      * @return $this
      * @throws InvalidArgumentException If $table or $condition is not a non-empty string.
      */
-    public function innerJoin($table, $condition)
+    public function innerJoin(string $table, string $condition): static
     {
         return $this->buildTypedJoin('INNER JOIN', $table, $condition);
     }
@@ -377,7 +364,7 @@ class Query
      * @return $this
      * @throws InvalidArgumentException If $table or $condition is not a non-empty string.
      */
-    public function leftJoin($table, $condition)
+    public function leftJoin(string $table, string $condition): static
     {
         return $this->buildTypedJoin('LEFT JOIN', $table, $condition);
     }
@@ -393,7 +380,7 @@ class Query
      * @return $this
      * @throws InvalidArgumentException If $table or $condition is not a non-empty string.
      */
-    public function rightJoin($table, $condition)
+    public function rightJoin(string $table, string $condition): static
     {
         return $this->buildTypedJoin('RIGHT JOIN', $table, $condition);
     }
@@ -409,7 +396,7 @@ class Query
      * @return $this
      * @throws InvalidArgumentException If $table or $condition is not a non-empty string.
      */
-    public function fullJoin($table, $condition)
+    public function fullJoin(string $table, string $condition): static
     {
         return $this->buildTypedJoin('FULL JOIN', $table, $condition);
     }
@@ -429,7 +416,7 @@ class Query
      * @throws InvalidArgumentException if $joins is not an array, string, or null, or if any
      *                                  array element is not a non-empty string.
      */
-    public function joins($joins)
+    public function joins(array|string|null $joins): static
     {
         if ($joins === null) {
             $this->data['joins'] = [];
@@ -440,7 +427,7 @@ class Query
                 );
             }
             $this->data['joins'] = [$joins];
-        } elseif (is_array($joins)) {
+        } else {
             foreach ($joins as $join) {
                 if (!is_string($join) || trim($join) === '') {
                     throw new InvalidArgumentException(
@@ -449,10 +436,6 @@ class Query
                 }
             }
             $this->data['joins'] = $joins;
-        } else {
-            throw new InvalidArgumentException(
-                'joins() expects an array of JOIN expressions, a JOIN string, or null.'
-            );
         }
         $this->query = null;
         return $this;
@@ -468,7 +451,7 @@ class Query
      * @param string $groupBy Column(s) to group by, separated by commas.
      * @return $this
      */
-    public function groupBy($groupBy)
+    public function groupBy(string $groupBy): static
     {
         $this->data['group_by'] = $groupBy;
         $this->query = null;
@@ -485,7 +468,7 @@ class Query
      * @param string $having HAVING condition (use named placeholders for user data).
      * @return $this
      */
-    public function having($having)
+    public function having(string $having): static
     {
         $this->data['having'] = $having;
         $this->query = null;
@@ -499,7 +482,7 @@ class Query
      * @param string $orderBy Column(s) with optional ASC/DESC (e.g. `name ASC, id DESC`).
      * @return $this
      */
-    public function orderBy($orderBy)
+    public function orderBy(string $orderBy): static
     {
         $this->data['order_by'] = $orderBy;
         $this->query = null;
@@ -513,7 +496,7 @@ class Query
      * @return $this
      * @throws InvalidArgumentException If $limit is not a non-negative integer value.
      */
-    public function limit($limit)
+    public function limit(int $limit): static
     {
         if (filter_var($limit, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) === false) {
             throw new InvalidArgumentException(
@@ -532,7 +515,7 @@ class Query
      * @return $this
      * @throws InvalidArgumentException If $offset is not a non-negative integer value.
      */
-    public function offset($offset)
+    public function offset(int $offset): static
     {
         if (filter_var($offset, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) === false) {
             throw new InvalidArgumentException(
@@ -552,7 +535,7 @@ class Query
      * @return $this
      * @throws InvalidArgumentException If $count is not a positive integer value.
      */
-    public function valuesCount($count)
+    public function valuesCount(int $count): static
     {
         if (filter_var($count, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
             throw new InvalidArgumentException(
@@ -568,7 +551,7 @@ class Query
     // Query builders
     // -------------------------------------------------------------------------
 
-    public function buildQuery()
+    public function buildQuery(): string
     {
         if (empty($this->data['method'])) {
             throw new InvalidArgumentException("Query method is required.");
@@ -608,7 +591,7 @@ class Query
      * ]);
      *
      */
-    public function buildSelectQuery()
+    public function buildSelectQuery(): string
     {
         $this->assertMethod('SELECT');
         $table = $this->requireTable();
@@ -664,7 +647,7 @@ class Query
      *     'values_to_insert' => 3
      * ]);
      * */
-    public function buildPDOInsertQuery()
+    public function buildPDOInsertQuery(): string
     {
         $this->assertMethod('INSERT');
         $table = $this->requireTable();
@@ -708,7 +691,7 @@ class Query
      *   'joins' => ['LEFT JOIN orders ON users.id = orders.user_id']
      * ]);
      * */
-    public function buildPDOUpdateQuery()
+    public function buildPDOUpdateQuery(): string
     {
         $this->assertMethod('UPDATE');
         $table = $this->requireTable();
@@ -741,12 +724,8 @@ class Query
      * @throws InvalidArgumentException if the value is not a string or contains disallowed characters.
      * @return string The trimmed, validated ORDER BY string.
      */
-    public static function validateOrderBy($orderBy)
+    public static function validateOrderBy(string $orderBy): string
     {
-        if (!is_string($orderBy)) {
-            throw new InvalidArgumentException("order_by must be a string.");
-        }
-
         $orderBy = trim($orderBy);
         $id = self::IDENTIFIER;
 
@@ -771,12 +750,8 @@ class Query
      * @throws InvalidArgumentException if the value is not a string or contains disallowed characters.
      * @return string The trimmed, validated GROUP BY string.
      */
-    public static function validateGroupBy($groupBy)
+    public static function validateGroupBy(string $groupBy): string
     {
-        if (!is_string($groupBy)) {
-            throw new InvalidArgumentException("group_by must be a string.");
-        }
-
         $groupBy = trim($groupBy);
         $id = self::IDENTIFIER;
 
@@ -806,7 +781,7 @@ class Query
      *    'limit' => 10
      * ]);
      * */
-    public function buildDeleteQuery()
+    public function buildDeleteQuery(): string
     {
         $this->assertMethod('DELETE');
         $table = $this->requireTable();
@@ -838,19 +813,14 @@ class Query
      * @param string $expected Expected method name (e.g. 'SELECT').
      * @throws InvalidArgumentException
      */
-    private function assertMethod($expected)
+    private function assertMethod(string $expected): void
     {
         if (!isset($this->data['method']) || strtoupper($this->data['method']) !== $expected) {
             throw new InvalidArgumentException("Only {$expected} method is supported.");
         }
     }
 
-    /**
-     * Returns the table name from data, throwing if it is missing or not a valid identifier.
-     * @throws InvalidArgumentException
-     * @return string
-     */
-    private function requireTable()
+    private function requireTable(): string
     {
         if (!isset($this->data['table'])) {
             throw new InvalidArgumentException("Table is required.");
@@ -859,12 +829,7 @@ class Query
         return $this->data['table'];
     }
 
-    /**
-     * Returns the fields array from data, throwing if it is missing or empty.
-     * @throws InvalidArgumentException
-     * @return array
-     */
-    private function requireFields()
+    private function requireFields(): array
     {
         if (!isset($this->data['fields']) || !is_array($this->data['fields']) || empty($this->data['fields'])) {
             throw new InvalidArgumentException("Fields must be a non-empty array.");
@@ -872,12 +837,7 @@ class Query
         return $this->data['fields'];
     }
 
-    /**
-     * Appends any stored JOIN clauses to the SQL string.
-     * Handles both array and legacy string values in $data['joins'].
-     * @param string &$sql SQL string to append to.
-     */
-    private function appendJoinsToSql(&$sql)
+    private function appendJoinsToSql(string &$sql): void
     {
         if (empty($this->data['joins'])) {
             return;
@@ -888,24 +848,14 @@ class Query
         }
     }
 
-    /**
-     * Validates $table and $condition, builds a typed JOIN expression, and
-     * delegates to join(). Used by innerJoin(), leftJoin(), rightJoin(), fullJoin().
-     *
-     * @param string $type      SQL join keyword (e.g. 'INNER JOIN').
-     * @param string $table     Table expression (e.g. `orders o`).
-     * @param string $condition ON condition (e.g. `o.user_id = users.id`).
-     * @return $this
-     * @throws InvalidArgumentException If $table or $condition is not a non-empty string.
-     */
-    private function buildTypedJoin($type, $table, $condition)
+    private function buildTypedJoin(string $type, string $table, string $condition): static
     {
-        if (!is_string($table) || trim($table) === '') {
+        if (trim($table) === '') {
             throw new InvalidArgumentException(
                 'typed join expects $table to be a non-empty string.'
             );
         }
-        if (!is_string($condition) || trim($condition) === '') {
+        if (trim($condition) === '') {
             throw new InvalidArgumentException(
                 'typed join expects $condition to be a non-empty string.'
             );
@@ -913,35 +863,19 @@ class Query
         return $this->join("{$type} {$table} ON {$condition}");
     }
 
-    /**
-     * Validates and returns the stored LIMIT value.
-     * Returns 0 when no valid positive limit is set (meaning "no LIMIT clause").
-     * @return int
-     */
-    private function getValidatedLimit()
+    private function getValidatedLimit(): int
     {
         $raw = isset($this->data['limit']) ? $this->data['limit'] : null;
         $limit = filter_var($raw, FILTER_VALIDATE_INT, array('options' => array('min_range' => 0)));
         return ($limit !== false && $limit > 0) ? (int) $limit : 0;
     }
 
-    /**
-     * Normalizes the optional $fields argument accepted by insert() and update().
-     * A string is wrapped in an array; an array is used as-is; anything else throws.
-     * @param mixed  $fields  The value to normalize.
-     * @param string $context Method name used in exception messages (e.g. 'Query::insert()').
-     * @throws InvalidArgumentException
-     * @return array
-     */
-    private static function normalizeOptionalFields($fields, $context)
+    private static function normalizeOptionalFields(array|string $fields, string $context): array
     {
         if (is_string($fields)) {
             return array($fields);
         }
-        if (is_array($fields)) {
-            return $fields;
-        }
-        throw new InvalidArgumentException("{$context} expects \$fields to be an array or string.");
+        return $fields;
     }
 
     /**
@@ -956,10 +890,10 @@ class Query
      * @param string $context Human-readable name used in exception messages (e.g. 'table name').
      * @throws InvalidArgumentException if $name is not a safe SQL identifier.
      */
-    private static function validateIdentifier($name, $context)
+    public static function validateIdentifier(string $name, string $context): void
     {
         $id = self::IDENTIFIER;
-        if (!is_string($name) || !preg_match('/^' . $id . '(\.' . $id . ')?$/', $name)) {
+        if (!preg_match('/^' . $id . '(\.' . $id . ')?$/', $name)) {
             throw new InvalidArgumentException(
                 "Invalid {$context}: only alphanumeric characters and underscores are allowed"
                 . " (optionally schema-qualified, e.g. 'schema.table')."
@@ -978,9 +912,9 @@ class Query
      * @param string $context Human-readable name used in exception messages (e.g. 'INSERT field').
      * @throws InvalidArgumentException if $name is not a plain SQL identifier.
      */
-    private static function validateUnqualifiedIdentifier($name, $context)
+    public static function validateUnqualifiedIdentifier(string $name, string $context): void
     {
-        if (!is_string($name) || !preg_match('/^' . self::IDENTIFIER . '$/', $name)) {
+        if (!preg_match('/^' . self::IDENTIFIER . '$/', $name)) {
             throw new InvalidArgumentException(
                 "Invalid {$context}: must start with a letter or underscore and contain only"
                 . " alphanumeric characters and underscores (unqualified column name, e.g. 'email' or 'created_at')."

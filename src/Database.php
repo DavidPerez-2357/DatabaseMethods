@@ -18,9 +18,9 @@
  */
 class Database
 {
-    private $properties; // Array with the initial properties of the class
-    private $conn; // connection variable
-    private $json_encode = false; // Default value for json_encode
+    private array $properties;
+    private ?PDO $conn = null;
+    private bool $json_encode = false;
 
     /**
      * Associative array of supported JOIN types for this driver.
@@ -31,46 +31,21 @@ class Database
      *
      * Example entry: 'INNER' => 'INNER JOIN'
      *
-     * @var array
+     * @var array<string, string>
      */
-    protected $supportedJoins = array(
+    protected array $supportedJoins = [
         'INNER' => 'INNER JOIN',
         'LEFT'  => 'LEFT JOIN',
         'RIGHT' => 'RIGHT JOIN',
         'FULL'  => 'FULL JOIN',
-    );
+    ];
 
-    public function __construct($ppt)
+    public function __construct(array $ppt)
     {
         $this->properties = $ppt;
     }
 
-    public function __call($method, $args)
-    {
-        static $allowedMethods = ['select', 'selectone', 'insert', 'update', 'delete', 'deleteall', 'count'];
-        static $canonicalNames = [
-            'selectone' => 'selectOne',
-            'deleteall' => 'deleteAll',
-        ];
-        $lower = strtolower($method);
-        if (!in_array($lower, $allowedMethods, true)) {
-            throw new BadMethodCallException("Method '{$method}' does not exist in " . get_class($this) . ".");
-        }
-
-        // Normalize to canonical camelCase method name
-        $canonical = isset($canonicalNames[$lower]) ? $canonicalNames[$lower] : $lower;
-
-        // Replace keywords in every array argument before dispatching
-        foreach ($args as $i => $arg) {
-            if (is_array($arg)) {
-                $args[$i] = $this->replaceKeywordsInData($arg);
-            }
-        }
-
-        return call_user_func_array([$this, $canonical], $args);
-    }
-
-    protected function setConnection($conn)
+    protected function setConnection(PDO $conn): void
     {
         $this->conn = $conn;
     }
@@ -93,7 +68,7 @@ class Database
      * @param mixed $default Value to return when none of the keys are present.
      * @return mixed
      */
-    protected function getConfigValue(array $ppt, array $keys, $default = null)
+    protected function getConfigValue(array $ppt, array $keys, mixed $default = null): mixed
     {
         foreach ($keys as $key) {
             if (isset($ppt[$key])) {
@@ -103,54 +78,41 @@ class Database
         return $default;
     }
 
-    public function setJsonEncode($bool)
+    /**
+     * Enables or disables JSON encoding of results.
+     * When enabled, `select`, `selectOne`, and `plainSelect` return a JSON string instead of a PHP array.
+     *
+     * @return static Fluent interface — returns the instance for chaining.
+     */
+    public function setJsonEncode(bool $bool): static
     {
         $this->json_encode = $bool;
+        return $this;
     }
 
     /**
      * Returns the list of JOIN types supported by this driver.
      *
-     * Each entry maps a human-readable join name to the SQL keyword.
-     * Drivers that do not support certain join types (e.g. SQLite does not
-     * support RIGHT JOIN or FULL JOIN) will return a restricted list.
-     *
-     * @return array Associative array of supported join types (e.g. ['INNER' => 'INNER JOIN', ...]).
+     * @return array<string, string> Associative array of supported join types (e.g. ['INNER' => 'INNER JOIN', ...]).
      */
-    public function getSupportedJoinTypes()
+    public function getSupportedJoinTypes(): array
     {
         return $this->supportedJoins;
     }
 
     /**
      * Replaces keywords in the data array with actual values.
-     * This method is used to replace placeholders like @lastInsertId, @currentDate, and @currentDateTime.
      * Supports flat associative arrays and multi-row arrays (where every element is an associative array,
      * e.g., for insertMany). Arbitrary deeply nested structures are not recursed into.
-     * @param mixed $data The data array containing the placeholders, or a non-array value (returned as-is).
-     * @return mixed The modified data with placeholders replaced, or the original value if not an array.
      */
-    protected function replaceKeywordsInData($data)
+    protected function replaceKeywordsInData(array $data): array
     {
-        if (empty($data) || !is_array($data)) {
+        if (empty($data)) {
             return $data;
         }
 
-        // Detect a true multi-row array: the array must be a sequential list (0-indexed numeric
-        // keys) and every element must be an array. Requiring sequential numeric keys avoids a
-        // false positive for associative single-row payloads whose every value happens to be an
-        // array (e.g. a JSON/metadata column), which would otherwise route them down the
-        // recursive branch and skip scalar keyword replacement.
-        // array_is_list() is PHP 8.1+; use the equivalent keys check for PHP 5.4 compatibility.
-        $isList = (array_keys($data) === range(0, count($data) - 1));
-        $allArrays = true;
-        foreach ($data as $value) {
-            if (!is_array($value)) {
-                $allArrays = false;
-                break;
-            }
-        }
-        if ($isList && $allArrays) {
+        // Detect a true multi-row array: sequential list where every element is an array.
+        if (array_is_list($data) && is_array($data[0])) {
             foreach ($data as $key => $row) {
                 $data[$key] = $this->replaceKeywordsInData($row);
             }
@@ -194,13 +156,10 @@ class Database
     }
 
     /**
-     * Executes a plain SQL query.
-     * @param string $query The SQL query to execute.
-     * @param array $data Optional parameters for the query.
-     * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return bool True on success, false on failure.
+     * Executes any SQL statement directly (INSERT, UPDATE, DELETE, DDL, etc.).
+     * Returns `true` on success or throws on error.
      */
-    public function executePlainQuery($query, $data = [])
+    public function executePlainQuery(string $query, array $data = []): bool
     {
         $this->requireConnection();
 
@@ -209,13 +168,10 @@ class Database
     }
 
     /**
-     * Executes a plain SELECT SQL query and returns the results.
-     * @param string $query The SQL SELECT query to execute.
-     * @param array $data Optional parameters for the query.
-     * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return array|string The result set as an associative array, or a JSON-encoded string if json_encode is enabled.
+     * Executes a raw SELECT SQL string and returns all rows.
+     * Results are returned as an associative array, or a JSON string when json-encode mode is on.
      */
-    public function plainSelect($query, $data = [])
+    public function plainSelect(string $query, array $data = []): array|string
     {
         $this->requireConnection();
 
@@ -225,85 +181,72 @@ class Database
     }
 
     /**
-     * Executes a SELECT query using the Query class and returns a single row.
-     * @param Query $query The Query object containing the SQL query.
-     * @param array $data Optional parameters for the query.
-     * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return array The result row as an associative array.
+     * Executes a SELECT query and returns a single row (the first match).
+     *
+     * `$query` can be a `Query` object or a raw SQL string.
+     * Returns an empty array when no row matches.
+     * Returns a JSON string instead of an array when json-encode mode is on.
      */
-    private function selectOne($query, $data = [])
+    public function selectOne(Query|string $query, array $data = []): array|string
     {
         $this->requireConnection();
 
-        $query->limit(1);
+        if ($query instanceof Query) {
+            $query->limit(1);
+        }
         $stmt = $this->prepareAndExecute((string) $query, $data);
 
-        // Fetch a single row as an associative array
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($row === false) {
-            return $this->json_encode ? json_encode(array()) : array();
+            return $this->json_encode ? json_encode([]) : [];
         }
         return $this->json_encode ? json_encode($row) : $row;
     }
 
     /**
-     * Executes a SELECT query using the Query class and returns all results.
-     * @param Query $query The Query object containing the SQL query.
-     * @param array $data Optional parameters for the query.
-     * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return array The result set as an associative array.
+     * Executes a SELECT query and returns all matching rows.
+     *
+     * `$query` can be a `Query` object or a raw SQL string.
+     * Returns an array of associative arrays, or a JSON string when json-encode mode is on.
      */
-    private function select($query, $data = [])
+    public function select(Query|string $query, array $data = []): array|string
     {
         $this->requireConnection();
 
         $stmt = $this->prepareAndExecute((string) $query, $data);
 
-        // Fetch all results as an associative array
         return $this->formatResult($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
     /**
-     * Inserts records into the specified table using the Query class.
-     * This method detects if the data is a single record or multiple records and calls the appropriate method.
-     * @param string $table The name of the table to insert into.
-     * @param array $data An associative array of column names and values to insert,
-     *                    or an array of such arrays for multiple records.
-     * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return int The ID of the last inserted row or the number of affected rows for multiple inserts.
+     * Inserts one or more records into `$table`.
+     *
+     * Pass an associative array for a single row, or an array of associative
+     * arrays to insert multiple rows in one statement.
+     * Returns the last auto-increment ID inserted.
      */
-    private function insert($table, $data)
+    public function insert(string $table, array $data): int
     {
-        // Detect if the data is a single record or multiple records
+        $data = $this->replaceKeywordsInData($data);
+
         if (isset($data[0]) && is_array($data[0])) {
-            // Multiple records — keywords were already replaced by __call before dispatch.
             return $this->insertMany($table, $data);
-        } else {
-            // Single record
-            return $this->insertOne($table, $data);
         }
+        return $this->insertOne($table, $data);
     }
 
-    /**
-     * Inserts a single record into the specified table using the Query class.
-     * @param string $table The name of the table to insert into.
-     * @param array $data An associative array of column names and values to insert.
-     * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return int The ID of the last inserted row.
-     */
-    private function insertOne($table, $data)
+    private function insertOne(string $table, array $data): int
     {
         $this->requireConnection();
 
         $fields = array_keys($data);
 
-        // Use the Query class to build the insert query
         $query = new Query([
             'method' => 'INSERT',
             'table' => $table,
             'fields' => $fields,
-            'values_to_insert' => 1
+            'values_to_insert' => 1,
         ]);
 
         $placeholders = [];
@@ -315,22 +258,14 @@ class Database
         return (int) $this->conn->lastInsertId();
     }
 
-    /**
-     * Inserts multiple records into the specified table using the Query class.
-     * @param string $table The name of the table to insert into.
-     * @param array $data An array of associative arrays, each representing a row to insert.
-     * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return int The ID of the last inserted row.
-     */
-    private function insertMany($table, $data)
+    private function insertMany(string $table, array $data): int
     {
         $this->requireConnection();
 
-        if (empty($data) || !isset($data[0]) || !is_array($data[0])) {
+        if (empty($data) || !is_array($data[0])) {
             throw new InvalidArgumentException("Data must be a non-empty array of associative arrays.");
         }
 
-        // Validate that all rows are arrays and contain the required fields.
         $expectedFields = array_keys($data[0]);
         foreach ($data as $i => $row) {
             if (!is_array($row)) {
@@ -345,12 +280,11 @@ class Database
 
         $fields = array_keys($data[0]);
 
-        // Use the Query class to build the insert query
         $query = new Query([
             'method' => 'INSERT',
             'table' => $table,
             'fields' => $fields,
-            'values_to_insert' => count($data)
+            'values_to_insert' => count($data),
         ]);
 
         $placeholders = [];
@@ -381,12 +315,8 @@ class Database
      * @throws RuntimeException if preparation, binding, or execution fails.
      * @return PDOStatement The executed statement.
      */
-    private function prepareAndExecute($sql, $params = [])
+    private function prepareAndExecute(string $sql, array $params = []): PDOStatement
     {
-        if (!is_array($params)) {
-            throw new InvalidArgumentException('$params must be an array.');
-        }
-
         $hasPositionalParams = false;
         $hasNamedParams      = false;
         foreach (array_keys($params) as $key) {
@@ -406,7 +336,7 @@ class Database
         if (!$stmt) {
             $errorInfo = $this->conn->errorInfo();
             throw new RuntimeException(
-                "Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error')
+                "Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error')
             );
         }
 
@@ -419,45 +349,26 @@ class Database
         if (!$stmt->execute()) {
             $errorInfo = $stmt->errorInfo();
             throw new RuntimeException(
-                "Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error')
+                "Query execution failed: " . ($errorInfo[2] ?? 'Unknown error')
             );
         }
 
         return $stmt;
     }
 
-    /**
-     * Binds positional (?) parameters sequentially from 1..N.
-     * @param PDOStatement $stmt
-     * @param array $params Values to bind (re-indexed from 0 via array_values).
-     * @throws RuntimeException if any bindValue call fails.
-     */
-    private function bindPositionalParams($stmt, $params)
+    private function bindPositionalParams(PDOStatement $stmt, array $params): void
     {
         foreach (array_values($params) as $position => $value) {
             $this->bindOneValue($stmt, $position + 1, $value);
         }
     }
 
-    /**
-     * Binds named (:name) parameters, accepting both 'name' and ':name' key forms.
-     * Keys are validated against /^:[A-Za-z_][A-Za-z0-9_]*$/ after normalization,
-     * multiple leading colons are rejected, and duplicate normalized keys are rejected.
-     * @param PDOStatement $stmt
-     * @param array $params Associative array of placeholder names to values.
-     * @throws InvalidArgumentException if any key is not a valid, unique named placeholder.
-     * @throws RuntimeException if any bindValue call fails.
-     */
-    private function bindNamedParams($stmt, $params)
+    private function bindNamedParams(PDOStatement $stmt, array $params): void
     {
         $seen = [];
 
         foreach ($params as $key => $value) {
-            if (!is_string($key)) {
-                throw new InvalidArgumentException('Named parameter keys must be strings.');
-            }
-
-            if ($key === '') {
+            if (!is_string($key) || $key === '') {
                 throw new InvalidArgumentException('Named parameter keys must be non-empty strings.');
             }
 
@@ -483,14 +394,7 @@ class Database
         }
     }
 
-    /**
-     * Binds a single value to a statement placeholder, mapping PHP null to SQL NULL.
-     * @param PDOStatement $stmt
-     * @param int|string $param Placeholder index (1-based int) or name (':name').
-     * @param mixed $value Value to bind.
-     * @throws RuntimeException if bindValue fails.
-     */
-    private function bindOneValue($stmt, $param, $value)
+    private function bindOneValue(PDOStatement $stmt, int|string $param, mixed $value): void
     {
         if ($value === null) {
             $bound = $stmt->bindValue($param, null, PDO::PARAM_NULL);
@@ -506,17 +410,10 @@ class Database
     }
 
     /**
-     * Normalizes an associative WHERE bindings array into PDO named-parameter form.
-     * Adds a ':' prefix to keys that lack one, validates that each normalized key is a
-     * legal PDO named-parameter name (matching /^:[A-Za-z_][A-Za-z0-9_]*$/), and detects
-     * both intra-array duplicates and collisions against an already-built placeholder map.
-     * @param array $whereData Associative array of placeholder names to values.
-     * @param array $existingPlaceholders Already-built placeholder map to check for SET-vs-WHERE conflicts.
-     * @throws InvalidArgumentException if a key is invalid, malformed, duplicated, or conflicts
-     *                                   with $existingPlaceholders.
-     * @return array Normalized placeholder array with ':'-prefixed keys.
+     * Normalizes a WHERE bindings array into PDO named-parameter form.
+     * Adds a ':' prefix to keys that lack one, validates each normalized key, and detects duplicates.
      */
-    private function normalizeNamedWhereBindings($whereData, $existingPlaceholders = [])
+    private function normalizeNamedWhereBindings(array $whereData): array
     {
         $result = [];
 
@@ -544,39 +441,20 @@ class Database
                 );
             }
 
-            if (!empty($existingPlaceholders) && array_key_exists($paramKey, $existingPlaceholders)) {
-                throw new InvalidArgumentException(
-                    "Binding key '{$paramKey}' is used in both \$data (SET) and \$whereData (WHERE). " .
-                    "Use distinct placeholder names to avoid conflicts."
-                );
-            }
-
             $result[$paramKey] = $value;
         }
 
         return $result;
     }
 
-    /**
-     * Throws a RuntimeException if the database connection has not been established.
-     * @throws RuntimeException
-     */
-    private function requireConnection()
+    private function requireConnection(): void
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
         }
     }
 
-    /**
-     * Detects whether $whereData uses named or positional placeholders, normalizes
-     * accordingly, and returns the resolved bindings array.
-     * Named placeholders (any string key) are forwarded to normalizeNamedWhereBindings();
-     * positional placeholders (all integer keys) are returned as a 0-indexed list.
-     * @param array $whereData
-     * @return array
-     */
-    private function resolveWhereBindings($whereData)
+    private function resolveWhereBindings(array $whereData): array
     {
         foreach ($whereData as $k => $_val) {
             if (!is_int($k)) {
@@ -586,123 +464,88 @@ class Database
         return array_values($whereData);
     }
 
-    /**
-     * Returns $result encoded as JSON when json_encode mode is enabled,
-     * or returns the plain value otherwise.
-     * On json_encode failure an empty array is returned.
-     * @param mixed $result
-     * @return mixed
-     */
-    private function formatResult($result)
+    private function formatResult(array $result): array|string
     {
         if ($this->json_encode) {
             $json = json_encode($result);
-            return $json === false ? array() : $json;
+            return $json === false ? [] : $json;
         }
         return $result;
     }
 
     /**
-     * Updates records in the specified table using the Query class.
-     * @param string $table The name of the table to update.
-     * @param array $data An associative array of column names and values to update.
-     * @param string $where The WHERE clause to specify which records to update.
-     * @param array $whereData Optional associative array of bindings for the WHERE clause.
-     *                         Keys must not overlap with the column names in $data.
-     *                         Each key must be a valid PDO named-parameter name
-     *                         (letters, digits, underscores; starting with a letter or underscore).
-     * @param array $joins Optional joins for the query.
-     * @throws InvalidArgumentException if $data or $whereData is invalid, or a binding key
-     *                                   conflicts between $data and $whereData.
-     * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return int The number of affected rows.
+     * Updates records in `$table`.
+     *
+     * `$data` is an associative array of column → value pairs to SET.
+     * `$where` is a raw SQL WHERE fragment (use named placeholders, e.g. `id = :id`).
+     * `$whereData` holds the bindings for the WHERE clause. The same column name
+     * may appear in both `$data` and `$whereData` without any conflict — SET
+     * bindings are internally distinguished with a `set_` prefix.
+     *
+     * Returns the number of affected rows.
      */
-    private function update($table, $data, $where, $whereData = [], $joins = [])
+    public function update(string $table, array $data, string $where, array $whereData = [], array $joins = []): int
     {
         $this->requireConnection();
 
-        if (!is_array($whereData)) {
-            throw new InvalidArgumentException(
-                "\$whereData must be an associative array of placeholder names to values."
-            );
-        }
-
-        if (empty($data) || !is_array($data)) {
+        if (empty($data)) {
             throw new InvalidArgumentException("Data must be a non-empty associative array.");
         }
 
-        // $whereData must be associative (string keys only); numeric/list-style arrays are not supported.
-        foreach (array_keys($whereData) as $k) {
-            if (!is_string($k)) {
-                throw new InvalidArgumentException(
-                    "\$whereData must be an associative array with string keys; " .
-                    "numeric or list-style arrays are not supported."
-                );
-            }
-        }
-
-        // update() always generates named SET placeholders; positional '?' in $where is not supported.
-        if (is_string($where) && strpos($where, '?') !== false) {
+        if (strpos($where, '?') !== false) {
             throw new InvalidArgumentException(
                 "Positional placeholders ('?') are not supported in \$where for update(); " .
                 "use named placeholders (e.g. 'id = :id') and pass their values via \$whereData."
             );
         }
 
-        $query = new Query([
-            'method' => 'UPDATE',
-            'table' => $table,
-            'fields' => array_keys($data),
-            'where' => $where,
-            'joins' => $joins,
-        ]);
+        $data      = $this->replaceKeywordsInData($data);
+        $whereData = $this->replaceKeywordsInData($whereData);
 
+        // Validate table and join the table name.
+        Query::validateIdentifier($table, 'table name');
+
+        // Build SET clause using a 'set_' prefix on placeholders to avoid
+        // any collision with WHERE bindings when the same column appears in both.
+        $setClauses   = [];
         $placeholders = [];
         foreach ($data as $field => $value) {
-            $placeholders[":{$field}"] = $value;
+            Query::validateUnqualifiedIdentifier((string) $field, 'UPDATE field');
+            $setClauses[]                  = "{$field} = :set_{$field}";
+            $placeholders[":set_{$field}"] = $value;
         }
 
-        $placeholders = array_merge(
-            $placeholders,
-            $this->normalizeNamedWhereBindings($whereData, $placeholders)
-        );
+        $sql = "UPDATE {$table}";
+        if (!empty($joins)) {
+            foreach ($joins as $join) {
+                $sql .= " {$join}";
+            }
+        }
+        $sql .= " SET " . implode(', ', $setClauses);
+        $sql .= " WHERE {$where}";
 
-        $stmt = $this->prepareAndExecute((string) $query, $placeholders);
+        $placeholders = array_merge($placeholders, $this->normalizeNamedWhereBindings($whereData));
+
+        $stmt = $this->prepareAndExecute($sql, $placeholders);
         return (int) $stmt->rowCount();
     }
 
     /**
-     * Deletes records from the specified table using the Query class.
-     * @param string $table The name of the table to delete from.
-     * @param string $where The WHERE clause to specify which records to delete.
-     * @param array $whereData Optional bindings for the WHERE clause.
-     *                         For named placeholders (e.g. `id = :id`), pass an associative array;
-     *                         keys are normalized to include a leading `:` if absent.
-     *                         For positional placeholders (e.g. `id = ?`), pass a list-style array.
-     * @param string $orderBy Optional ORDER BY clause.
-     * @param int $limit Optional limit for the deletion.
-     * @throws InvalidArgumentException if $whereData is not an array or contains invalid named keys.
-     * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return int The number of affected rows.
+     * Deletes records matching `$where` from `$table`.
+     * Returns the number of affected rows.
      */
-    private function delete($table, $where, $whereData = [], $orderBy = "", $limit = 0)
+    public function delete(string $table, string $where, array $whereData = [], string $orderBy = '', int $limit = 0): int
     {
         $this->requireConnection();
 
-        if (empty($table) || empty($where)) {
-            throw new InvalidArgumentException('Table and where clause are required.');
-        }
-
-        if (!is_array($whereData)) {
-            throw new InvalidArgumentException("\$whereData must be an array of bindings for the WHERE clause.");
-        }
+        $whereData = $this->replaceKeywordsInData($whereData);
 
         $query = new Query([
-            'method' => 'DELETE',
-            'table' => $table,
-            'where' => $where,
+            'method'   => 'DELETE',
+            'table'    => $table,
+            'where'    => $where,
             'order_by' => $orderBy,
-            'limit' => $limit
+            'limit'    => $limit,
         ]);
 
         $stmt = $this->prepareAndExecute((string) $query, $this->resolveWhereBindings($whereData));
@@ -710,77 +553,53 @@ class Database
     }
 
     /**
-     * Deletes all records from the specified table using the Query class.
-     * @param string $table The name of the table to delete from.
-     * @param array $data Optional parameters for the query.
-     * @param string $orderBy Optional ORDER BY clause.
-     * @param int $limit Optional limit for the deletion.
-     * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return int The number of affected rows.
+     * Deletes all records from `$table` (no WHERE clause).
+     * Returns the number of affected rows.
      */
-    private function deleteAll($table, $data = [], $orderBy = "", $limit = 0)
+    public function deleteAll(string $table, string $orderBy = '', int $limit = 0): int
     {
         $this->requireConnection();
 
-        if (empty($table)) {
-            throw new InvalidArgumentException('Table is required.');
-        }
-
         $query = new Query([
-            'method' => 'DELETE',
-            'table' => $table,
+            'method'   => 'DELETE',
+            'table'    => $table,
             'order_by' => $orderBy,
-            'limit' => $limit
+            'limit'    => $limit,
         ]);
 
-        $stmt = $this->prepareAndExecute((string) $query, $data);
+        $stmt = $this->prepareAndExecute((string) $query, []);
         return (int) $stmt->rowCount();
     }
 
     /**
-     * Counts the number of records in the specified table using the Query class.
-     * @param string $table The name of the table to count records from.
-     * @param string $where Optional WHERE clause to filter the count.
-     * @param array $whereData Optional bindings for the WHERE clause.
-     *                         For named placeholders (e.g. `active = :active`), pass an associative array;
-     *                         keys are normalized to include a leading `:` if absent.
-     *                         For positional placeholders (e.g. `active = ?`), pass a list-style array.
-     * @param array $joins Optional joins for the query.
-     * @throws InvalidArgumentException if $whereData is not an array or contains invalid named keys.
-     * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return int The count of records.
+     * Returns the number of records in `$table` that match `$where`.
+     * Omit `$where` to count all rows. Both named and positional placeholders are supported.
      */
-    private function count($table, $where = '', $whereData = [], $joins = [])
+    public function count(string $table, string $where = '', array $whereData = [], array $joins = []): int
     {
         $this->requireConnection();
 
-        if (!is_array($whereData)) {
-            throw new InvalidArgumentException("\$whereData must be an array of bindings for the WHERE clause.");
+        $whereData = $this->replaceKeywordsInData($whereData);
+
+        // Use Query to validate the table name and build any JOINs safely.
+        $q = Query::select(['COUNT(*)'])->from($table);
+        foreach ($joins as $join) {
+            $q->join($join);
+        }
+        if ($where !== '') {
+            $q->where($where);
         }
 
-        $query = "SELECT COUNT(*) FROM {$table}";
-
-        if (!empty($joins)) {
-            foreach ($joins as $join) {
-                $query .= " {$join}";
-            }
-        }
-
-        if (!empty($where)) {
-            $query .= " WHERE {$where}";
-        }
-
-        $stmt = $this->prepareAndExecute($query, $this->resolveWhereBindings($whereData));
+        $stmt = $this->prepareAndExecute((string) $q, $this->resolveWhereBindings($whereData));
         return (int) $stmt->fetchColumn();
     }
 
     /**
-     * Executes a transaction with the provided callback.
-     * @param callable $callback The callback function to execute within the transaction.
-     * @throws RuntimeException if the connection is not set or the transaction fails.
-     * @return mixed The result of the callback function.
+     * Runs `$callback` inside a database transaction.
+     * Commits on success; rolls back and re-throws on any exception.
+     * Returns the value returned by `$callback`.
      */
-    public function executeTransaction($callback)
+    public function executeTransaction(callable $callback): mixed
     {
         $this->requireConnection();
 
@@ -789,24 +608,22 @@ class Database
             $result = $callback($this);
             $this->conn->commit();
             return $result;
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             try {
                 if ($this->conn->inTransaction()) {
                     $this->conn->rollBack();
                 }
-            } catch (Exception $rollbackEx) {
-                // Ignore rollback errors to preserve the original exception
+            } catch (\Throwable $rollbackEx) {
+                // Ignore rollback errors to preserve the original exception.
             }
             throw new RuntimeException("Transaction failed: " . $e->getMessage(), 0, $e);
         }
     }
 
     /**
-     * Gets the last inserted ID from the database.
-     * @throws RuntimeException if the connection is not set.
-     * @return int The last inserted ID.
+     * Returns the last auto-increment ID inserted by this connection.
      */
-    public function getLastInsertId()
+    public function getLastInsertId(): int
     {
         $this->requireConnection();
 

@@ -2,7 +2,7 @@
 
 A lightweight PHP library that cuts database boilerplate down to its essentials: two focused classes that let you write less and do more.
 
-> Compatible with PHP **5.4** and above. MySQL, PostgreSQL, SQLite, and SQL Server supported.
+> Requires PHP **8.0** or above. MySQL, PostgreSQL, SQLite, and SQL Server supported.
 
 &emsp;
 
