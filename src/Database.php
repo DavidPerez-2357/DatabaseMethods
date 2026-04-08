@@ -111,8 +111,8 @@ class Database
             return $data;
         }
 
-        // Detect a true multi-row array: sequential list where every element is an array.
-        if (array_is_list($data) && is_array($data[0])) {
+        // Detect a true multi-row array: non-empty sequential list where the first element is an array.
+        if (!empty($data) && array_is_list($data) && is_array($data[0])) {
             foreach ($data as $key => $row) {
                 $data[$key] = $this->replaceKeywordsInData($row);
             }
@@ -510,7 +510,12 @@ class Database
         $setClauses   = [];
         $placeholders = [];
         foreach ($data as $field => $value) {
-            Query::validateUnqualifiedIdentifier((string) $field, 'UPDATE field');
+            if (!is_string($field)) {
+                throw new InvalidArgumentException(
+                    "update() \$data must use string column names as keys; integer key {$field} given."
+                );
+            }
+            Query::validateUnqualifiedIdentifier($field, 'UPDATE field');
             $setClauses[]                  = "{$field} = :set_{$field}";
             $placeholders[":set_{$field}"] = $value;
         }
