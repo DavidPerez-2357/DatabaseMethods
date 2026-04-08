@@ -55,24 +55,6 @@ $query = Query::select(['id', 'name'])
     ->limit(10);
 ```
 
-The dedicated join methods (`innerJoin`, `leftJoin`, `rightJoin`, `fullJoin`) each accept a table expression and an ON condition, and may be chained multiple times:
-
-```php
-$query = Query::select(['id', 'name'])
-    ->from('users')
-    ->innerJoin('roles r', 'r.id = users.role_id')
-    ->leftJoin('orders o', 'o.user_id = users.id');
-```
-
-The generic `join()` method remains fully functional and can be mixed with the typed helpers:
-
-```php
-$query = Query::select(['id', 'name'])
-    ->from('users')
-    ->leftJoin('orders o', 'o.user_id = users.id')
-    ->join('INNER JOIN roles r ON r.id = users.role_id');
-```
-
 **Array constructor (equivalent):**
 ```php
 $query = new Query([
@@ -97,6 +79,8 @@ GROUP BY users.id HAVING COUNT(orders.id) > 0
 ORDER BY users.name ASC
 LIMIT 10
 ```
+
+> See the [JOINs](#joins) section below for all available join methods.
 
 &emsp;
 
@@ -132,7 +116,7 @@ VALUES (:name_0, :email_0), (:name_1, :email_1), (:name_2, :email_2)
 **Fluent API:**
 ```php
 $query = Query::update('users', ['name', 'email'])
-    ->join('LEFT JOIN orders ON users.id = orders.user_id')
+    ->leftJoin('orders o', 'o.user_id = users.id')
     ->where('id = :id');
 ```
 
@@ -154,6 +138,8 @@ LEFT JOIN orders ON users.id = orders.user_id
 SET name = :name, email = :email
 WHERE id = :id
 ```
+
+> See the [JOINs](#joins) section below for all available join methods.
 
 &emsp;
 
@@ -188,6 +174,28 @@ LIMIT 10
 
 > [!WARNING]
 > The `where` value is embedded as a raw SQL fragment. Always use PDO placeholders (`id = :id` or `id = ?`) and bind values through `Database`. **Never interpolate user-controlled values directly into WHERE, HAVING, or JOIN strings** - that creates an SQL injection vulnerability.
+
+&emsp;
+
+## JOINs
+
+JOIN clauses can be appended to SELECT and UPDATE queries. Use the typed helpers (`innerJoin`, `leftJoin`, `rightJoin`, `fullJoin`) — each takes a table expression and an ON condition:
+
+```php
+$query = Query::select(['users.id', 'users.name', 'r.name AS role'])
+    ->from('users')
+    ->innerJoin('roles r', 'r.id = users.role_id')
+    ->leftJoin('orders o', 'o.user_id = users.id');
+```
+
+The generic `join()` method (raw SQL string) is also available for join types not covered by the helpers:
+
+```php
+->join('CROSS JOIN config')
+```
+
+> [!WARNING]
+> `join()` and the array-constructor `joins` key pass values through as raw SQL. Always use PDO placeholders for user-supplied values.
 
 &emsp;
 
