@@ -402,24 +402,45 @@ class Database
 
     /**
      * Binds named (:name) parameters, accepting both 'name' and ':name' key forms.
+     * Keys are validated against /^:[A-Za-z_][A-Za-z0-9_]*$/ after normalization,
+     * multiple leading colons are rejected, and duplicate normalized keys are rejected.
      * @param PDOStatement $stmt
      * @param array $params Associative array of placeholder names to values.
-     * @throws InvalidArgumentException if any key is not a non-empty string.
+     * @throws InvalidArgumentException if any key is not a valid, unique named placeholder.
      * @throws RuntimeException if any bindValue call fails.
      */
     private function bindNamedParams($stmt, $params)
     {
+        $seen = [];
+
         foreach ($params as $key => $value) {
             if (!is_string($key)) {
                 throw new InvalidArgumentException('Named parameter keys must be strings.');
             }
 
-            $normalizedKey = ltrim($key, ':');
-            if ($normalizedKey === '') {
+            if ($key === '') {
                 throw new InvalidArgumentException('Named parameter keys must be non-empty strings.');
             }
 
-            $this->bindOneValue($stmt, ':' . $normalizedKey, $value);
+            if (strlen($key) > 1 && $key[0] === ':' && $key[1] === ':') {
+                throw new InvalidArgumentException('Named parameter keys may have at most one leading colon.');
+            }
+
+            $normalizedKey = ($key[0] === ':') ? $key : ':' . $key;
+            if (!preg_match('/^:[A-Za-z_][A-Za-z0-9_]*$/', $normalizedKey)) {
+                throw new InvalidArgumentException(
+                    'Named parameter keys must match the format :[A-Za-z_][A-Za-z0-9_]*.'
+                );
+            }
+
+            if (isset($seen[$normalizedKey])) {
+                throw new InvalidArgumentException(
+                    'Duplicate named parameter key after normalization: ' . $normalizedKey . '.'
+                );
+            }
+
+            $seen[$normalizedKey] = true;
+            $this->bindOneValue($stmt, $normalizedKey, $value);
         }
     }
 
