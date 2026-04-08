@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Query.php
  *
@@ -131,7 +132,8 @@ class Query
         } elseif (is_string($fields)) {
             if (trim($fields) === '') {
                 throw new InvalidArgumentException(
-                    'Query::select() expects $fields to be a non-empty string, an array (empty defaults to [\'*\']), or omitted.'
+                    'Query::select() expects $fields to be a non-empty string, '
+                    . 'an array (empty defaults to [\'*\']), or omitted.'
                 );
             }
             $instance->data['fields'] = [$fields];
@@ -268,22 +270,29 @@ class Query
     {
         if (is_string($fields)) {
             if (trim($fields) === '') {
-                throw new InvalidArgumentException('Query::fields() expects a non-empty string column name or an array of column names.');
+                throw new InvalidArgumentException(
+                    'Query::fields() expects a non-empty string column name or an array of column names.'
+                );
             }
             $fields = [$fields];
         } elseif (!is_array($fields)) {
-            throw new InvalidArgumentException('Query::fields() expects an array of column names or a string column name.');
+            throw new InvalidArgumentException(
+                'Query::fields() expects an array of column names or a string column name.'
+            );
         }
 
         // Validate every element before applying any default.
         foreach ($fields as $field) {
             if (!is_string($field) || trim($field) === '') {
-                throw new InvalidArgumentException('Query::fields() expects every element to be a non-empty string column name.');
+                throw new InvalidArgumentException(
+                    'Query::fields() expects every element to be a non-empty string column name.'
+                );
             }
         }
 
         // Empty array on SELECT defaults to 'SELECT *'.
-        if (empty($fields)
+        if (
+            empty($fields)
             && isset($this->data['method'])
             && strtoupper($this->data['method']) === 'SELECT'
         ) {
