@@ -342,6 +342,70 @@ class Query
     }
 
     /**
+     * Appends an INNER JOIN clause.
+     *
+     * This is a convenience wrapper around join(). See join() for the SQL injection
+     * warning that applies here as well.
+     *
+     * @param string $table     Table expression to join (e.g. `orders o`).
+     * @param string $condition ON condition (e.g. `o.user_id = users.id`).
+     * @return $this
+     * @throws InvalidArgumentException If $table or $condition is not a non-empty string.
+     */
+    public function innerJoin($table, $condition)
+    {
+        return $this->buildTypedJoin('INNER JOIN', $table, $condition);
+    }
+
+    /**
+     * Appends a LEFT JOIN clause.
+     *
+     * This is a convenience wrapper around join(). See join() for the SQL injection
+     * warning that applies here as well.
+     *
+     * @param string $table     Table expression to join (e.g. `orders o`).
+     * @param string $condition ON condition (e.g. `o.user_id = users.id`).
+     * @return $this
+     * @throws InvalidArgumentException If $table or $condition is not a non-empty string.
+     */
+    public function leftJoin($table, $condition)
+    {
+        return $this->buildTypedJoin('LEFT JOIN', $table, $condition);
+    }
+
+    /**
+     * Appends a RIGHT JOIN clause.
+     *
+     * This is a convenience wrapper around join(). See join() for the SQL injection
+     * warning that applies here as well.
+     *
+     * @param string $table     Table expression to join (e.g. `orders o`).
+     * @param string $condition ON condition (e.g. `o.user_id = users.id`).
+     * @return $this
+     * @throws InvalidArgumentException If $table or $condition is not a non-empty string.
+     */
+    public function rightJoin($table, $condition)
+    {
+        return $this->buildTypedJoin('RIGHT JOIN', $table, $condition);
+    }
+
+    /**
+     * Appends a FULL JOIN clause.
+     *
+     * This is a convenience wrapper around join(). See join() for the SQL injection
+     * warning that applies here as well.
+     *
+     * @param string $table     Table expression to join (e.g. `orders o`).
+     * @param string $condition ON condition (e.g. `o.user_id = users.id`).
+     * @return $this
+     * @throws InvalidArgumentException If $table or $condition is not a non-empty string.
+     */
+    public function fullJoin($table, $condition)
+    {
+        return $this->buildTypedJoin('FULL JOIN', $table, $condition);
+    }
+
+    /**
      * Replaces all JOIN clauses with the given value.
      *
      * Each JOIN expression is a raw SQL fragment — see join() for the SQL injection
@@ -813,6 +877,31 @@ class Query
         foreach ($joins as $join) {
             $sql .= " {$join}";
         }
+    }
+
+    /**
+     * Validates $table and $condition, builds a typed JOIN expression, and
+     * delegates to join(). Used by innerJoin(), leftJoin(), rightJoin(), fullJoin().
+     *
+     * @param string $type      SQL join keyword (e.g. 'INNER JOIN').
+     * @param string $table     Table expression (e.g. `orders o`).
+     * @param string $condition ON condition (e.g. `o.user_id = users.id`).
+     * @return $this
+     * @throws InvalidArgumentException If $table or $condition is not a non-empty string.
+     */
+    private function buildTypedJoin($type, $table, $condition)
+    {
+        if (!is_string($table) || trim($table) === '') {
+            throw new InvalidArgumentException(
+                $type . '() expects $table to be a non-empty string.'
+            );
+        }
+        if (!is_string($condition) || trim($condition) === '') {
+            throw new InvalidArgumentException(
+                $type . '() expects $condition to be a non-empty string.'
+            );
+        }
+        return $this->join("{$type} {$table} ON {$condition}");
     }
 
     /**

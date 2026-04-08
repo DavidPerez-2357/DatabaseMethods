@@ -16,6 +16,16 @@
  */
 class Sqlite extends Database
 {
+    /**
+     * SQLite only supports INNER JOIN, LEFT JOIN (and CROSS JOIN).
+     * RIGHT JOIN and FULL JOIN are not available in SQLite.
+     *
+     * @var array
+     */
+    protected $supportedJoins = array(
+        'INNER' => 'INNER JOIN',
+        'LEFT'  => 'LEFT JOIN',
+    );
     public function __construct($ppt)
     {
         parent::__construct($ppt);

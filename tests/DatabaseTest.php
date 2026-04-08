@@ -767,4 +767,74 @@ class DatabaseTest
         }
         assert_true($caughtException, 'Mixed positional and named params must throw InvalidArgumentException.');
     }
+
+    // =========================================================================
+    // Tests — getSupportedJoinTypes
+    // =========================================================================
+
+    public function testGetSupportedJoinTypesReturnsArray()
+    {
+        $types = $this->db->getSupportedJoinTypes();
+        assert_true(is_array($types), 'getSupportedJoinTypes() must return an array.');
+    }
+
+    public function testGetSupportedJoinTypesContainsInnerJoin()
+    {
+        $types = $this->db->getSupportedJoinTypes();
+        assert_true(isset($types['INNER']), 'INNER JOIN must be listed as a supported join type.');
+        assert_equals('INNER JOIN', $types['INNER']);
+    }
+
+    public function testGetSupportedJoinTypesContainsLeftJoin()
+    {
+        $types = $this->db->getSupportedJoinTypes();
+        assert_true(isset($types['LEFT']), 'LEFT JOIN must be listed as a supported join type.');
+        assert_equals('LEFT JOIN', $types['LEFT']);
+    }
+
+    public function testSqliteDriverDoesNotSupportRightJoin()
+    {
+        if (DB_TEST_DRIVER !== 'sqlite') {
+            // This assertion is SQLite-specific; skip for other drivers.
+            assert_true(true);
+            return;
+        }
+        $types = $this->db->getSupportedJoinTypes();
+        assert_true(!isset($types['RIGHT']), 'SQLite must not list RIGHT JOIN as supported.');
+    }
+
+    public function testSqliteDriverDoesNotSupportFullJoin()
+    {
+        if (DB_TEST_DRIVER !== 'sqlite') {
+            // This assertion is SQLite-specific; skip for other drivers.
+            assert_true(true);
+            return;
+        }
+        $types = $this->db->getSupportedJoinTypes();
+        assert_true(!isset($types['FULL']), 'SQLite must not list FULL JOIN as supported.');
+    }
+
+    public function testNonSqliteDriverSupportsRightJoin()
+    {
+        if (DB_TEST_DRIVER === 'sqlite') {
+            // Only applies to non-SQLite drivers.
+            assert_true(true);
+            return;
+        }
+        $types = $this->db->getSupportedJoinTypes();
+        assert_true(isset($types['RIGHT']), 'Driver must list RIGHT JOIN as supported.');
+        assert_equals('RIGHT JOIN', $types['RIGHT']);
+    }
+
+    public function testNonSqliteDriverSupportsFullJoin()
+    {
+        if (DB_TEST_DRIVER === 'sqlite') {
+            // Only applies to non-SQLite drivers.
+            assert_true(true);
+            return;
+        }
+        $types = $this->db->getSupportedJoinTypes();
+        assert_true(isset($types['FULL']), 'Driver must list FULL JOIN as supported.');
+        assert_equals('FULL JOIN', $types['FULL']);
+    }
 }
