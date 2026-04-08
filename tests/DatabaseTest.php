@@ -1,4 +1,5 @@
 <?php
+
 /**
  * tests/DatabaseTest.php
  *
@@ -43,9 +44,9 @@ define(
 );
 
 // MySQL / PostgreSQL / SQL Server — fill in your credentials:
-define('DB_TEST_HOST',         'localhost');
-define('DB_TEST_USER',         'root');
-define('DB_TEST_PASS',         '');
+define('DB_TEST_HOST', 'localhost');
+define('DB_TEST_USER', 'root');
+define('DB_TEST_PASS', '');
 define(
     'DB_TEST_NAME',
     'test_dbmethods_'
@@ -321,10 +322,17 @@ class DatabaseTest
         assert_equals(3, $this->db->count(self::TABLE), 'Multi-row insert() should persist all rows.');
 
         if (DB_TEST_DRIVER === 'postgres') {
-            assert_true(is_int($lastId), 'Multi-row insert() should return an integer on PostgreSQL, even if PDO cannot provide a positive last-insert ID without a sequence name.');
+            assert_true(
+                is_int($lastId),
+                'Multi-row insert() should return an integer on PostgreSQL, '
+                . 'even if PDO cannot provide a positive last-insert ID without a sequence name.'
+            );
             return;
         }
-        assert_true(is_int($lastId) && $lastId > 0, 'Multi-row insert() should return a positive integer last-insert ID.');
+        assert_true(
+            is_int($lastId) && $lastId > 0,
+            'Multi-row insert() should return a positive integer last-insert ID.'
+        );
     }
 
     public function testInsertMultipleRecordsAreAllPersisted()
@@ -360,7 +368,7 @@ class DatabaseTest
 
         $query = Query::select(['name', 'email'])->from(self::TABLE);
         $rows  = $this->db->select($query);
-        assert_true(array_key_exists('name',  $rows[0]));
+        assert_true(array_key_exists('name', $rows[0]));
         assert_true(array_key_exists('email', $rows[0]));
     }
 
@@ -404,7 +412,10 @@ class DatabaseTest
         $this->resetTable();
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
         // Derive the id via SELECT to avoid relying on lastInsertId() (unreliable on PostgreSQL).
-        $rows = $this->db->plainSelect('SELECT id FROM ' . self::TABLE . ' WHERE email = :email', ['email' => 'alice@example.com']);
+        $rows = $this->db->plainSelect(
+            'SELECT id FROM ' . self::TABLE . ' WHERE email = :email',
+            ['email' => 'alice@example.com']
+        );
         assert_true(!empty($rows), 'Inserted row must be retrievable by email.');
         $id   = (int)$rows[0]['id'];
 
@@ -443,7 +454,10 @@ class DatabaseTest
         $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com']);
 
         // Derive the id via SELECT to avoid relying on lastInsertId() (unreliable on PostgreSQL).
-        $rows = $this->db->plainSelect('SELECT id FROM ' . self::TABLE . ' WHERE email = :email', ['email' => 'alice@example.com']);
+        $rows = $this->db->plainSelect(
+            'SELECT id FROM ' . self::TABLE . ' WHERE email = :email',
+            ['email' => 'alice@example.com']
+        );
         assert_true(!empty($rows), 'Inserted row must be retrievable by email.');
         $id   = (int)$rows[0]['id'];
 
@@ -468,7 +482,10 @@ class DatabaseTest
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
 
         // Derive the id via SELECT to avoid relying on lastInsertId() (unreliable on PostgreSQL).
-        $rows     = $this->db->plainSelect('SELECT id FROM ' . self::TABLE . ' WHERE email = :email', ['email' => 'alice@example.com']);
+        $rows     = $this->db->plainSelect(
+            'SELECT id FROM ' . self::TABLE . ' WHERE email = :email',
+            ['email' => 'alice@example.com']
+        );
         assert_true(!empty($rows), 'Inserted row must be retrievable by email.');
         $id       = (int)$rows[0]['id'];
         $affected = $this->db->delete(self::TABLE, 'id = ?', [$id]);
@@ -674,7 +691,8 @@ class DatabaseTest
                     . 'notes VARCHAR(255) NULL)';
 
             case 'sql':
-                return "IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='" . self::NULLABLE_TABLE . "' AND xtype='U') "
+                return "IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='"
+                    . self::NULLABLE_TABLE . "' AND xtype='U') "
                     . 'CREATE TABLE ' . self::NULLABLE_TABLE . ' ('
                     . 'id INT IDENTITY(1,1) PRIMARY KEY, '
                     . 'name NVARCHAR(255) NOT NULL, '
@@ -741,13 +759,19 @@ class DatabaseTest
         $this->resetNullableTable();
         try {
             $this->db->insert(self::NULLABLE_TABLE, ['name' => 'Alice', 'notes' => 'original']);
-            $rows = $this->db->plainSelect('SELECT id FROM ' . self::NULLABLE_TABLE . ' WHERE name = :name', ['name' => 'Alice']);
+            $rows = $this->db->plainSelect(
+                'SELECT id FROM ' . self::NULLABLE_TABLE . ' WHERE name = :name',
+                ['name' => 'Alice']
+            );
             assert_equals(1, count($rows), 'Inserted row must be retrievable by name.');
             $id   = (int)$rows[0]['id'];
 
             $this->db->update(self::NULLABLE_TABLE, ['notes' => null], 'id = :id', ['id' => $id]);
 
-            $updated = $this->db->plainSelect('SELECT notes FROM ' . self::NULLABLE_TABLE . ' WHERE id = :id', ['id' => $id]);
+            $updated = $this->db->plainSelect(
+                'SELECT notes FROM ' . self::NULLABLE_TABLE . ' WHERE id = :id',
+                ['id' => $id]
+            );
             assert_equals(1, count($updated));
             assert_true($updated[0]['notes'] === null, 'Updating a column to null must store SQL NULL.');
         } finally {

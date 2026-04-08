@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Database.php
  *
@@ -39,12 +40,12 @@ class Database
         'FULL'  => 'FULL JOIN',
     );
 
-    function __construct($ppt)
+    public function __construct($ppt)
     {
         $this->properties = $ppt;
     }
 
-    function __call($method, $args)
+    public function __call($method, $args)
     {
         static $allowedMethods = ['select', 'selectone', 'insert', 'update', 'delete', 'deleteall', 'count'];
         static $canonicalNames = [
@@ -129,7 +130,7 @@ class Database
      * @param mixed $data The data array containing the placeholders, or a non-array value (returned as-is).
      * @return mixed The modified data with placeholders replaced, or the original value if not an array.
      */
-    function replaceKeywordsInData($data)
+    private function replaceKeywordsInData($data)
     {
         if (empty($data) || !is_array($data)) {
             return $data;
@@ -267,7 +268,8 @@ class Database
      * Inserts records into the specified table using the Query class.
      * This method detects if the data is a single record or multiple records and calls the appropriate method.
      * @param string $table The name of the table to insert into.
-     * @param array $data An associative array of column names and values to insert, or an array of such arrays for multiple records.
+     * @param array $data An associative array of column names and values to insert,
+     *                    or an array of such arrays for multiple records.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The ID of the last inserted row or the number of affected rows for multiple inserts.
      */
@@ -403,7 +405,9 @@ class Database
 
         if (!$stmt) {
             $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
+            throw new RuntimeException(
+                "Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error')
+            );
         }
 
         if ($hasPositionalParams) {
@@ -414,7 +418,9 @@ class Database
 
         if (!$stmt->execute()) {
             $errorInfo = $stmt->errorInfo();
-            throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
+            throw new RuntimeException(
+                "Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error')
+            );
         }
 
         return $stmt;
@@ -506,7 +512,8 @@ class Database
      * both intra-array duplicates and collisions against an already-built placeholder map.
      * @param array $whereData Associative array of placeholder names to values.
      * @param array $existingPlaceholders Already-built placeholder map to check for SET-vs-WHERE conflicts.
-     * @throws InvalidArgumentException if a key is invalid, malformed, duplicated, or conflicts with $existingPlaceholders.
+     * @throws InvalidArgumentException if a key is invalid, malformed, duplicated, or conflicts
+     *                                   with $existingPlaceholders.
      * @return array Normalized placeholder array with ':'-prefixed keys.
      */
     private function normalizeNamedWhereBindings($whereData, $existingPlaceholders = [])
@@ -515,7 +522,9 @@ class Database
 
         foreach ($whereData as $key => $value) {
             if (!is_string($key) || $key === '') {
-                throw new InvalidArgumentException("\$whereData must use non-empty string keys for placeholders; invalid key encountered.");
+                throw new InvalidArgumentException(
+                    "\$whereData must use non-empty string keys for placeholders; invalid key encountered."
+                );
             }
 
             $paramKey = ($key[0] === ':') ? $key : ":{$key}";
@@ -523,13 +532,15 @@ class Database
             if (!preg_match('/^:[A-Za-z_][A-Za-z0-9_]*$/', $paramKey)) {
                 throw new InvalidArgumentException(
                     "Invalid placeholder name '{$paramKey}' in \$whereData; " .
-                    "placeholder names must start with a letter or underscore and contain only letters, digits, and underscores."
+                    "placeholder names must start with a letter or underscore and contain only letters, " .
+                    "digits, and underscores."
                 );
             }
 
             if (array_key_exists($paramKey, $result)) {
                 throw new InvalidArgumentException(
-                    "Binding key '{$paramKey}' is duplicated within \$whereData (WHERE); each placeholder must be unique."
+                    "Binding key '{$paramKey}' is duplicated within \$whereData (WHERE); " .
+                    "each placeholder must be unique."
                 );
             }
 
@@ -598,9 +609,11 @@ class Database
      * @param string $where The WHERE clause to specify which records to update.
      * @param array $whereData Optional associative array of bindings for the WHERE clause.
      *                         Keys must not overlap with the column names in $data.
-     *                         Each key must be a valid PDO named-parameter name (letters, digits, underscores; starting with a letter or underscore).
+     *                         Each key must be a valid PDO named-parameter name
+     *                         (letters, digits, underscores; starting with a letter or underscore).
      * @param array $joins Optional joins for the query.
-     * @throws InvalidArgumentException if $data or $whereData is invalid, or a binding key conflicts between $data and $whereData.
+     * @throws InvalidArgumentException if $data or $whereData is invalid, or a binding key
+     *                                   conflicts between $data and $whereData.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
@@ -609,7 +622,9 @@ class Database
         $this->requireConnection();
 
         if (!is_array($whereData)) {
-            throw new InvalidArgumentException("\$whereData must be an associative array of placeholder names to values.");
+            throw new InvalidArgumentException(
+                "\$whereData must be an associative array of placeholder names to values."
+            );
         }
 
         if (empty($data) || !is_array($data)) {
@@ -619,7 +634,10 @@ class Database
         // $whereData must be associative (string keys only); numeric/list-style arrays are not supported.
         foreach (array_keys($whereData) as $k) {
             if (!is_string($k)) {
-                throw new InvalidArgumentException("\$whereData must be an associative array with string keys; numeric or list-style arrays are not supported.");
+                throw new InvalidArgumentException(
+                    "\$whereData must be an associative array with string keys; " .
+                    "numeric or list-style arrays are not supported."
+                );
             }
         }
 

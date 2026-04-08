@@ -1,4 +1,5 @@
 <?php
+
 /**
  * tests/run.php
  *
@@ -23,7 +24,9 @@ require_once __DIR__ . '/DatabaseTest.php';
 // Custom exception used by the assertion helpers below
 // ---------------------------------------------------------------------------
 
-class TestAssertionException extends RuntimeException {}
+class TestAssertionException extends RuntimeException
+{
+}
 
 // ---------------------------------------------------------------------------
 // Assertion helpers
@@ -219,7 +222,9 @@ if ($dbSuite !== null) {
     $totalFailed += run_suite(
         $dbSuite,
         'Database',
-        function () use ($dbSuite) { $dbSuite->teardown(); }
+        function () use ($dbSuite) {
+            $dbSuite->teardown();
+        }
     );
 }
 
