@@ -1146,6 +1146,174 @@ class QueryTests
     }
 
     // =========================================================================
+    // Fluent setters: innerJoin() / leftJoin() / rightJoin() / fullJoin()
+    // =========================================================================
+
+    public function testInnerJoinProducesCorrectSql()
+    {
+        $sql = Query::select()->from('users')
+            ->innerJoin('orders o', 'o.user_id = users.id')
+            ->getQuery();
+        assert_contains('INNER JOIN orders o ON o.user_id = users.id', $sql);
+    }
+
+    public function testLeftJoinProducesCorrectSql()
+    {
+        $sql = Query::select()->from('users')
+            ->leftJoin('orders o', 'o.user_id = users.id')
+            ->getQuery();
+        assert_contains('LEFT JOIN orders o ON o.user_id = users.id', $sql);
+    }
+
+    public function testRightJoinProducesCorrectSql()
+    {
+        $sql = Query::select()->from('orders')
+            ->rightJoin('users u', 'u.id = orders.user_id')
+            ->getQuery();
+        assert_contains('RIGHT JOIN users u ON u.id = orders.user_id', $sql);
+    }
+
+    public function testFullJoinProducesCorrectSql()
+    {
+        $sql = Query::select()->from('a')
+            ->fullJoin('b', 'b.id = a.b_id')
+            ->getQuery();
+        assert_contains('FULL JOIN b ON b.id = a.b_id', $sql);
+    }
+
+    public function testTypedJoinIsChainableAndAppearsInCorrectPosition()
+    {
+        $sql = Query::select(['user_id', 'user_name', 'field_name'])
+            ->from('users')
+            ->leftJoin('fields f', 'f.user_id = users.id')
+            ->getQuery();
+        assert_contains('FROM users LEFT JOIN fields f ON f.user_id = users.id', $sql);
+    }
+
+    public function testMultipleTypedJoinsCanBeChained()
+    {
+        $sql = Query::select()->from('users')
+            ->innerJoin('roles r', 'r.id = users.role_id')
+            ->leftJoin('orders o', 'o.user_id = users.id')
+            ->getQuery();
+        assert_contains('INNER JOIN roles r ON r.id = users.role_id', $sql);
+        assert_contains('LEFT JOIN orders o ON o.user_id = users.id', $sql);
+    }
+
+    public function testTypedJoinMixedWithGenericJoin()
+    {
+        $sql = Query::select()->from('users')
+            ->leftJoin('orders o', 'o.user_id = users.id')
+            ->join('INNER JOIN roles r ON r.id = users.role_id')
+            ->getQuery();
+        assert_contains('LEFT JOIN orders o ON o.user_id = users.id', $sql);
+        assert_contains('INNER JOIN roles r ON r.id = users.role_id', $sql);
+    }
+
+    public function testTypedJoinInvalidatesBuiltQuery()
+    {
+        $q  = Query::select()->from('users');
+        $s1 = $q->getQuery();
+        $q->leftJoin('orders o', 'o.user_id = users.id');
+        $s2 = $q->getQuery();
+        assert_true($s1 !== $s2, 'leftJoin() after build must produce different SQL');
+        assert_contains('LEFT JOIN orders o', $s2);
+    }
+
+    public function testTypedJoinWorksOnUpdate()
+    {
+        $sql = Query::update('users', ['status'])
+            ->leftJoin('orders o', 'o.user_id = users.id')
+            ->where('o.amount > :amount')
+            ->getQuery();
+        assert_contains('LEFT JOIN orders o ON o.user_id = users.id', $sql);
+    }
+
+    public function testInnerJoinWithEmptyTableThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::select()->from('t')->innerJoin('', 'a.id = b.id');
+        });
+    }
+
+    public function testInnerJoinWithWhitespaceTableThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::select()->from('t')->innerJoin('   ', 'a.id = b.id');
+        });
+    }
+
+    public function testInnerJoinWithNonStringTableThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::select()->from('t')->innerJoin(42, 'a.id = b.id');
+        });
+    }
+
+    public function testInnerJoinWithEmptyConditionThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::select()->from('t')->innerJoin('orders', '');
+        });
+    }
+
+    public function testInnerJoinWithWhitespaceConditionThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::select()->from('t')->innerJoin('orders', '   ');
+        });
+    }
+
+    public function testInnerJoinWithNonStringConditionThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::select()->from('t')->innerJoin('orders', null);
+        });
+    }
+
+    public function testLeftJoinWithEmptyTableThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::select()->from('t')->leftJoin('', 'a.id = b.id');
+        });
+    }
+
+    public function testLeftJoinWithEmptyConditionThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::select()->from('t')->leftJoin('orders', '');
+        });
+    }
+
+    public function testRightJoinWithEmptyTableThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::select()->from('t')->rightJoin('', 'a.id = b.id');
+        });
+    }
+
+    public function testRightJoinWithEmptyConditionThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::select()->from('t')->rightJoin('orders', '');
+        });
+    }
+
+    public function testFullJoinWithEmptyTableThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::select()->from('t')->fullJoin('', 'a.id = b.id');
+        });
+    }
+
+    public function testFullJoinWithEmptyConditionThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::select()->from('t')->fullJoin('orders', '');
+        });
+    }
+
+    // =========================================================================
     // buildQuery — unsupported / missing method
     // =========================================================================
 

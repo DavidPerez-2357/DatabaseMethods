@@ -16,6 +16,18 @@
  */
 class Sqlite extends Database
 {
+    /**
+     * RIGHT JOIN and FULL OUTER JOIN require SQLite 3.39.0 (2022-07-21) or later.
+     * Older versions only support INNER JOIN and LEFT JOIN.
+     *
+     * @var array
+     */
+    protected $supportedJoins = array(
+        'INNER' => 'INNER JOIN',
+        'LEFT'  => 'LEFT JOIN',
+        'RIGHT' => 'RIGHT JOIN',
+        'FULL'  => 'FULL JOIN',
+    );
     public function __construct($ppt)
     {
         parent::__construct($ppt);

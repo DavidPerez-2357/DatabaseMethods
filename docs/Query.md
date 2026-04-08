@@ -26,8 +26,12 @@ Both styles produce identical SQL. Cast a `Query` object to string with `echo` /
 | `->from($table)` / `->table($table)` | All | Set the target table |
 | `->fields($fields)` | SELECT, INSERT, UPDATE | Set the column list |
 | `->where($expr)` | SELECT, UPDATE, DELETE | Set the WHERE clause |
-| `->join($join)` | SELECT, UPDATE | Append one JOIN clause |
+| `->join($join)` | SELECT, UPDATE | Append one JOIN clause (raw SQL expression) |
 | `->joins($joins)` | SELECT, UPDATE | Replace all JOINs at once |
+| `->innerJoin($table, $condition)` | SELECT, UPDATE | Append an INNER JOIN clause |
+| `->leftJoin($table, $condition)` | SELECT, UPDATE | Append a LEFT JOIN clause |
+| `->rightJoin($table, $condition)` | SELECT, UPDATE | Append a RIGHT JOIN clause |
+| `->fullJoin($table, $condition)` | SELECT, UPDATE | Append a FULL JOIN clause |
 | `->groupBy($expr)` | SELECT | Set GROUP BY |
 | `->having($expr)` | SELECT | Set HAVING |
 | `->orderBy($expr)` | SELECT, DELETE | Set ORDER BY |
@@ -43,12 +47,30 @@ Both styles produce identical SQL. Cast a `Query` object to string with `echo` /
 ```php
 $query = Query::select(['id', 'name'])
     ->from('users')
-    ->join('LEFT JOIN orders ON users.id = orders.user_id')
+    ->leftJoin('orders o', 'o.user_id = users.id')
     ->where('users.active = 1')
     ->groupBy('users.id')
     ->having('COUNT(orders.id) > 0')
     ->orderBy('users.name ASC')
     ->limit(10);
+```
+
+The dedicated join methods (`innerJoin`, `leftJoin`, `rightJoin`, `fullJoin`) each accept a table expression and an ON condition, and may be chained multiple times:
+
+```php
+$query = Query::select(['id', 'name'])
+    ->from('users')
+    ->innerJoin('roles r', 'r.id = users.role_id')
+    ->leftJoin('orders o', 'o.user_id = users.id');
+```
+
+The generic `join()` method remains fully functional and can be mixed with the typed helpers:
+
+```php
+$query = Query::select(['id', 'name'])
+    ->from('users')
+    ->leftJoin('orders o', 'o.user_id = users.id')
+    ->join('INNER JOIN roles r ON r.id = users.role_id');
 ```
 
 **Array constructor (equivalent):**

@@ -16,6 +16,17 @@
  */
 class Mysql extends Database
 {
+    /**
+     * MySQL and MariaDB do not support FULL (OUTER) JOIN.
+     * Only INNER JOIN, LEFT JOIN, and RIGHT JOIN are available.
+     *
+     * @var array
+     */
+    protected $supportedJoins = array(
+        'INNER' => 'INNER JOIN',
+        'LEFT'  => 'LEFT JOIN',
+        'RIGHT' => 'RIGHT JOIN',
+    );
     public function __construct($ppt)
     {
         parent::__construct($ppt);

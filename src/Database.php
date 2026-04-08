@@ -21,6 +21,24 @@ class Database
     private $conn; // connection variable
     private $json_encode = false; // Default value for json_encode
 
+    /**
+     * Associative array of supported JOIN types for this driver.
+     *
+     * Maps a human-readable join name to the SQL keyword used in queries.
+     * Child drivers may override this property to restrict or extend the
+     * list of supported join types for the underlying SQL engine.
+     *
+     * Example entry: 'INNER' => 'INNER JOIN'
+     *
+     * @var array
+     */
+    protected $supportedJoins = array(
+        'INNER' => 'INNER JOIN',
+        'LEFT'  => 'LEFT JOIN',
+        'RIGHT' => 'RIGHT JOIN',
+        'FULL'  => 'FULL JOIN',
+    );
+
     function __construct($ppt)
     {
         $this->properties = $ppt;
@@ -87,6 +105,20 @@ class Database
     public function setJsonEncode($bool)
     {
         $this->json_encode = $bool;
+    }
+
+    /**
+     * Returns the list of JOIN types supported by this driver.
+     *
+     * Each entry maps a human-readable join name to the SQL keyword.
+     * Drivers that do not support certain join types (e.g. SQLite does not
+     * support RIGHT JOIN or FULL JOIN) will return a restricted list.
+     *
+     * @return array Associative array of supported join types (e.g. ['INNER' => 'INNER JOIN', ...]).
+     */
+    public function getSupportedJoinTypes()
+    {
+        return $this->supportedJoins;
     }
 
     /**
