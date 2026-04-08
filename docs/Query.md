@@ -179,11 +179,7 @@ LIMIT 10
 
 ## JOINs
 
-JOIN clauses can be appended to SELECT and UPDATE queries using the fluent typed helpers or the lower-level `join()` / `joins()` methods.
-
-### Typed join methods (recommended)
-
-Each method accepts a table expression and an ON condition and may be chained multiple times:
+JOIN clauses can be appended to SELECT and UPDATE queries. Use the typed helpers (`innerJoin`, `leftJoin`, `rightJoin`, `fullJoin`) — each takes a table expression and an ON condition:
 
 ```php
 $query = Query::select(['users.id', 'users.name', 'r.name AS role'])
@@ -192,58 +188,14 @@ $query = Query::select(['users.id', 'users.name', 'r.name AS role'])
     ->leftJoin('orders o', 'o.user_id = users.id');
 ```
 
-```sql
-SELECT users.id, users.name, r.name AS role FROM users
-INNER JOIN roles r ON r.id = users.role_id
-LEFT JOIN orders o ON o.user_id = users.id
-```
-
-All four standard join types are supported:
-
-| Method | SQL produced |
-|---|---|
-| `->innerJoin($table, $condition)` | `INNER JOIN $table ON $condition` |
-| `->leftJoin($table, $condition)` | `LEFT JOIN $table ON $condition` |
-| `->rightJoin($table, $condition)` | `RIGHT JOIN $table ON $condition` |
-| `->fullJoin($table, $condition)` | `FULL JOIN $table ON $condition` |
-
-### Generic `join()` method (optional)
-
-The lower-level `join()` method appends a raw JOIN string and remains fully functional. Use it when you need a join type not covered by the helpers, or when working with legacy code:
+The generic `join()` method (raw SQL string) is also available for join types not covered by the helpers:
 
 ```php
-$query = Query::select(['id', 'name'])
-    ->from('users')
-    ->join('CROSS JOIN config');
-```
-
-Multiple raw joins can be set at once with `joins()`:
-
-```php
-$query = Query::select(['id', 'name'])
-    ->from('users')
-    ->joins([
-        'LEFT JOIN orders o ON o.user_id = users.id',
-        'INNER JOIN roles r ON r.id = users.role_id'
-    ]);
-```
-
-The array constructor accepts a `joins` key with the same format:
-
-```php
-$query = new Query([
-    'method' => 'SELECT',
-    'fields' => ['id', 'name'],
-    'table' => 'users',
-    'joins' => [
-        'LEFT JOIN orders o ON o.user_id = users.id',
-        'INNER JOIN roles r ON r.id = users.role_id'
-    ]
-]);
+->join('CROSS JOIN config')
 ```
 
 > [!WARNING]
-> The `join()` method and the `joins` array key pass values through as raw SQL fragments. Always use PDO placeholders for any user-supplied values to avoid SQL injection.
+> `join()` and the array-constructor `joins` key pass values through as raw SQL. Always use PDO placeholders for user-supplied values.
 
 &emsp;
 
