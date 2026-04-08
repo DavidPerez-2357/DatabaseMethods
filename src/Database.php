@@ -352,13 +352,6 @@ class Database
             throw new InvalidArgumentException('$params must be an array.');
         }
 
-        $stmt = $this->conn->prepare($sql);
-
-        if (!$stmt) {
-            $errorInfo = $this->conn->errorInfo();
-            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
-        }
-
         $hasPositionalParams = false;
         $hasNamedParams      = false;
         foreach (array_keys($params) as $key) {
@@ -371,6 +364,13 @@ class Database
 
         if ($hasPositionalParams && $hasNamedParams) {
             throw new InvalidArgumentException('Mixed positional and named parameters are not supported.');
+        }
+
+        $stmt = $this->conn->prepare($sql);
+
+        if (!$stmt) {
+            $errorInfo = $this->conn->errorInfo();
+            throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         if ($hasPositionalParams) {
@@ -439,7 +439,9 @@ class Database
         }
 
         if (!$bound) {
-            throw new RuntimeException("Parameter binding failed for placeholder " . $param);
+            $errorInfo    = $stmt->errorInfo();
+            $driverDetail = isset($errorInfo[2]) && $errorInfo[2] !== '' ? ': ' . $errorInfo[2] : '';
+            throw new RuntimeException("Parameter binding failed for placeholder " . $param . $driverDetail);
         }
     }
 

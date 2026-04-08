@@ -760,7 +760,7 @@ class DatabaseTest
         $caughtException = false;
         try {
             // A params array with both integer (positional) and string (named) keys
-            // must be rejected before any PDO calls are made.
+            // must be rejected with InvalidArgumentException before prepare() is called.
             $this->db->executePlainQuery('SELECT 1', [0 => 'val', 'name' => 'Alice']);
         } catch (InvalidArgumentException $e) {
             $caughtException = true;
