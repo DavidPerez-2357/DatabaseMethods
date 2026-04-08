@@ -18,9 +18,9 @@
  */
 class Database
 {
-    private array $properties;
-    private ?PDO $conn = null;
-    private bool $json_encode = false;
+    private $properties;
+    private $conn = null;
+    private $json_encode = false;
 
     /**
      * Associative array of supported JOIN types for this driver.
@@ -33,19 +33,19 @@ class Database
      *
      * @var array<string, string>
      */
-    protected array $supportedJoins = [
+    protected $supportedJoins = array(
         'INNER' => 'INNER JOIN',
         'LEFT'  => 'LEFT JOIN',
         'RIGHT' => 'RIGHT JOIN',
         'FULL'  => 'FULL JOIN',
-    ];
+    );
 
     public function __construct(array $ppt)
     {
         $this->properties = $ppt;
     }
 
-    protected function setConnection(PDO $conn): void
+    protected function setConnection(PDO $conn)
     {
         $this->conn = $conn;
     }
@@ -68,7 +68,7 @@ class Database
      * @param mixed $default Value to return when none of the keys are present.
      * @return mixed
      */
-    protected function getConfigValue(array $ppt, array $keys, mixed $default = null): mixed
+    protected function getConfigValue(array $ppt, array $keys, $default = null)
     {
         foreach ($keys as $key) {
             if (isset($ppt[$key])) {
@@ -84,7 +84,7 @@ class Database
      *
      * @return static Fluent interface — returns the instance for chaining.
      */
-    public function setJsonEncode(bool $bool): static
+    public function setJsonEncode($bool)
     {
         $this->json_encode = $bool;
         return $this;
@@ -93,9 +93,9 @@ class Database
     /**
      * Returns the list of JOIN types supported by this driver.
      *
-     * @return array<string, string> Associative array of supported join types (e.g. ['INNER' => 'INNER JOIN', ...]).
+     * @return array Associative array of supported join types (e.g. ['INNER' => 'INNER JOIN', ...]).
      */
-    public function getSupportedJoinTypes(): array
+    public function getSupportedJoinTypes()
     {
         return $this->supportedJoins;
     }
@@ -105,14 +105,16 @@ class Database
      * Supports flat associative arrays and multi-row arrays (where every element is an associative array,
      * e.g., for insertMany). Arbitrary deeply nested structures are not recursed into.
      */
-    protected function replaceKeywordsInData(array $data): array
+    protected function replaceKeywordsInData(array $data)
     {
         if (empty($data)) {
             return $data;
         }
 
         // Detect a true multi-row array: non-empty sequential list where the first element is an array.
-        if (!empty($data) && array_is_list($data) && is_array($data[0])) {
+        // array_values() + array_keys() check is PHP 5.4+ compatible (replaces array_is_list() from PHP 8.1).
+        $values = array_values($data);
+        if ($values === $data && is_array($data[0])) {
             foreach ($data as $key => $row) {
                 $data[$key] = $this->replaceKeywordsInData($row);
             }
@@ -159,7 +161,7 @@ class Database
      * Executes any SQL statement directly (INSERT, UPDATE, DELETE, DDL, etc.).
      * Returns `true` on success or throws on error.
      */
-    public function executePlainQuery(string $query, array $data = []): bool
+    public function executePlainQuery($query, array $data = [])
     {
         $this->requireConnection();
 
@@ -171,7 +173,7 @@ class Database
      * Executes a raw SELECT SQL string and returns all rows.
      * Results are returned as an associative array, or a JSON string when json-encode mode is on.
      */
-    public function plainSelect(string $query, array $data = []): array|string
+    public function plainSelect($query, array $data = [])
     {
         $this->requireConnection();
 
@@ -187,7 +189,7 @@ class Database
      * Returns an empty array when no row matches.
      * Returns a JSON string instead of an array when json-encode mode is on.
      */
-    public function selectOne(Query|string $query, array $data = []): array|string
+    public function selectOne($query, array $data = [])
     {
         $this->requireConnection();
 
@@ -210,7 +212,7 @@ class Database
      * `$query` can be a `Query` object or a raw SQL string.
      * Returns an array of associative arrays, or a JSON string when json-encode mode is on.
      */
-    public function select(Query|string $query, array $data = []): array|string
+    public function select($query, array $data = [])
     {
         $this->requireConnection();
 
@@ -226,7 +228,7 @@ class Database
      * arrays to insert multiple rows in one statement.
      * Returns the last auto-increment ID inserted.
      */
-    public function insert(string $table, array $data): int
+    public function insert($table, array $data)
     {
         $data = $this->replaceKeywordsInData($data);
 
@@ -236,7 +238,7 @@ class Database
         return $this->insertOne($table, $data);
     }
 
-    private function insertOne(string $table, array $data): int
+    private function insertOne($table, array $data)
     {
         $this->requireConnection();
 
@@ -258,7 +260,7 @@ class Database
         return (int) $this->conn->lastInsertId();
     }
 
-    private function insertMany(string $table, array $data): int
+    private function insertMany($table, array $data)
     {
         $this->requireConnection();
 
@@ -315,7 +317,7 @@ class Database
      * @throws RuntimeException if preparation, binding, or execution fails.
      * @return PDOStatement The executed statement.
      */
-    private function prepareAndExecute(string $sql, array $params = []): PDOStatement
+    private function prepareAndExecute($sql, array $params = [])
     {
         $hasPositionalParams = false;
         $hasNamedParams      = false;
@@ -336,7 +338,7 @@ class Database
         if (!$stmt) {
             $errorInfo = $this->conn->errorInfo();
             throw new RuntimeException(
-                "Query preparation failed: " . ($errorInfo[2] ?? 'Unknown error')
+                "Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error')
             );
         }
 
@@ -349,21 +351,21 @@ class Database
         if (!$stmt->execute()) {
             $errorInfo = $stmt->errorInfo();
             throw new RuntimeException(
-                "Query execution failed: " . ($errorInfo[2] ?? 'Unknown error')
+                "Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error')
             );
         }
 
         return $stmt;
     }
 
-    private function bindPositionalParams(PDOStatement $stmt, array $params): void
+    private function bindPositionalParams(PDOStatement $stmt, array $params)
     {
         foreach (array_values($params) as $position => $value) {
             $this->bindOneValue($stmt, $position + 1, $value);
         }
     }
 
-    private function bindNamedParams(PDOStatement $stmt, array $params): void
+    private function bindNamedParams(PDOStatement $stmt, array $params)
     {
         $seen = [];
 
@@ -394,7 +396,7 @@ class Database
         }
     }
 
-    private function bindOneValue(PDOStatement $stmt, int|string $param, mixed $value): void
+    private function bindOneValue(PDOStatement $stmt, $param, $value)
     {
         if ($value === null) {
             $bound = $stmt->bindValue($param, null, PDO::PARAM_NULL);
@@ -413,7 +415,7 @@ class Database
      * Normalizes a WHERE bindings array into PDO named-parameter form.
      * Adds a ':' prefix to keys that lack one, validates each normalized key, and detects duplicates.
      */
-    private function normalizeNamedWhereBindings(array $whereData): array
+    private function normalizeNamedWhereBindings(array $whereData)
     {
         $result = [];
 
@@ -447,14 +449,14 @@ class Database
         return $result;
     }
 
-    private function requireConnection(): void
+    private function requireConnection()
     {
         if (!$this->conn) {
             throw new RuntimeException("Database connection is not set.");
         }
     }
 
-    private function resolveWhereBindings(array $whereData): array
+    private function resolveWhereBindings(array $whereData)
     {
         foreach ($whereData as $k => $_val) {
             if (!is_int($k)) {
@@ -464,7 +466,7 @@ class Database
         return array_values($whereData);
     }
 
-    private function formatResult(array $result): array|string
+    private function formatResult(array $result)
     {
         if ($this->json_encode) {
             $json = json_encode($result);
