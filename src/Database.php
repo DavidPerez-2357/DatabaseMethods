@@ -130,7 +130,7 @@ class Database
      * @param mixed $data The data array containing the placeholders, or a non-array value (returned as-is).
      * @return mixed The modified data with placeholders replaced, or the original value if not an array.
      */
-    private function replaceKeywordsInData($data)
+    protected function replaceKeywordsInData($data)
     {
         if (empty($data) || !is_array($data)) {
             return $data;
