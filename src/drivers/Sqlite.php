@@ -17,16 +17,16 @@
 class Sqlite extends Database
 {
     /**
-     * SQLite added RIGHT JOIN and FULL OUTER JOIN support in version 3.39.0 (2022-07-21).
-     * This driver conservatively declares only INNER JOIN and LEFT JOIN as supported
-     * to ensure compatibility with SQLite versions prior to 3.39.0. If your environment
-     * is guaranteed to run SQLite 3.39.0 or later, you may extend this list.
+     * RIGHT JOIN and FULL OUTER JOIN require SQLite 3.39.0 (2022-07-21) or later.
+     * Older versions only support INNER JOIN and LEFT JOIN.
      *
      * @var array
      */
     protected $supportedJoins = array(
         'INNER' => 'INNER JOIN',
         'LEFT'  => 'LEFT JOIN',
+        'RIGHT' => 'RIGHT JOIN',
+        'FULL'  => 'FULL JOIN',
     );
     public function __construct($ppt)
     {
