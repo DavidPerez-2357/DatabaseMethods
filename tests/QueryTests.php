@@ -549,7 +549,7 @@ class QueryTests
 
     public function testLimitWithNonNumericStringThrows()
     {
-        assert_throws('TypeError', function () {
+        assert_throws('InvalidArgumentException', function () {
             Query::select()->from('t')->limit('ten');
         });
     }
@@ -580,7 +580,7 @@ class QueryTests
 
     public function testOffsetWithNonNumericStringThrows()
     {
-        assert_throws('TypeError', function () {
+        assert_throws('InvalidArgumentException', function () {
             Query::select()->from('t')->offset('many');
         });
     }
@@ -618,7 +618,7 @@ class QueryTests
 
     public function testValuesCountWithNonNumericStringThrows()
     {
-        assert_throws('TypeError', function () {
+        assert_throws('InvalidArgumentException', function () {
             Query::insert('t', ['a'])->valuesCount('many');
         });
     }
@@ -1176,7 +1176,7 @@ class QueryTests
 
     public function testInnerJoinWithNonStringConditionThrows()
     {
-        assert_throws('TypeError', function () {
+        assert_throws('InvalidArgumentException', function () {
             Query::select()->from('t')->innerJoin('orders', null);
         });
     }

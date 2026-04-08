@@ -193,6 +193,7 @@ class Database
     {
         $this->requireConnection();
 
+        $data = $this->replaceKeywordsInData($data);
         if ($query instanceof Query) {
             $query->limit(1);
         }
@@ -216,6 +217,7 @@ class Database
     {
         $this->requireConnection();
 
+        $data = $this->replaceKeywordsInData($data);
         $stmt = $this->prepareAndExecute((string) $query, $data);
 
         return $this->formatResult($stmt->fetchAll(PDO::FETCH_ASSOC));
@@ -230,11 +232,11 @@ class Database
      */
     public function insert($table, array $data)
     {
-        $data = $this->replaceKeywordsInData($data);
-
         if (isset($data[0]) && is_array($data[0])) {
+            $data = $this->replaceKeywordsInData($data);
             return $this->insertMany($table, $data);
         }
+        $data = $this->replaceKeywordsInData($data);
         return $this->insertOne($table, $data);
     }
 
@@ -486,7 +488,7 @@ class Database
      *
      * Returns the number of affected rows.
      */
-    public function update(string $table, array $data, string $where, array $whereData = [], array $joins = []): int
+    public function update($table, array $data, $where, array $whereData = [], array $joins = [])
     {
         $this->requireConnection();
 
@@ -509,8 +511,9 @@ class Database
 
         // Build SET clause using a 'set_' prefix on placeholders to avoid
         // any collision with WHERE bindings when the same column appears in both.
-        $setClauses   = [];
-        $placeholders = [];
+        $setClauses   = array();
+        $placeholders = array();
+        $setKeys      = array();
         foreach ($data as $field => $value) {
             if (!is_string($field)) {
                 throw new InvalidArgumentException(
@@ -520,6 +523,19 @@ class Database
             Query::validateUnqualifiedIdentifier($field, 'UPDATE field');
             $setClauses[]                  = "{$field} = :set_{$field}";
             $placeholders[":set_{$field}"] = $value;
+            $setKeys[":set_{$field}"]      = true;
+        }
+
+        // Detect collision: a WHERE binding like ['set_active' => 1] would overwrite
+        // the generated ':set_active' placeholder for a SET field named 'active'.
+        $normalizedWhere = $this->normalizeNamedWhereBindings($whereData);
+        foreach (array_keys($normalizedWhere) as $whereKey) {
+            if (isset($setKeys[$whereKey])) {
+                throw new InvalidArgumentException(
+                    "WHERE binding key '{$whereKey}' collides with a generated SET placeholder. " .
+                    "Rename the WHERE placeholder to avoid the conflict."
+                );
+            }
         }
 
         $sql = "UPDATE {$table}";
@@ -531,7 +547,7 @@ class Database
         $sql .= " SET " . implode(', ', $setClauses);
         $sql .= " WHERE {$where}";
 
-        $placeholders = array_merge($placeholders, $this->normalizeNamedWhereBindings($whereData));
+        $placeholders = array_merge($placeholders, $normalizedWhere);
 
         $stmt = $this->prepareAndExecute($sql, $placeholders);
         return (int) $stmt->rowCount();
@@ -541,7 +557,7 @@ class Database
      * Deletes records matching `$where` from `$table`.
      * Returns the number of affected rows.
      */
-    public function delete(string $table, string $where, array $whereData = [], string $orderBy = '', int $limit = 0): int
+    public function delete($table, $where, array $whereData = [], $orderBy = '', $limit = 0)
     {
         $this->requireConnection();
 
@@ -563,7 +579,7 @@ class Database
      * Deletes all records from `$table` (no WHERE clause).
      * Returns the number of affected rows.
      */
-    public function deleteAll(string $table, string $orderBy = '', int $limit = 0): int
+    public function deleteAll($table, $orderBy = '', $limit = 0)
     {
         $this->requireConnection();
 
@@ -582,7 +598,7 @@ class Database
      * Returns the number of records in `$table` that match `$where`.
      * Omit `$where` to count all rows. Both named and positional placeholders are supported.
      */
-    public function count(string $table, string $where = '', array $whereData = [], array $joins = []): int
+    public function count($table, $where = '', array $whereData = [], array $joins = [])
     {
         $this->requireConnection();
 
@@ -606,7 +622,7 @@ class Database
      * Commits on success; rolls back and re-throws on any exception.
      * Returns the value returned by `$callback`.
      */
-    public function executeTransaction(callable $callback): mixed
+    public function executeTransaction($callback)
     {
         $this->requireConnection();
 
@@ -615,12 +631,12 @@ class Database
             $result = $callback($this);
             $this->conn->commit();
             return $result;
-        } catch (\Throwable $e) {
+        } catch (Exception $e) {
             try {
                 if ($this->conn->inTransaction()) {
                     $this->conn->rollBack();
                 }
-            } catch (\Throwable $rollbackEx) {
+            } catch (Exception $rollbackEx) {
                 // Ignore rollback errors to preserve the original exception.
             }
             throw new RuntimeException("Transaction failed: " . $e->getMessage(), 0, $e);
@@ -630,7 +646,7 @@ class Database
     /**
      * Returns the last auto-increment ID inserted by this connection.
      */
-    public function getLastInsertId(): int
+    public function getLastInsertId()
     {
         $this->requireConnection();
 
