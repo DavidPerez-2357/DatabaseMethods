@@ -17,8 +17,10 @@
 class Sqlite extends Database
 {
     /**
-     * SQLite only supports INNER JOIN, LEFT JOIN (and CROSS JOIN).
-     * RIGHT JOIN and FULL JOIN are not available in SQLite.
+     * SQLite added RIGHT JOIN and FULL OUTER JOIN support in version 3.39.0 (2022-07-21).
+     * This driver conservatively declares only INNER JOIN and LEFT JOIN as supported
+     * to ensure compatibility with SQLite versions prior to 3.39.0. If your environment
+     * is guaranteed to run SQLite 3.39.0 or later, you may extend this list.
      *
      * @var array
      */

@@ -834,6 +834,11 @@ class DatabaseTest
             return;
         }
         $types = $this->db->getSupportedJoinTypes();
+        if (DB_TEST_DRIVER === 'mysql') {
+            assert_true(!isset($types['FULL']), 'MySQL must not list FULL JOIN as supported.');
+            return;
+        }
+        // postgres and sql (SQL Server) support FULL JOIN
         assert_true(isset($types['FULL']), 'Driver must list FULL JOIN as supported.');
         assert_equals('FULL JOIN', $types['FULL']);
     }

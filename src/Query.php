@@ -893,12 +893,12 @@ class Query
     {
         if (!is_string($table) || trim($table) === '') {
             throw new InvalidArgumentException(
-                $type . '() expects $table to be a non-empty string.'
+                'typed join expects $table to be a non-empty string.'
             );
         }
         if (!is_string($condition) || trim($condition) === '') {
             throw new InvalidArgumentException(
-                $type . '() expects $condition to be a non-empty string.'
+                'typed join expects $condition to be a non-empty string.'
             );
         }
         return $this->join("{$type} {$table} ON {$condition}");
