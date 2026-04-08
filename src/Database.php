@@ -332,13 +332,41 @@ class Database
 
     /**
      * Prepares and executes a SQL statement with the given parameters.
+     * PHP null values are explicitly bound as SQL NULL (PDO::PARAM_NULL) so that
+     * they are stored as NULL rather than being cast to an empty string by some drivers.
+     * For positional placeholders, bind values sequentially from 1..N to match
+     * PDO execute([...]) semantics even when the input array has non-sequential
+     * or non-zero-based numeric keys.
+     * For named placeholders, normalize the key so that both ':name' and 'name'
+     * forms work across all PDO drivers (add ':' prefix when missing).
+     * Mixed positional and named keys are rejected to avoid silently mis-binding
+     * parameters.
      * @param string $sql The SQL query to prepare and execute.
      * @param array $params Optional parameter bindings for the statement.
-     * @throws RuntimeException if preparation or execution fails.
+     * @throws InvalidArgumentException if $params is not an array or contains mixed/invalid keys.
+     * @throws RuntimeException if preparation, binding, or execution fails.
      * @return PDOStatement The executed statement.
      */
     private function prepareAndExecute($sql, $params = [])
     {
+        if (!is_array($params)) {
+            throw new InvalidArgumentException('$params must be an array.');
+        }
+
+        $hasPositionalParams = false;
+        $hasNamedParams      = false;
+        foreach (array_keys($params) as $key) {
+            if (is_int($key)) {
+                $hasPositionalParams = true;
+            } else {
+                $hasNamedParams = true;
+            }
+        }
+
+        if ($hasPositionalParams && $hasNamedParams) {
+            throw new InvalidArgumentException('Mixed positional and named parameters are not supported.');
+        }
+
         $stmt = $this->conn->prepare($sql);
 
         if (!$stmt) {
@@ -346,12 +374,97 @@ class Database
             throw new RuntimeException("Query preparation failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
-        if (!$stmt->execute($params)) {
+        if ($hasPositionalParams) {
+            $this->bindPositionalParams($stmt, $params);
+        } else {
+            $this->bindNamedParams($stmt, $params);
+        }
+
+        if (!$stmt->execute()) {
             $errorInfo = $stmt->errorInfo();
             throw new RuntimeException("Query execution failed: " . (isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown error'));
         }
 
         return $stmt;
+    }
+
+    /**
+     * Binds positional (?) parameters sequentially from 1..N.
+     * @param PDOStatement $stmt
+     * @param array $params Values to bind (re-indexed from 0 via array_values).
+     * @throws RuntimeException if any bindValue call fails.
+     */
+    private function bindPositionalParams($stmt, $params)
+    {
+        foreach (array_values($params) as $position => $value) {
+            $this->bindOneValue($stmt, $position + 1, $value);
+        }
+    }
+
+    /**
+     * Binds named (:name) parameters, accepting both 'name' and ':name' key forms.
+     * Keys are validated against /^:[A-Za-z_][A-Za-z0-9_]*$/ after normalization,
+     * multiple leading colons are rejected, and duplicate normalized keys are rejected.
+     * @param PDOStatement $stmt
+     * @param array $params Associative array of placeholder names to values.
+     * @throws InvalidArgumentException if any key is not a valid, unique named placeholder.
+     * @throws RuntimeException if any bindValue call fails.
+     */
+    private function bindNamedParams($stmt, $params)
+    {
+        $seen = [];
+
+        foreach ($params as $key => $value) {
+            if (!is_string($key)) {
+                throw new InvalidArgumentException('Named parameter keys must be strings.');
+            }
+
+            if ($key === '') {
+                throw new InvalidArgumentException('Named parameter keys must be non-empty strings.');
+            }
+
+            if (strlen($key) > 1 && $key[0] === ':' && $key[1] === ':') {
+                throw new InvalidArgumentException('Named parameter keys may have at most one leading colon.');
+            }
+
+            $normalizedKey = ($key[0] === ':') ? $key : ':' . $key;
+            if (!preg_match('/^:[A-Za-z_][A-Za-z0-9_]*$/', $normalizedKey)) {
+                throw new InvalidArgumentException(
+                    'Named parameter keys must match the format :[A-Za-z_][A-Za-z0-9_]*.'
+                );
+            }
+
+            if (isset($seen[$normalizedKey])) {
+                throw new InvalidArgumentException(
+                    'Duplicate named parameter key after normalization: ' . $normalizedKey . '.'
+                );
+            }
+
+            $seen[$normalizedKey] = true;
+            $this->bindOneValue($stmt, $normalizedKey, $value);
+        }
+    }
+
+    /**
+     * Binds a single value to a statement placeholder, mapping PHP null to SQL NULL.
+     * @param PDOStatement $stmt
+     * @param int|string $param Placeholder index (1-based int) or name (':name').
+     * @param mixed $value Value to bind.
+     * @throws RuntimeException if bindValue fails.
+     */
+    private function bindOneValue($stmt, $param, $value)
+    {
+        if ($value === null) {
+            $bound = $stmt->bindValue($param, null, PDO::PARAM_NULL);
+        } else {
+            $bound = $stmt->bindValue($param, $value);
+        }
+
+        if (!$bound) {
+            $errorInfo    = $stmt->errorInfo();
+            $driverDetail = isset($errorInfo[2]) && $errorInfo[2] !== '' ? ': ' . $errorInfo[2] : '';
+            throw new RuntimeException("Parameter binding failed for placeholder " . $param . $driverDetail);
+        }
     }
 
     /**
