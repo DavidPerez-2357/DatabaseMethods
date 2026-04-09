@@ -103,9 +103,21 @@ class Database
         return $default;
     }
 
+    /**
+     * Enables or disables JSON encoding of query results.
+     *
+     * When enabled, methods such as select(), selectOne(), and plainSelect()
+     * will return a JSON-encoded string instead of a PHP array.
+     * If JSON encoding fails (e.g. the result contains invalid UTF-8), an
+     * empty array is returned instead.
+     *
+     * @param bool $bool True to enable JSON encoding, false to disable.
+     * @return $this
+     */
     public function setJsonEncode($bool)
     {
-        $this->json_encode = $bool;
+        $this->json_encode = (bool) $bool;
+        return $this;
     }
 
     /**
@@ -229,7 +241,7 @@ class Database
      * @param Query $query The Query object containing the SQL query.
      * @param array $data Optional parameters for the query.
      * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return array The result row as an associative array.
+     * @return array|string The result row as an associative array, or a JSON-encoded string if json_encode is enabled.
      */
     private function selectOne($query, $data = [])
     {
@@ -241,10 +253,7 @@ class Database
         // Fetch a single row as an associative array
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($row === false) {
-            return $this->json_encode ? json_encode(array()) : array();
-        }
-        return $this->json_encode ? json_encode($row) : $row;
+        return $this->formatResult($row === false ? array() : $row);
     }
 
     /**
@@ -252,7 +261,7 @@ class Database
      * @param Query $query The Query object containing the SQL query.
      * @param array $data Optional parameters for the query.
      * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return array The result set as an associative array.
+     * @return array|string The result set as an associative array, or a JSON-encoded string if json_encode is enabled.
      */
     private function select($query, $data = [])
     {
