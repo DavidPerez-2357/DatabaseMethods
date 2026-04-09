@@ -754,13 +754,15 @@ class Database
      *                         keys are normalized to include a leading `:` if absent.
      *                         For positional placeholders (e.g. `active = ?`), pass a list-style array.
      * @param array $joins Optional joins for the query.
-     * @throws InvalidArgumentException if $whereData is not an array or contains invalid named keys.
+     * @throws InvalidArgumentException if $table is not a valid SQL identifier, or if $whereData is not an array or contains invalid named keys.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The count of records.
      */
     private function count($table, $where = '', $whereData = [], $joins = [])
     {
         $this->requireConnection();
+
+        Query::validateIdentifier($table, 'table name');
 
         if (!is_array($whereData)) {
             throw new InvalidArgumentException("\$whereData must be an array of bindings for the WHERE clause.");
