@@ -172,9 +172,9 @@ $deleted = $database->delete('users', 'id = :id', ['id' => 2]);
 
 ---
 
-### `deleteAll($table, $data = [], $orderBy = "", $limit = 0)`
+### `deleteAll($table, $orderBy = "", $limit = 0)`
 
-Delete all records from a table (no WHERE clause). `$data` should always be `[]`; pass `$orderBy` and `$limit` as the 3rd and 4th arguments when needed.
+Delete all records from a table (no WHERE clause). Pass `$orderBy` and `$limit` as the 2nd and 3rd arguments when needed.
 
 ```php
 $deleted = $database->deleteAll('users');

@@ -712,13 +712,12 @@ class Database
     /**
      * Deletes all records from the specified table using the Query class.
      * @param string $table The name of the table to delete from.
-     * @param array $data Optional parameters for the query.
      * @param string $orderBy Optional ORDER BY clause.
      * @param int $limit Optional limit for the deletion.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
-    private function deleteAll($table, $data = [], $orderBy = "", $limit = 0)
+    private function deleteAll($table, $orderBy = "", $limit = 0)
     {
         $this->requireConnection();
 
@@ -733,7 +732,7 @@ class Database
             'limit' => $limit
         ]);
 
-        $stmt = $this->prepareAndExecute((string) $query, $data);
+        $stmt = $this->prepareAndExecute((string) $query, []);
         return (int) $stmt->rowCount();
     }
 
