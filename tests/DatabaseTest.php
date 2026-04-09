@@ -707,13 +707,15 @@ class DatabaseTest
     public function testKeywordCheckEnabledByDefaultReplacesKeyword()
     {
         $this->resetTable();
+        $this->db->setKeywordCheckEnabled(true);
         // @currentDate should be replaced with today's date when keyword checking is on (default)
+        $expectedDate = date('Y-m-d');
         $this->db->insert(self::TABLE, ['name' => '@currentDate', 'email' => 'kw@example.com']);
         $query = Query::select()->from(self::TABLE)->where('email = :email');
         $rows  = $this->db->select($query, ['email' => 'kw@example.com']);
         assert_true(count($rows) === 1, 'Expected one inserted row.');
         assert_true($rows[0]['name'] !== '@currentDate', 'Keyword @currentDate should have been replaced.');
-        assert_equals(date('Y-m-d'), $rows[0]['name'], 'Keyword @currentDate should equal today\'s date.');
+        assert_equals($expectedDate, $rows[0]['name'], 'Keyword @currentDate should equal today\'s date.');
     }
 
     public function testKeywordCheckDisabledStoresLiteralValue()
