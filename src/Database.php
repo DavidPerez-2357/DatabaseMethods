@@ -108,6 +108,8 @@ class Database
      *
      * When enabled, methods such as select(), selectOne(), and plainSelect()
      * will return a JSON-encoded string instead of a PHP array.
+     * If JSON encoding fails (e.g. the result contains invalid UTF-8), an
+     * empty array is returned instead.
      *
      * @param bool $bool True to enable JSON encoding, false to disable.
      * @return $this
