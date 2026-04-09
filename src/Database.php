@@ -250,10 +250,7 @@ class Database
         // Fetch a single row as an associative array
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($row === false) {
-            return $this->json_encode ? json_encode(array()) : array();
-        }
-        return $this->json_encode ? json_encode($row) : $row;
+        return $this->formatResult($row === false ? array() : $row);
     }
 
     /**
