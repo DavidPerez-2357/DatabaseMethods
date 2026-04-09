@@ -225,23 +225,19 @@ class Database
     }
 
     /**
-     * Executes a SELECT query using the Query class and returns a single row.
-     * @param Query $query The Query object containing the SQL query.
+     * Executes a SELECT query and returns a single row.
+     * @param Query|string $query A Query object (limit(1) is applied automatically) or a raw SQL string.
      * @param array $data Optional parameters for the query.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return array The result row as an associative array.
      */
     private function selectOne($query, $data = [])
     {
-        if (!($query instanceof Query)) {
-            throw new InvalidArgumentException(
-                'selectOne() expects $query to be an instance of Query.'
-            );
-        }
-
         $this->requireConnection();
 
-        $query->limit(1);
+        if ($query instanceof Query) {
+            $query->limit(1);
+        }
         $stmt = $this->prepareAndExecute((string) $query, $data);
 
         // Fetch a single row as an associative array
