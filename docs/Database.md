@@ -86,6 +86,19 @@ $database->update('users',
 );
 ```
 
+### Disabling keyword checking
+
+Keyword replacement is enabled by default. Call `setKeywordCheckEnabled(false)` to pass data values through unmodified:
+
+```php
+$database->setKeywordCheckEnabled(false);
+// '@currentDate' is now stored as the literal string, not today's date
+$database->insert('logs', ['event' => '@currentDate']);
+$database->setKeywordCheckEnabled(true); // re-enable when done
+```
+
+`setKeywordCheckEnabled()` returns `$this` so it can be chained.
+
 &emsp;
 
 ## Methods
