@@ -955,6 +955,7 @@ class Query
      * @param string $name    The identifier to validate.
      * @param string $context Human-readable name used in exception messages (e.g. 'table name').
      * @throws InvalidArgumentException if $name is not a safe SQL identifier.
+     * @return void
      */
     public static function validateIdentifier($name, $context)
     {
