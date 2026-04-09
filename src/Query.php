@@ -956,7 +956,7 @@ class Query
      * @param string $context Human-readable name used in exception messages (e.g. 'table name').
      * @throws InvalidArgumentException if $name is not a safe SQL identifier.
      */
-    private static function validateIdentifier($name, $context)
+    public static function validateIdentifier($name, $context)
     {
         $id = self::IDENTIFIER;
         if (!is_string($name) || !preg_match('/^' . $id . '(\.' . $id . ')?$/', $name)) {
