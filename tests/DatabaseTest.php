@@ -551,7 +551,7 @@ class DatabaseTest
         assert_equals(1, $this->db->count(self::TABLE, 'active = ?', [1]));
     }
 
-    public function testCountWithInvalidTableNameThrows()
+    public function testCountWithSqlInjectionAttemptThrows()
     {
         assert_throws('InvalidArgumentException', function () {
             $this->db->count('users; DROP TABLE users');
