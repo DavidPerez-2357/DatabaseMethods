@@ -114,7 +114,7 @@ class Database
      */
     public function setJsonEncode($bool)
     {
-        $this->json_encode = $bool;
+        $this->json_encode = (bool) $bool;
         return $this;
     }
 
@@ -239,7 +239,7 @@ class Database
      * @param Query $query The Query object containing the SQL query.
      * @param array $data Optional parameters for the query.
      * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return array The result row as an associative array.
+     * @return array|string The result row as an associative array, or a JSON-encoded string if json_encode is enabled.
      */
     private function selectOne($query, $data = [])
     {
@@ -262,7 +262,7 @@ class Database
      * @param Query $query The Query object containing the SQL query.
      * @param array $data Optional parameters for the query.
      * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return array The result set as an associative array.
+     * @return array|string The result set as an associative array, or a JSON-encoded string if json_encode is enabled.
      */
     private function select($query, $data = [])
     {
