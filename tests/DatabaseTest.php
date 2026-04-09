@@ -656,6 +656,12 @@ class DatabaseTest
         assert_true(is_array($result));
     }
 
+    public function testSetJsonEncodeIsChainable()
+    {
+        $result = $this->db->setJsonEncode(false);
+        assert_true($result === $this->db, 'setJsonEncode() must return $this for chaining.');
+    }
+
     // =========================================================================
     // Tests — getLastInsertId
     // =========================================================================

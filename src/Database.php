@@ -106,6 +106,7 @@ class Database
     public function setJsonEncode($bool)
     {
         $this->json_encode = $bool;
+        return $this;
     }
 
     /**

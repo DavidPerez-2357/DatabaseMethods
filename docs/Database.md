@@ -45,6 +45,9 @@ To receive results as a JSON string instead of a PHP array:
 ```php
 $mysql->setJsonEncode(true);   // enable
 $mysql->setJsonEncode(false);  // disable (default)
+
+// setJsonEncode() returns $this, so it can be chained:
+$result = $mysql->setJsonEncode(true)->select(Query::select()->from('users'));
 ```
 
 Affects `select`, `selectOne`, and `plainSelect`.
