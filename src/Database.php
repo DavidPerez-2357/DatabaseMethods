@@ -228,11 +228,18 @@ class Database
      * Executes a SELECT query and returns a single row.
      * @param Query|string $query A Query object (limit(1) is applied automatically) or a raw SQL string.
      * @param array $data Optional parameters for the query.
+     * @throws InvalidArgumentException if $query is neither a Query instance nor a string.
      * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return array The result row as an associative array.
+     * @return array|string The result row as an associative array, or a JSON-encoded string when json_encode mode is enabled.
      */
     private function selectOne($query, $data = [])
     {
+        if (!($query instanceof Query) && !is_string($query)) {
+            throw new InvalidArgumentException(
+                'selectOne() expects $query to be a Query instance or a string.'
+            );
+        }
+
         $this->requireConnection();
 
         if ($query instanceof Query) {

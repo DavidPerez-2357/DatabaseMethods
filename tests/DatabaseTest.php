@@ -403,7 +403,7 @@ class DatabaseTest
         assert_equals([], $row);
     }
 
-    public function testSelectOneThrowsOnNonQueryArgument()
+    public function testSelectOneAcceptsRawSqlString()
     {
         $this->resetTable();
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
@@ -411,6 +411,13 @@ class DatabaseTest
 
         $row = $this->db->selectOne('SELECT * FROM ' . self::TABLE . ' WHERE name = :name', ['name' => 'Alice']);
         assert_equals('Alice', $row['name']);
+    }
+
+    public function testSelectOneThrowsOnNonQueryArgument()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->selectOne(42);
+        });
     }
 
     // =========================================================================
