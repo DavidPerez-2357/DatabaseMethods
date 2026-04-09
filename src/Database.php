@@ -103,6 +103,15 @@ class Database
         return $default;
     }
 
+    /**
+     * Enables or disables JSON encoding of query results.
+     *
+     * When enabled, methods such as select(), selectOne(), and plainSelect()
+     * will return a JSON-encoded string instead of a PHP array.
+     *
+     * @param bool $bool True to enable JSON encoding, false to disable.
+     * @return $this
+     */
     public function setJsonEncode($bool)
     {
         $this->json_encode = $bool;
