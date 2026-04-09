@@ -88,7 +88,7 @@ $database->update('users',
 
 ### Disabling keyword checking
 
-Keyword replacement is enabled by default. Call `enableKeywordCheck(false)` to pass data values through unmodified.
+Keyword replacement is enabled by default. Call `enableKeywordCkeck(false)` to pass data values through unmodified.
 
 Disabling keyword checking reduces processing complexity on every query call, which improves speed when you know your data contains no `@`-prefixed keywords or when maximum throughput is required (e.g. high-volume batch inserts).
 
@@ -96,13 +96,13 @@ Disabling keyword checking reduces processing complexity on every query call, wh
 > If your application never uses special keywords like `@currentDate` or `@randomInt`, disable keyword checking right after creating the database instance. This avoids unnecessary processing on every query and gives you better performance for free.
 
 ```php
-$database->enableKeywordCheck(false);
+$database->enableKeywordCkeck(false);
 // '@currentDate' is now stored as the literal string, not today's date
 $database->insert('logs', ['event' => '@currentDate']);
-$database->enableKeywordCheck(true); // re-enable when done
+$database->enableKeywordCkeck(true); // re-enable when done
 ```
 
-`enableKeywordCheck()` returns `$this` so it can be chained.
+`enableKeywordCkeck()` returns `$this` so it can be chained.
 
 &emsp;
 

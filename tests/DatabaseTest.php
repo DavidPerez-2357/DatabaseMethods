@@ -701,13 +701,13 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — enableKeywordCheck
+    // Tests — enableKeywordCkeck
     // =========================================================================
 
     public function testKeywordCheckEnabledByDefaultReplacesKeyword()
     {
         $this->resetTable();
-        $this->db->enableKeywordCheck(true);
+        $this->db->enableKeywordCkeck(true);
         $expectedDate = date('Y-m-d');
         $this->db->insert(self::TABLE, ['name' => '@currentDate', 'email' => 'kw@example.com']);
         $query = Query::select()->from(self::TABLE)->where('email = :email');
@@ -720,12 +720,12 @@ class DatabaseTest
     public function testKeywordCheckDisabledStoresLiteralValue()
     {
         $this->resetTable();
-        $this->db->enableKeywordCheck(false);
+        $this->db->enableKeywordCkeck(false);
         try {
             $this->db->insert(self::TABLE, ['name' => '@currentDate', 'email' => 'kw2@example.com']);
-            $this->db->enableKeywordCheck(true); // restore
+            $this->db->enableKeywordCkeck(true); // restore
         } catch (Exception $e) {
-            $this->db->enableKeywordCheck(true); // restore on failure
+            $this->db->enableKeywordCkeck(true); // restore on failure
             throw $e;
         }
         $query = Query::select()->from(self::TABLE)->where('email = :email');
@@ -736,8 +736,8 @@ class DatabaseTest
 
     public function testEnableKeywordCheckIsChainable()
     {
-        $result = $this->db->enableKeywordCheck(true);
-        assert_true($result === $this->db, 'enableKeywordCheck() must return $this for chaining.');
+        $result = $this->db->enableKeywordCkeck(true);
+        assert_true($result === $this->db, 'enableKeywordCkeck() must return $this for chaining.');
     }
 
     // =========================================================================
