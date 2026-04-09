@@ -92,7 +92,8 @@ Keyword replacement is enabled by default. Call `setKeywordCheckEnabled(false)` 
 
 Disabling keyword checking reduces processing complexity on every query call, which improves speed when you know your data contains no `@`-prefixed keywords or when maximum throughput is required (e.g. high-volume batch inserts).
 
-> 💡 **Tip:** If your application never uses special keywords like `@currentDate` or `@randomInt`, disable keyword checking right after creating the database instance. This avoids unnecessary processing on every query and gives you better performance for free.
+> [!TIP]
+> If your application never uses special keywords like `@currentDate` or `@randomInt`, disable keyword checking right after creating the database instance. This avoids unnecessary processing on every query and gives you better performance for free.
 > ```php
 > $database->setKeywordCheckEnabled(false);
 > ```
