@@ -701,14 +701,13 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — setKeywordCheckEnabled
+    // Tests — enableKeywordCheck
     // =========================================================================
 
     public function testKeywordCheckEnabledByDefaultReplacesKeyword()
     {
         $this->resetTable();
-        $this->db->setKeywordCheckEnabled(true);
-        // @currentDate should be replaced with today's date when keyword checking is on (default)
+        $this->db->enableKeywordCheck(true);
         $expectedDate = date('Y-m-d');
         $this->db->insert(self::TABLE, ['name' => '@currentDate', 'email' => 'kw@example.com']);
         $query = Query::select()->from(self::TABLE)->where('email = :email');
@@ -721,12 +720,12 @@ class DatabaseTest
     public function testKeywordCheckDisabledStoresLiteralValue()
     {
         $this->resetTable();
-        $this->db->setKeywordCheckEnabled(false);
+        $this->db->enableKeywordCheck(false);
         try {
             $this->db->insert(self::TABLE, ['name' => '@currentDate', 'email' => 'kw2@example.com']);
-            $this->db->setKeywordCheckEnabled(true); // restore
+            $this->db->enableKeywordCheck(true); // restore
         } catch (Exception $e) {
-            $this->db->setKeywordCheckEnabled(true); // restore on failure
+            $this->db->enableKeywordCheck(true); // restore on failure
             throw $e;
         }
         $query = Query::select()->from(self::TABLE)->where('email = :email');
@@ -735,10 +734,10 @@ class DatabaseTest
         assert_equals('@currentDate', $rows[0]['name'], 'Literal string @currentDate should be stored when keyword checking is disabled.');
     }
 
-    public function testSetKeywordCheckEnabledIsChainable()
+    public function testEnableKeywordCheckIsChainable()
     {
-        $result = $this->db->setKeywordCheckEnabled(true);
-        assert_true($result === $this->db, 'setKeywordCheckEnabled() must return $this for chaining.');
+        $result = $this->db->enableKeywordCheck(true);
+        assert_true($result === $this->db, 'enableKeywordCheck() must return $this for chaining.');
     }
 
     // =========================================================================

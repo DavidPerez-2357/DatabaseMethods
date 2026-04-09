@@ -137,7 +137,7 @@ class Database
      * @param bool $bool True to enable keyword checking, false to disable.
      * @return $this
      */
-    public function setKeywordCheckEnabled($bool)
+    public function enableKeywordCheck($bool)
     {
         $this->keywordCheckEnabled = (bool) $bool;
         return $this;
