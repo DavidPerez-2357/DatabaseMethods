@@ -403,6 +403,13 @@ class DatabaseTest
         assert_equals([], $row);
     }
 
+    public function testSelectOneThrowsOnNonQueryArgument()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->selectOne('SELECT * FROM users');
+        });
+    }
+
     // =========================================================================
     // Tests — update
     // =========================================================================

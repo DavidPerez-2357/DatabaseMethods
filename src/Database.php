@@ -233,6 +233,12 @@ class Database
      */
     private function selectOne($query, $data = [])
     {
+        if (!($query instanceof Query)) {
+            throw new InvalidArgumentException(
+                'selectOne() expects $query to be an instance of Query.'
+            );
+        }
+
         $this->requireConnection();
 
         $query->limit(1);
