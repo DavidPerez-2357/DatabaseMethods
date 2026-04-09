@@ -978,7 +978,7 @@ class Query
      * @param string $context Human-readable name used in exception messages (e.g. 'INSERT field').
      * @throws InvalidArgumentException if $name is not a plain SQL identifier.
      */
-    private static function validateUnqualifiedIdentifier($name, $context)
+    public static function validateUnqualifiedIdentifier($name, $context)
     {
         if (!is_string($name) || !preg_match('/^' . self::IDENTIFIER . '$/', $name)) {
             throw new InvalidArgumentException(
