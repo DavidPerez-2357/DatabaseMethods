@@ -568,6 +568,27 @@ class DatabaseTest
         assert_equals(1, $this->db->count(self::TABLE, 'active = ?', [1]));
     }
 
+    public function testCountWithSqlInjectionAttemptThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->count('users; SELECT 1');
+        });
+    }
+
+    public function testCountWithEmptyTableNameThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->count('');
+        });
+    }
+
+    public function testCountWithTableNameContainingSpacesThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->count('my table');
+        });
+    }
+
     // =========================================================================
     // Tests — plainSelect
     // =========================================================================
@@ -671,6 +692,12 @@ class DatabaseTest
         $this->db->setJsonEncode(false);
         $result = $this->db->select(Query::select()->from(self::TABLE));
         assert_true(is_array($result));
+    }
+
+    public function testSetJsonEncodeIsChainable()
+    {
+        $result = $this->db->setJsonEncode(false);
+        assert_true($result === $this->db, 'setJsonEncode() must return $this for chaining.');
     }
 
     // =========================================================================
