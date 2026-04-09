@@ -554,7 +554,7 @@ class DatabaseTest
     public function testCountWithSqlInjectionAttemptThrows()
     {
         assert_throws('InvalidArgumentException', function () {
-            $this->db->count('users; DROP TABLE users');
+            $this->db->count('users; SELECT 1');
         });
     }
 
