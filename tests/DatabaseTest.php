@@ -628,15 +628,52 @@ class DatabaseTest
     // Tests — executePlainQuery
     // =========================================================================
 
-    public function testExecutePlainQueryReturnsTrueOnSuccess()
+    public function testExecutePlainQueryReturnsAffectedRowCountForWriteQuery()
     {
         $this->resetTable();
-        $result = $this->db->executePlainQuery(
+        $affected = $this->db->executePlainQuery(
             'INSERT INTO ' . self::TABLE . ' (name, email) VALUES (:name, :email)',
             [':name' => 'Alice', ':email' => 'alice@example.com']
         );
-        assert_true($result === true);
+        assert_equals(1, $affected);
         assert_equals(1, $this->db->count(self::TABLE));
+    }
+
+    public function testExecutePlainQueryReturnsRowsForSelectQuery()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 0]);
+
+        $rows = $this->db->executePlainQuery('SELECT * FROM ' . self::TABLE);
+        assert_equals(2, count($rows));
+        assert_equals('Alice', $rows[0]['name']);
+    }
+
+    public function testExecutePlainQuerySelectWithBindingsFiltersRows()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 0]);
+
+        $rows = $this->db->executePlainQuery(
+            'SELECT * FROM ' . self::TABLE . ' WHERE active = :a',
+            ['a' => 1]
+        );
+        assert_equals(1, count($rows));
+        assert_equals('Alice', $rows[0]['name']);
+    }
+
+    public function testExecutePlainQueryUpdateReturnsAffectedCount()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
+
+        $affected = $this->db->executePlainQuery(
+            'UPDATE ' . self::TABLE . ' SET active = 0'
+        );
+        assert_equals(2, $affected);
     }
 
     // =========================================================================

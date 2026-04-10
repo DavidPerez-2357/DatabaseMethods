@@ -110,13 +110,24 @@ $database->enableKeywordCkeck(true); // re-enable when done
 
 ### `executePlainQuery($query, $data = [])`
 
-Execute any SQL statement directly. Returns `true` on success or throws on error.
+Execute any SQL statement directly.
+
+- **SELECT** (or any statement that returns a result set): returns all rows as an associative array, or a JSON-encoded string when json_encode mode is enabled.
+- **INSERT / UPDATE / DELETE / DDL**: returns the number of affected rows as an integer.
+
+Throws on error.
 
 ```php
-$database->executePlainQuery(
+// Write query — returns affected row count
+$affected = $database->executePlainQuery(
     'UPDATE users SET active = 0 WHERE id = :userId',
     ['userId' => 2]
 );
+// $affected === 1
+
+// Read query — returns rows
+$rows = $database->executePlainQuery('SELECT * FROM users WHERE active = 1');
+// $rows === [['id' => 1, 'name' => 'Alice', ...], ...]
 ```
 
 ---

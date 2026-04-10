@@ -230,17 +230,26 @@ class Database
 
     /**
      * Executes a plain SQL query.
+     * For SELECT statements (or any query that returns a result set) the method
+     * returns all rows as an associative array (or a JSON-encoded string when
+     * json_encode mode is enabled).  For all other statements (INSERT, UPDATE,
+     * DELETE, DDL, …) it returns the number of rows affected.
      * @param string $query The SQL query to execute.
      * @param array $data Optional parameters for the query.
      * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return bool True on success, false on failure.
+     * @return array|string|int Rows for SELECT queries, or affected-row count for write queries.
      */
     public function executePlainQuery($query, $data = [])
     {
         $this->requireConnection();
 
-        $this->prepareAndExecute($query, $data);
-        return true;
+        $stmt = $this->prepareAndExecute($query, $data);
+
+        if ($stmt->columnCount() > 0) {
+            return $this->formatResult($stmt->fetchAll(PDO::FETCH_ASSOC));
+        }
+
+        return $stmt->rowCount();
     }
 
     /**
