@@ -110,7 +110,8 @@ class Database
      * Enables or disables JSON encoding of query results.
      *
      * When enabled, methods such as select(), selectOne(), and plainSelect()
-     * will return a JSON-encoded string instead of a PHP array.
+     * will return a JSON-encoded string
+     * instead of a PHP array.
      * If JSON encoding fails (e.g. the result contains invalid UTF-8), an
      * empty array is returned instead.
      *
@@ -130,7 +131,7 @@ class Database
      * @currentDate, @currentDateTime, @randomInt, and @lastInsertId are
      * automatically replaced with their actual values for operations routed
      * through the magic __call() method (select, insert, update, delete,
-     * deleteAll, count, selectOne). Methods such as executePlainQuery() and
+     * deleteAll, count, selectOne). Methods such as runPlainQuery() and
      * plainSelect() are not affected and never perform keyword replacement.
      * Set to false to pass data values through unmodified.
      *
@@ -229,26 +230,29 @@ class Database
     }
 
     /**
-     * Executes a plain SQL query.
-     * @param string $query The SQL query to execute.
+     * Executes a plain SQL write statement and returns the affected row count.
+     * Use plainSelect() to execute queries that return a result set.
+     * @param string $query The SQL statement to execute.
      * @param array $data Optional parameters for the query.
      * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return bool True on success, false on failure.
+     * @return int The PDO-reported rowCount() (may be 0 for DDL statements).
      */
-    public function executePlainQuery($query, $data = [])
+    public function runPlainQuery($query, $data = [])
     {
         $this->requireConnection();
 
-        $this->prepareAndExecute($query, $data);
-        return true;
+        $stmt = $this->prepareAndExecute($query, $data);
+
+        return $stmt->rowCount();
     }
 
     /**
-     * Executes a plain SELECT SQL query and returns the results.
-     * @param string $query The SQL SELECT query to execute.
+     * Executes a plain SQL query and returns all result rows.
+     * Use runPlainQuery() for write statements that do not return a result set.
+     * @param string $query The SQL query to execute.
      * @param array $data Optional parameters for the query.
      * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return array|string The result set as an associative array, or a JSON-encoded string if json_encode is enabled.
+     * @return array|string All rows as an associative array, or a JSON-encoded string when json_encode mode is enabled.
      */
     public function plainSelect($query, $data = [])
     {
@@ -275,12 +279,14 @@ class Database
             );
         }
 
-        $this->requireConnection();
-
         if ($query instanceof Query) {
             $query->limit(1);
         }
-        $stmt = $this->prepareAndExecute((string) $query, $data);
+        $sql = (string) $query;
+
+        $this->requireConnection();
+
+        $stmt = $this->prepareAndExecute($sql, $data);
 
         // Fetch a single row as an associative array
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -289,17 +295,26 @@ class Database
     }
 
     /**
-     * Executes a SELECT query using the Query class and returns all results.
-     * @param Query $query The Query object containing the SQL query.
+     * Executes a SELECT query and returns all results.
+     * @param Query|string $query A Query object or a raw SQL string.
      * @param array $data Optional parameters for the query.
+     * @throws InvalidArgumentException if $query is neither a Query instance nor a string.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return array|string The result set as an associative array, or a JSON-encoded string if json_encode is enabled.
      */
     private function select($query, $data = [])
     {
+        if (!($query instanceof Query) && !is_string($query)) {
+            throw new InvalidArgumentException(
+                'select() expects $query to be a Query instance or a string.'
+            );
+        }
+
+        $sql = (string) $query;
+
         $this->requireConnection();
 
-        $stmt = $this->prepareAndExecute((string) $query, $data);
+        $stmt = $this->prepareAndExecute($sql, $data);
 
         // Fetch all results as an associative array
         return $this->formatResult($stmt->fetchAll(PDO::FETCH_ASSOC));

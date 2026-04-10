@@ -6,7 +6,7 @@
  * Integration test suite for the Database class.
  *
  * Covers: select, selectOne, insert (single + multiple), update, delete,
- * deleteAll, count, plainSelect, executePlainQuery, executeTransaction,
+ * deleteAll, count, runPlainQuery, plainSelect, executeTransaction,
  * setJsonEncode, and getLastInsertId.
  *
  * A temporary SQLite database file is created automatically before the
@@ -167,7 +167,7 @@ class DatabaseTest
     public function teardown()
     {
         try {
-            $this->db->executePlainQuery($this->getDropTableSql());
+            $this->db->runPlainQuery($this->getDropTableSql());
         } catch (Exception $e) {
             // Best-effort; ignore if already gone.
         }
@@ -268,7 +268,7 @@ class DatabaseTest
 
     private function createTable()
     {
-        $this->db->executePlainQuery($this->getCreateTableSql());
+        $this->db->runPlainQuery($this->getCreateTableSql());
     }
 
     /**
@@ -277,8 +277,8 @@ class DatabaseTest
      */
     private function resetTable()
     {
-        $this->db->executePlainQuery($this->getDropTableSql());
-        $this->db->executePlainQuery($this->getCreateTableSql());
+        $this->db->runPlainQuery($this->getDropTableSql());
+        $this->db->runPlainQuery($this->getCreateTableSql());
     }
 
     // =========================================================================
@@ -303,7 +303,7 @@ class DatabaseTest
     {
         $this->resetTable();
         $this->db->insert(self::TABLE, ['name' => 'Bob', 'email' => 'bob@example.com']);
-        $rows = $this->db->plainSelect('SELECT * FROM ' . self::TABLE);
+        $rows = $this->db->select('SELECT * FROM ' . self::TABLE);
         assert_equals(1, count($rows));
         assert_equals('Bob', $rows[0]['name']);
         assert_equals('bob@example.com', $rows[0]['email']);
@@ -429,7 +429,7 @@ class DatabaseTest
         $this->resetTable();
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
         // Derive the id via SELECT to avoid relying on lastInsertId() (unreliable on PostgreSQL).
-        $rows = $this->db->plainSelect(
+        $rows = $this->db->select(
             'SELECT id FROM ' . self::TABLE . ' WHERE email = :email',
             ['email' => 'alice@example.com']
         );
@@ -471,7 +471,7 @@ class DatabaseTest
         $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com']);
 
         // Derive the id via SELECT to avoid relying on lastInsertId() (unreliable on PostgreSQL).
-        $rows = $this->db->plainSelect(
+        $rows = $this->db->select(
             'SELECT id FROM ' . self::TABLE . ' WHERE email = :email',
             ['email' => 'alice@example.com']
         );
@@ -499,7 +499,7 @@ class DatabaseTest
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
 
         // Derive the id via SELECT to avoid relying on lastInsertId() (unreliable on PostgreSQL).
-        $rows     = $this->db->plainSelect(
+        $rows     = $this->db->select(
             'SELECT id FROM ' . self::TABLE . ' WHERE email = :email',
             ['email' => 'alice@example.com']
         );
@@ -590,26 +590,26 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — plainSelect
+    // Tests — select (raw SQL string)
     // =========================================================================
 
-    public function testPlainSelectReturnsAllRows()
+    public function testSelectRawSqlReturnsAllRows()
     {
         $this->resetTable();
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
         $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com']);
 
-        $rows = $this->db->plainSelect('SELECT * FROM ' . self::TABLE);
+        $rows = $this->db->select('SELECT * FROM ' . self::TABLE);
         assert_equals(2, count($rows));
     }
 
-    public function testPlainSelectWithNamedBindings()
+    public function testSelectRawSqlWithNamedBindings()
     {
         $this->resetTable();
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
         $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 0]);
 
-        $rows = $this->db->plainSelect(
+        $rows = $this->db->select(
             'SELECT * FROM ' . self::TABLE . ' WHERE active = :a',
             ['a' => 1]
         );
@@ -617,19 +617,85 @@ class DatabaseTest
         assert_equals('Alice', $rows[0]['name']);
     }
 
+    public function testSelectInvalidArgumentThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->select([]);
+        });
+    }
+
     // =========================================================================
-    // Tests — executePlainQuery
+    // Tests — runPlainQuery
     // =========================================================================
 
-    public function testExecutePlainQueryReturnsTrueOnSuccess()
+    public function testRunPlainQueryReturnsAffectedRowCountForWriteQuery()
     {
         $this->resetTable();
-        $result = $this->db->executePlainQuery(
+        $affected = $this->db->runPlainQuery(
             'INSERT INTO ' . self::TABLE . ' (name, email) VALUES (:name, :email)',
             [':name' => 'Alice', ':email' => 'alice@example.com']
         );
-        assert_true($result === true);
+        assert_equals(1, $affected);
         assert_equals(1, $this->db->count(self::TABLE));
+    }
+
+    public function testRunPlainQueryUpdateReturnsAffectedCount()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
+
+        $affected = $this->db->runPlainQuery(
+            'UPDATE ' . self::TABLE . ' SET active = 0'
+        );
+        assert_equals(2, $affected);
+    }
+
+    // =========================================================================
+    // Tests — plainSelect
+    // =========================================================================
+
+    public function testPlainSelectReturnsRowsForSelectQuery()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 0]);
+
+        $rows = $this->db->plainSelect('SELECT * FROM ' . self::TABLE . ' ORDER BY id ASC');
+        assert_equals(2, count($rows));
+        assert_equals('Alice', $rows[0]['name']);
+    }
+
+    public function testPlainSelectWithBindingsFiltersRows()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 0]);
+
+        $rows = $this->db->plainSelect(
+            'SELECT * FROM ' . self::TABLE . ' WHERE active = :active',
+            ['active' => 1]
+        );
+        assert_equals(1, count($rows));
+        assert_equals('Alice', $rows[0]['name']);
+    }
+
+    public function testPlainSelectReturnsJsonStringWhenJsonEncodeEnabled()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+
+        $this->db->setJsonEncode(true);
+        try {
+            $result = $this->db->plainSelect('SELECT name, email FROM ' . self::TABLE);
+        } finally {
+            $this->db->setJsonEncode(false);
+        }
+
+        assert_true(is_string($result), 'plainSelect() should return a JSON string when setJsonEncode(true).');
+        $decoded = json_decode($result, true);
+        assert_true(is_array($decoded) && count($decoded) === 1);
+        assert_equals('Alice', $decoded[0]['name']);
     }
 
     // =========================================================================
@@ -672,10 +738,8 @@ class DatabaseTest
         $this->db->setJsonEncode(true);
         try {
             $result = $this->db->select(Query::select(['name', 'email'])->from(self::TABLE));
-            $this->db->setJsonEncode(false); // restore default
-        } catch (Exception $e) {
-            $this->db->setJsonEncode(false); // restore default on failure
-            throw $e;
+        } finally {
+            $this->db->setJsonEncode(false);
         }
 
         assert_true(is_string($result), 'select() should return a JSON string when setJsonEncode(true).');
@@ -802,8 +866,8 @@ class DatabaseTest
     /** Drops and recreates the nullable test table. */
     private function resetNullableTable()
     {
-        $this->db->executePlainQuery($this->getNullableDropTableSql());
-        $this->db->executePlainQuery($this->getNullableCreateTableSql());
+        $this->db->runPlainQuery($this->getNullableDropTableSql());
+        $this->db->runPlainQuery($this->getNullableCreateTableSql());
     }
 
     public function testInsertNullValueStoresNull()
@@ -811,12 +875,12 @@ class DatabaseTest
         $this->resetNullableTable();
         try {
             $this->db->insert(self::NULLABLE_TABLE, ['name' => 'Alice', 'notes' => null]);
-            $rows = $this->db->plainSelect('SELECT * FROM ' . self::NULLABLE_TABLE);
+            $rows = $this->db->select('SELECT * FROM ' . self::NULLABLE_TABLE);
             assert_equals(1, count($rows));
             assert_equals('Alice', $rows[0]['name']);
             assert_true($rows[0]['notes'] === null, 'NULL value must be stored as SQL NULL, not an empty string.');
         } finally {
-            $this->db->executePlainQuery($this->getNullableDropTableSql());
+            $this->db->runPlainQuery($this->getNullableDropTableSql());
         }
     }
 
@@ -828,12 +892,12 @@ class DatabaseTest
                 ['name' => 'Alice', 'notes' => 'has notes'],
                 ['name' => 'Bob',   'notes' => null],
             ]);
-            $rows = $this->db->plainSelect('SELECT * FROM ' . self::NULLABLE_TABLE . ' ORDER BY name');
+            $rows = $this->db->select('SELECT * FROM ' . self::NULLABLE_TABLE . ' ORDER BY name');
             assert_equals(2, count($rows));
             assert_equals('has notes', $rows[0]['notes']);
             assert_true($rows[1]['notes'] === null, 'NULL value in multi-row insert must be stored as SQL NULL.');
         } finally {
-            $this->db->executePlainQuery($this->getNullableDropTableSql());
+            $this->db->runPlainQuery($this->getNullableDropTableSql());
         }
     }
 
@@ -842,7 +906,7 @@ class DatabaseTest
         $this->resetNullableTable();
         try {
             $this->db->insert(self::NULLABLE_TABLE, ['name' => 'Alice', 'notes' => 'original']);
-            $rows = $this->db->plainSelect(
+            $rows = $this->db->select(
                 'SELECT id FROM ' . self::NULLABLE_TABLE . ' WHERE name = :name',
                 ['name' => 'Alice']
             );
@@ -851,14 +915,14 @@ class DatabaseTest
 
             $this->db->update(self::NULLABLE_TABLE, ['notes' => null], 'id = :id', ['id' => $id]);
 
-            $updated = $this->db->plainSelect(
+            $updated = $this->db->select(
                 'SELECT notes FROM ' . self::NULLABLE_TABLE . ' WHERE id = :id',
                 ['id' => $id]
             );
             assert_equals(1, count($updated));
             assert_true($updated[0]['notes'] === null, 'Updating a column to null must store SQL NULL.');
         } finally {
-            $this->db->executePlainQuery($this->getNullableDropTableSql());
+            $this->db->runPlainQuery($this->getNullableDropTableSql());
         }
     }
 
@@ -868,7 +932,7 @@ class DatabaseTest
         try {
             // A params array with both integer (positional) and string (named) keys
             // must be rejected with InvalidArgumentException before prepare() is called.
-            $this->db->executePlainQuery('SELECT 1', [0 => 'val', 'name' => 'Alice']);
+            $this->db->runPlainQuery('SELECT 1', [0 => 'val', 'name' => 'Alice']);
         } catch (InvalidArgumentException $e) {
             $caughtException = true;
         }

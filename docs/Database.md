@@ -74,7 +74,7 @@ Certain string values in the `$data` / `$whereData` arrays are replaced automati
 | `@randomFloat` | Random float 0.01–99.99 |
 | `@randomBoolean` | `true` or `false` |
 
-Keywords work in all CRUD methods (including multi-row inserts) but **not** in `executePlainQuery()` or `plainSelect()`.
+Keywords work in all CRUD methods (including multi-row inserts) but **not** in `runPlainQuery()` or `plainSelect()`.
 
 To add custom keywords, edit the `replaceKeywordsInData` method in `Database.php`.
 
@@ -108,27 +108,36 @@ $database->enableKeywordCkeck(true); // re-enable when done
 
 ## Methods
 
-### `executePlainQuery($query, $data = [])`
+### `runPlainQuery($query, $data = [])`
 
-Execute any SQL statement directly. Returns `true` on success or throws on error.
+Execute any SQL write statement directly. Always returns the PDO-reported `rowCount()` as an integer (may be 0 for DDL statements). Use `plainSelect()` for queries that return a result set.
+
+Throws on error.
 
 ```php
-$database->executePlainQuery(
+// Write query — returns affected row count
+$affected = $database->runPlainQuery(
     'UPDATE users SET active = 0 WHERE id = :userId',
     ['userId' => 2]
 );
+// $affected === 1
 ```
 
 ---
 
 ### `plainSelect($query, $data = [])`
 
-Like `executePlainQuery` but for SELECT statements. Returns all rows as an array (or JSON string when encode is enabled).
+Execute a plain SQL query and return all result rows as an associative array, or a JSON-encoded string when json_encode mode is enabled. Use `runPlainQuery()` for write statements.
+
+Throws on error.
 
 ```php
-$result = $database->plainSelect(
-    'SELECT id, name FROM users WHERE id = :userId',
-    ['userId' => 2]
+$rows = $database->plainSelect('SELECT * FROM users WHERE active = 1');
+// $rows === [['id' => 1, 'name' => 'Alice', ...], ...]
+
+$rows = $database->plainSelect(
+    'SELECT * FROM users WHERE id = :id',
+    ['id' => 1]
 );
 ```
 
@@ -136,13 +145,18 @@ $result = $database->plainSelect(
 
 ### `select($query, $data = [])` / `selectOne($query, $data = [])`
 
-Execute a `Query` object. `select` returns all matching rows; `selectOne` returns only the first row.
+Execute a `Query` object or a raw SQL string. `select` returns all matching rows; `selectOne` returns only the first row.
 
 ```php
+// Using a Query object
 $query = Query::select(['id', 'name'])->from('users')->where('id = :userId');
 
 $rows = $database->select($query, ['userId' => 2]);
 $row  = $database->selectOne($query, ['userId' => 2]);
+
+// Using a raw SQL string
+$rows = $database->select('SELECT id, name FROM users WHERE id = :userId', ['userId' => 2]);
+$row  = $database->selectOne('SELECT id, name FROM users WHERE id = :userId LIMIT 1', ['userId' => 2]);
 ```
 
 ---
