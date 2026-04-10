@@ -50,7 +50,7 @@ $mysql->setJsonEncode(false);  // disable (default)
 $result = $mysql->setJsonEncode(true)->select(Query::select()->from('users'));
 ```
 
-Affects `select`, `selectOne`, and `executePlainQuery` (when the query returns a result set).
+Affects `select`, `selectOne`, and `plainSelect`.
 
 &emsp;
 
@@ -110,10 +110,7 @@ $database->enableKeywordCkeck(true); // re-enable when done
 
 ### `executePlainQuery($query, $data = [])`
 
-Execute any SQL statement directly.
-
-- **SELECT** (or any statement that returns a result set): returns all rows as an associative array, or a JSON-encoded string when json_encode mode is enabled.
-- **Any statement that does not return a result set** (INSERT, UPDATE, DELETE, DDL, etc.): returns the PDO-reported `rowCount()` as an integer. Note that `rowCount()` is driver-dependent and may return `0` for DDL statements (e.g. `CREATE TABLE`) or other non-DML statements.
+Execute any SQL write statement directly. Always returns the PDO-reported `rowCount()` as an integer (may be 0 for DDL statements). Use `plainSelect()` for queries that return a result set.
 
 Throws on error.
 
@@ -124,10 +121,24 @@ $affected = $database->executePlainQuery(
     ['userId' => 2]
 );
 // $affected === 1
+```
 
-// Read query — returns rows
-$rows = $database->executePlainQuery('SELECT * FROM users WHERE active = 1');
+---
+
+### `plainSelect($query, $data = [])`
+
+Execute a plain SQL query and return all result rows as an associative array, or a JSON-encoded string when json_encode mode is enabled. Use `executePlainQuery()` for write statements.
+
+Throws on error.
+
+```php
+$rows = $database->plainSelect('SELECT * FROM users WHERE active = 1');
 // $rows === [['id' => 1, 'name' => 'Alice', ...], ...]
+
+$rows = $database->plainSelect(
+    'SELECT * FROM users WHERE id = :id',
+    ['id' => 1]
+);
 ```
 
 ---

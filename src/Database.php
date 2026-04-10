@@ -109,8 +109,8 @@ class Database
     /**
      * Enables or disables JSON encoding of query results.
      *
-     * When enabled, methods such as select(), selectOne(), and executePlainQuery()
-     * (for queries that return a result set) will return a JSON-encoded string
+     * When enabled, methods such as select(), selectOne(), and plainSelect()
+     * will return a JSON-encoded string
      * instead of a PHP array.
      * If JSON encoding fails (e.g. the result contains invalid UTF-8), an
      * empty array is returned instead.
@@ -230,16 +230,12 @@ class Database
     }
 
     /**
-     * Executes a plain SQL query.
-     * For any query that returns a result set (SELECT, or statements such as
-     * INSERT/UPDATE with RETURNING on supported drivers) the method returns all
-     * rows as an associative array (or a JSON-encoded string when json_encode
-     * mode is enabled). For statements that do not return a result set it
-     * returns the PDO-reported rowCount() (which may be 0 for DDL statements).
-     * @param string $query The SQL query to execute.
+     * Executes a plain SQL write statement and returns the affected row count.
+     * Use plainSelect() to execute queries that return a result set.
+     * @param string $query The SQL statement to execute.
      * @param array $data Optional parameters for the query.
      * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return array|string|int Rows for SELECT queries, or affected-row count for write queries.
+     * @return int The PDO-reported rowCount() (may be 0 for DDL statements).
      */
     public function executePlainQuery($query, $data = [])
     {
@@ -247,11 +243,24 @@ class Database
 
         $stmt = $this->prepareAndExecute($query, $data);
 
-        if ($stmt->columnCount() > 0) {
-            return $this->formatResult($stmt->fetchAll(PDO::FETCH_ASSOC));
-        }
-
         return $stmt->rowCount();
+    }
+
+    /**
+     * Executes a plain SQL query and returns all result rows.
+     * Use executePlainQuery() for write statements that do not return a result set.
+     * @param string $query The SQL query to execute.
+     * @param array $data Optional parameters for the query.
+     * @throws RuntimeException if the connection is not set or the query execution fails.
+     * @return array|string All rows as an associative array, or a JSON-encoded string when json_encode mode is enabled.
+     */
+    public function plainSelect($query, $data = [])
+    {
+        $this->requireConnection();
+
+        $stmt = $this->prepareAndExecute($query, $data);
+
+        return $this->formatResult($stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
     /**

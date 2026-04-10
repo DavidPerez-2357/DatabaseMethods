@@ -6,7 +6,7 @@
  * Integration test suite for the Database class.
  *
  * Covers: select, selectOne, insert (single + multiple), update, delete,
- * deleteAll, count, executePlainQuery, executeTransaction,
+ * deleteAll, count, executePlainQuery, plainSelect, executeTransaction,
  * setJsonEncode, and getLastInsertId.
  *
  * A temporary SQLite database file is created automatically before the
@@ -639,31 +639,6 @@ class DatabaseTest
         assert_equals(1, $this->db->count(self::TABLE));
     }
 
-    public function testExecutePlainQueryReturnsRowsForSelectQuery()
-    {
-        $this->resetTable();
-        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
-        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 0]);
-
-        $rows = $this->db->executePlainQuery('SELECT * FROM ' . self::TABLE . ' ORDER BY id ASC');
-        assert_equals(2, count($rows));
-        assert_equals('Alice', $rows[0]['name']);
-    }
-
-    public function testExecutePlainQuerySelectWithBindingsFiltersRows()
-    {
-        $this->resetTable();
-        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
-        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 0]);
-
-        $rows = $this->db->executePlainQuery(
-            'SELECT * FROM ' . self::TABLE . ' WHERE active = :active',
-            ['active' => 1]
-        );
-        assert_equals(1, count($rows));
-        assert_equals('Alice', $rows[0]['name']);
-    }
-
     public function testExecutePlainQueryUpdateReturnsAffectedCount()
     {
         $this->resetTable();
@@ -676,19 +651,48 @@ class DatabaseTest
         assert_equals(2, $affected);
     }
 
-    public function testExecutePlainQuerySelectReturnsJsonStringWhenJsonEncodeEnabled()
+    // =========================================================================
+    // Tests — plainSelect
+    // =========================================================================
+
+    public function testPlainSelectReturnsRowsForSelectQuery()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 0]);
+
+        $rows = $this->db->plainSelect('SELECT * FROM ' . self::TABLE . ' ORDER BY id ASC');
+        assert_equals(2, count($rows));
+        assert_equals('Alice', $rows[0]['name']);
+    }
+
+    public function testPlainSelectWithBindingsFiltersRows()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 0]);
+
+        $rows = $this->db->plainSelect(
+            'SELECT * FROM ' . self::TABLE . ' WHERE active = :active',
+            ['active' => 1]
+        );
+        assert_equals(1, count($rows));
+        assert_equals('Alice', $rows[0]['name']);
+    }
+
+    public function testPlainSelectReturnsJsonStringWhenJsonEncodeEnabled()
     {
         $this->resetTable();
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
 
         $this->db->setJsonEncode(true);
         try {
-            $result = $this->db->executePlainQuery('SELECT name, email FROM ' . self::TABLE);
+            $result = $this->db->plainSelect('SELECT name, email FROM ' . self::TABLE);
         } finally {
             $this->db->setJsonEncode(false);
         }
 
-        assert_true(is_string($result), 'executePlainQuery() should return a JSON string when setJsonEncode(true).');
+        assert_true(is_string($result), 'plainSelect() should return a JSON string when setJsonEncode(true).');
         $decoded = json_decode($result, true);
         assert_true(is_array($decoded) && count($decoded) === 1);
         assert_equals('Alice', $decoded[0]['name']);
