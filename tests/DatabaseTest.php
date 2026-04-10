@@ -1011,4 +1011,432 @@ class DatabaseTest
         assert_true(isset($types['FULL']), 'Driver must list FULL JOIN as supported.');
         assert_equals('FULL JOIN', $types['FULL']);
     }
+
+    // =========================================================================
+    // Tests — selectWhere
+    // =========================================================================
+
+    public function testSelectWhereReturnsMatchingRows()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 0]);
+
+        $rows = $this->db->selectWhere(self::TABLE, ['name', 'email'], ['active' => 1]);
+        assert_equals(1, count($rows));
+        assert_equals('Alice', $rows[0]['name']);
+    }
+
+    public function testSelectWhereReturnsOnlyRequestedColumns()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+
+        $rows = $this->db->selectWhere(self::TABLE, ['name'], ['active' => 1]);
+        assert_equals(1, count($rows));
+        assert_true(array_key_exists('name', $rows[0]), 'Expected "name" column in result.');
+        assert_true(!array_key_exists('email', $rows[0]), 'Unexpected "email" column in result.');
+    }
+
+    public function testSelectWhereWithNoConditionsReturnsAllRows()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com']);
+
+        $rows = $this->db->selectWhere(self::TABLE, [], []);
+        assert_equals(2, count($rows));
+    }
+
+    public function testSelectWhereWithEmptyColumnsReturnsAllColumns()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+
+        $rows = $this->db->selectWhere(self::TABLE, [], ['active' => 1]);
+        assert_equals(1, count($rows));
+        assert_true(array_key_exists('name', $rows[0]));
+        assert_true(array_key_exists('email', $rows[0]));
+    }
+
+    public function testSelectWhereWithMultipleConditions()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Carol', 'email' => 'carol@example.com', 'active' => 0]);
+
+        $rows = $this->db->selectWhere(self::TABLE, ['name'], ['name' => 'Alice', 'active' => 1]);
+        assert_equals(1, count($rows));
+        assert_equals('Alice', $rows[0]['name']);
+    }
+
+    public function testSelectWhereWithInvalidTableNameThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->selectWhere('users; DROP TABLE users', [], []);
+        });
+    }
+
+    public function testSelectWhereWithInvalidColumnNameThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->selectWhere(self::TABLE, ['name; DROP TABLE users'], []);
+        });
+    }
+
+    public function testSelectWhereWithInvalidConditionColumnThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->selectWhere(self::TABLE, [], ['active; DROP TABLE' => 1]);
+        });
+    }
+
+    // =========================================================================
+    // Tests — selectOneWhere
+    // =========================================================================
+
+    public function testSelectOneWhereReturnsSingleRow()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
+
+        $row = $this->db->selectOneWhere(self::TABLE, ['name'], ['name' => 'Alice']);
+        assert_true(is_array($row));
+        assert_equals('Alice', $row['name']);
+    }
+
+    public function testSelectOneWhereReturnsEmptyArrayWhenNoMatch()
+    {
+        $this->resetTable();
+        $row = $this->db->selectOneWhere(self::TABLE, ['name'], ['name' => 'Nobody']);
+        assert_equals([], $row);
+    }
+
+    public function testSelectOneWhereOnlyFetchesOneRowEvenWithMultipleMatches()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice2@example.com', 'active' => 1]);
+
+        $row = $this->db->selectOneWhere(self::TABLE, ['name'], ['name' => 'Alice']);
+        assert_true(is_array($row), 'selectOneWhere() must return an array.');
+        assert_equals('Alice', $row['name']);
+        // Verify only one row was returned (not an array of rows)
+        assert_true(!isset($row[0]), 'selectOneWhere() must return a single row, not an array of rows.');
+    }
+
+    // =========================================================================
+    // Tests — existsWhere
+    // =========================================================================
+
+    public function testExistsWhereReturnsTrueWhenRowExists()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+
+        $exists = $this->db->existsWhere(self::TABLE, ['name' => 'Alice']);
+        assert_true($exists === true, 'existsWhere() must return true when a row matches.');
+    }
+
+    public function testExistsWhereReturnsFalseWhenRowDoesNotExist()
+    {
+        $this->resetTable();
+
+        $exists = $this->db->existsWhere(self::TABLE, ['name' => 'Nobody']);
+        assert_true($exists === false, 'existsWhere() must return false when no row matches.');
+    }
+
+    public function testExistsWhereWithEmptyConditionsThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->existsWhere(self::TABLE, []);
+        });
+    }
+
+    // =========================================================================
+    // Tests — countWhere
+    // =========================================================================
+
+    public function testCountWhereReturnsMatchingRowCount()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Carol', 'email' => 'carol@example.com', 'active' => 0]);
+
+        assert_equals(2, $this->db->countWhere(self::TABLE, ['active' => 1]));
+        assert_equals(1, $this->db->countWhere(self::TABLE, ['active' => 0]));
+    }
+
+    public function testCountWhereWithNoConditionsCountsAllRows()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com']);
+
+        assert_equals(2, $this->db->countWhere(self::TABLE, []));
+    }
+
+    public function testCountWhereReturnsZeroWhenNoRowsMatch()
+    {
+        $this->resetTable();
+        assert_equals(0, $this->db->countWhere(self::TABLE, ['active' => 99]));
+    }
+
+    // =========================================================================
+    // Tests — updateWhere
+    // =========================================================================
+
+    public function testUpdateWhereModifiesMatchingRows()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
+
+        $affected = $this->db->updateWhere(self::TABLE, ['active' => 0], ['name' => 'Alice']);
+        assert_equals(1, $affected);
+
+        assert_equals(1, $this->db->countWhere(self::TABLE, ['active' => 0]));
+        assert_equals(1, $this->db->countWhere(self::TABLE, ['active' => 1]));
+    }
+
+    public function testUpdateWhereReturnsZeroWhenNoRowsMatch()
+    {
+        $this->resetTable();
+        $affected = $this->db->updateWhere(self::TABLE, ['active' => 0], ['name' => 'Nobody']);
+        assert_equals(0, $affected);
+    }
+
+    public function testUpdateWhereWithEmptyConditionsThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->updateWhere(self::TABLE, ['active' => 0], []);
+        });
+    }
+
+    public function testUpdateWhereWithEmptyDataThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->updateWhere(self::TABLE, [], ['name' => 'Alice']);
+        });
+    }
+
+    public function testUpdateWhereSameColumnInDataAndConditionsWorks()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 0]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
+
+        // Update rows where active=0, setting active=1
+        $affected = $this->db->updateWhere(self::TABLE, ['active' => 1], ['active' => 0]);
+        assert_equals(1, $affected);
+        assert_equals(2, $this->db->countWhere(self::TABLE, ['active' => 1]));
+    }
+
+    // =========================================================================
+    // Tests — deleteWhere
+    // =========================================================================
+
+    public function testDeleteWhereRemovesMatchingRows()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 0]);
+
+        $affected = $this->db->deleteWhere(self::TABLE, ['active' => 0]);
+        assert_equals(1, $affected);
+        assert_equals(1, $this->db->countWhere(self::TABLE, []));
+    }
+
+    public function testDeleteWhereReturnsZeroWhenNoRowsMatch()
+    {
+        $this->resetTable();
+        $affected = $this->db->deleteWhere(self::TABLE, ['name' => 'Nobody']);
+        assert_equals(0, $affected);
+    }
+
+    public function testDeleteWhereWithEmptyConditionsThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->deleteWhere(self::TABLE, []);
+        });
+    }
+
+    public function testDeleteWhereWithMultipleConditions()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice2@example.com', 'active' => 0]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
+
+        $affected = $this->db->deleteWhere(self::TABLE, ['name' => 'Alice', 'active' => 1]);
+        assert_equals(1, $affected);
+        assert_equals(2, $this->db->countWhere(self::TABLE, []));
+    }
+
+    // =========================================================================
+    // Tests — selectWhereIn
+    // =========================================================================
+
+    public function testSelectWhereInReturnsMatchingRows()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com']);
+        $this->db->insert(self::TABLE, ['name' => 'Carol', 'email' => 'carol@example.com']);
+
+        $rows = $this->db->selectWhereIn(self::TABLE, ['name'], 'name', ['Alice', 'Carol']);
+        assert_equals(2, count($rows));
+        $names = array_column($rows, 'name');
+        assert_true(in_array('Alice', $names));
+        assert_true(in_array('Carol', $names));
+    }
+
+    public function testSelectWhereInWithEmptyValuesThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->selectWhereIn(self::TABLE, ['name'], 'name', []);
+        });
+    }
+
+    public function testSelectWhereInWithSingleValue()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com']);
+
+        $rows = $this->db->selectWhereIn(self::TABLE, ['name'], 'name', ['Alice']);
+        assert_equals(1, count($rows));
+        assert_equals('Alice', $rows[0]['name']);
+    }
+
+    public function testSelectWhereInWithInvalidColumnThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->selectWhereIn(self::TABLE, [], 'name; DROP TABLE', [1]);
+        });
+    }
+
+    // =========================================================================
+    // Tests — selectOrderedWhere
+    // =========================================================================
+
+    public function testSelectOrderedWhereReturnsSortedRows()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Carol', 'email' => 'carol@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
+
+        $rows = $this->db->selectOrderedWhere(self::TABLE, ['name'], ['active' => 1], ['name' => 'ASC']);
+        assert_equals(3, count($rows));
+        assert_equals('Alice', $rows[0]['name']);
+        assert_equals('Bob',   $rows[1]['name']);
+        assert_equals('Carol', $rows[2]['name']);
+    }
+
+    public function testSelectOrderedWhereWithDescDirection()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Carol', 'email' => 'carol@example.com', 'active' => 1]);
+
+        $rows = $this->db->selectOrderedWhere(self::TABLE, ['name'], ['active' => 1], ['name' => 'DESC']);
+        assert_equals('Carol', $rows[0]['name']);
+        assert_equals('Alice', $rows[2]['name']);
+    }
+
+    public function testSelectOrderedWhereWithNoConditions()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com']);
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+
+        $rows = $this->db->selectOrderedWhere(self::TABLE, ['name'], [], ['name' => 'ASC']);
+        assert_equals(2, count($rows));
+        assert_equals('Alice', $rows[0]['name']);
+    }
+
+    public function testSelectOrderedWhereWithEmptyOrderByOmitsOrderClause()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
+
+        $rows = $this->db->selectOrderedWhere(self::TABLE, ['name'], ['active' => 1], []);
+        assert_equals(2, count($rows));
+    }
+
+    public function testSelectOrderedWhereWithInvalidDirectionThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->selectOrderedWhere(self::TABLE, ['name'], [], ['name' => 'INVALID']);
+        });
+    }
+
+    // =========================================================================
+    // Tests — paginateWhere
+    // =========================================================================
+
+    public function testPaginateWhereReturnsLimitedRows()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Carol', 'email' => 'carol@example.com', 'active' => 1]);
+
+        $rows = $this->db->paginateWhere(self::TABLE, ['name'], ['active' => 1], 2, 0);
+        assert_equals(2, count($rows));
+    }
+
+    public function testPaginateWhereWithOffsetSkipsRows()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
+        $this->db->insert(self::TABLE, ['name' => 'Carol', 'email' => 'carol@example.com', 'active' => 1]);
+
+        // Fetch the third page (offset=2, limit=1) using id ORDER to ensure deterministic order
+        $allRows = $this->db->selectWhere(self::TABLE, ['id', 'name'], ['active' => 1]);
+        $thirdId = $allRows[2]['id'];
+
+        $rows = $this->db->paginateWhere(self::TABLE, ['id', 'name'], ['active' => 1], 1, 2);
+        assert_equals(1, count($rows));
+        assert_equals($thirdId, $rows[0]['id']);
+    }
+
+    public function testPaginateWhereWithNoConditions()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+        $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com']);
+        $this->db->insert(self::TABLE, ['name' => 'Carol', 'email' => 'carol@example.com']);
+
+        $rows = $this->db->paginateWhere(self::TABLE, ['name'], [], 2, 0);
+        assert_equals(2, count($rows));
+    }
+
+    public function testPaginateWhereWithZeroLimitThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->paginateWhere(self::TABLE, [], [], 0, 0);
+        });
+    }
+
+    public function testPaginateWhereWithNegativeLimitThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->paginateWhere(self::TABLE, [], [], -1, 0);
+        });
+    }
+
+    public function testPaginateWhereWithNegativeOffsetThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->paginateWhere(self::TABLE, [], [], 10, -1);
+        });
+    }
 }
