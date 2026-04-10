@@ -707,7 +707,6 @@ class DatabaseTest
     public function testKeywordCheckEnabledByDefaultReplacesKeyword()
     {
         $this->resetTable();
-        $this->db->enableKeywordCkeck(true);
         $expectedDate = date('Y-m-d');
         $this->db->insert(self::TABLE, ['name' => '@currentDate', 'email' => 'kw@example.com']);
         $query = Query::select()->from(self::TABLE)->where('email = :email');
