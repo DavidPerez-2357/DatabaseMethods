@@ -1399,14 +1399,20 @@ class DatabaseTest
         $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
         $this->db->insert(self::TABLE, ['name' => 'Carol', 'email' => 'carol@example.com', 'active' => 1]);
 
-        // Retrieve all rows in insertion order by id to establish a deterministic baseline,
-        // then verify paginateWhere with offset=2, limit=1 returns only the third row.
-        $allRows = $this->db->selectWhere(self::TABLE, ['id', 'name'], ['active' => 1]);
-        $thirdId = $allRows[2]['id'];
+        // Page 1: first 2 rows, Page 2: remaining 1 row.
+        // Assertions are order-independent: we verify that both pages together cover all 3 rows
+        // without overlap, regardless of which row the DB returns at any given position.
+        $page1 = $this->db->paginateWhere(self::TABLE, ['id'], ['active' => 1], 2, 0);
+        $page2 = $this->db->paginateWhere(self::TABLE, ['id'], ['active' => 1], 2, 2);
 
-        $rows = $this->db->paginateWhere(self::TABLE, ['id', 'name'], ['active' => 1], 1, 2);
-        assert_equals(1, count($rows));
-        assert_equals($thirdId, $rows[0]['id']);
+        assert_equals(2, count($page1), 'Page 1 (limit=2, offset=0) must return exactly 2 rows.');
+        assert_equals(1, count($page2), 'Page 2 (limit=2, offset=2) must return exactly 1 row.');
+
+        $page1Ids = array_column($page1, 'id');
+        assert_true(
+            !in_array($page2[0]['id'], $page1Ids),
+            'The row returned in page 2 must not appear in page 1.'
+        );
     }
 
     public function testPaginateWhereWithNoConditions()

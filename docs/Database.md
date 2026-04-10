@@ -231,6 +231,9 @@ $total = $database->count('users', 'active = :active', ['active' => 1]);
 
 Fetch specific columns with simple equality filters. Returns all matching rows.
 
+> [!NOTE]
+> Keys in `$conditions` (and in all other `*Where` helper methods) must be **unqualified** column identifiers — plain names like `'id'` or `'active'`, not dot-qualified names like `'users.id'`.
+
 ```php
 $rows = $database->selectWhere('users', ['id', 'name'], ['active' => 1]);
 // Generated SQL: SELECT id, name FROM users WHERE active = :active
@@ -293,7 +296,7 @@ $affected = $database->updateWhere(
     ['last_login' => $timestamp],
     ['id' => $userId]
 );
-// Generated SQL: UPDATE users SET last_login = :last_login WHERE id = :w_id
+// Generated SQL: UPDATE users SET last_login = :set_last_login WHERE id = :where_id
 ```
 
 ---

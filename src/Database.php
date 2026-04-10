@@ -861,15 +861,16 @@ class Database
      * Returns a two-element array: [whereClause string, params array].
      * An empty $conditions array returns ['', []].
      *
-     * This is a private internal helper. All callers must pass a $paramPrefix consisting
-     * solely of ASCII letters and underscores (e.g. 'w_') to ensure the resulting
-     * placeholder names remain valid PDO named-parameter identifiers.
+     * This is a private internal helper. The $paramPrefix value (if any) must consist solely
+     * of ASCII letters and underscores so that the resulting placeholder names remain valid
+     * PDO named-parameter identifiers. updateWhere() uses this to namespace SET vs WHERE
+     * placeholders ('set_' and 'where_' respectively), preventing collisions for any valid
+     * column name.
      *
-     * @param array  $conditions  Associative array of column => value pairs.
-     * @param string $paramPrefix Optional prefix (letters and underscores only) added to every
-     *                            placeholder key to avoid collisions when the same column name
-     *                            appears in both a SET clause and a WHERE clause (e.g. in
-     *                            updateWhere()). Defaults to '' (no prefix).
+     * @param array  $conditions  Associative array of unqualified-column-name => value pairs.
+     *                            Keys must not contain dots (e.g. 'id', not 'users.id').
+     * @param string $paramPrefix Optional prefix (letters and underscores only) prepended to
+     *                            every placeholder name. Defaults to '' (no prefix).
      * @throws InvalidArgumentException if any column name is not a valid unqualified SQL identifier.
      * @return array Two-element list: [string whereClause, array params].
      */
@@ -888,13 +889,16 @@ class Database
 
     /**
      * Fetches rows from $table that match all $conditions, returning only the specified $columns.
+     * Delegates to select() for connection management, execution, and result formatting.
      *
      * Generated SQL:
      *   SELECT col1, col2 FROM table WHERE cond1 = :cond1 AND cond2 = :cond2
      *
      * @param string $table      Table name (must be a valid SQL identifier).
      * @param array  $columns    Columns to return; empty array defaults to '*'.
-     * @param array  $conditions Equality filters as column => value pairs; empty means no WHERE clause.
+     * @param array  $conditions Equality filters as unqualified-column-name => value pairs;
+     *                           empty means no WHERE clause. Keys must not be schema-qualified
+     *                           (e.g. use 'id', not 'users.id').
      * @throws InvalidArgumentException if $table or any identifier is invalid.
      * @throws RuntimeException         if the connection is not set or the query fails.
      * @return array|string All matching rows as an associative array, or a JSON string when
@@ -902,9 +906,7 @@ class Database
      */
     public function selectWhere($table, array $columns, array $conditions)
     {
-        $this->requireConnection();
         Query::validateIdentifier($table, 'table name');
-
         $columnList = $this->buildColumnList($columns);
         list($where, $params) = $this->buildEqualityConditions($conditions);
 
@@ -913,20 +915,22 @@ class Database
             $sql .= " WHERE {$where}";
         }
 
-        $stmt = $this->prepareAndExecute($sql, $params);
-        return $this->formatResult($stmt->fetchAll(PDO::FETCH_ASSOC));
+        return $this->select($sql, $params);
     }
 
     /**
      * Fetches a single row from $table that matches all $conditions, returning only the specified $columns.
      * Appends LIMIT 1 to the generated query.
+     * Delegates to selectOne() for connection management, execution, and result formatting.
      *
      * Generated SQL:
      *   SELECT col1, col2 FROM table WHERE cond1 = :cond1 LIMIT 1
      *
      * @param string $table      Table name (must be a valid SQL identifier).
      * @param array  $columns    Columns to return; empty array defaults to '*'.
-     * @param array  $conditions Equality filters as column => value pairs; empty means no WHERE clause.
+     * @param array  $conditions Equality filters as unqualified-column-name => value pairs;
+     *                           empty means no WHERE clause. Keys must not be schema-qualified
+     *                           (e.g. use 'id', not 'users.id').
      * @throws InvalidArgumentException if $table or any identifier is invalid.
      * @throws RuntimeException         if the connection is not set or the query fails.
      * @return array|string The matching row as an associative array, or an empty array when no row is
@@ -934,9 +938,7 @@ class Database
      */
     public function selectOneWhere($table, array $columns, array $conditions)
     {
-        $this->requireConnection();
         Query::validateIdentifier($table, 'table name');
-
         $columnList = $this->buildColumnList($columns);
         list($where, $params) = $this->buildEqualityConditions($conditions);
 
@@ -946,20 +948,20 @@ class Database
         }
         $sql .= " LIMIT 1";
 
-        $stmt = $this->prepareAndExecute($sql, $params);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $this->formatResult($row === false ? array() : $row);
+        return $this->selectOne($sql, $params);
     }
 
     /**
      * Returns true if at least one row in $table matches all $conditions, false otherwise.
-     * Executes SELECT 1 … LIMIT 1 for minimal overhead.
+     * Executes SELECT 1 … LIMIT 1 for minimal overhead. Always returns bool regardless of
+     * the json_encode setting.
      *
      * Generated SQL:
      *   SELECT 1 FROM table WHERE cond1 = :cond1 LIMIT 1
      *
      * @param string $table      Table name (must be a valid SQL identifier).
-     * @param array  $conditions Equality filters as column => value pairs. Must not be empty.
+     * @param array  $conditions Equality filters as unqualified-column-name => value pairs.
+     *                           Must not be empty. Keys must not be schema-qualified.
      * @throws InvalidArgumentException if $table or any identifier is invalid, or $conditions is empty.
      * @throws RuntimeException         if the connection is not set or the query fails.
      * @return bool
@@ -982,45 +984,41 @@ class Database
 
     /**
      * Returns the number of rows in $table that match all $conditions.
+     * Delegates to count() for connection management and execution.
      *
      * Generated SQL:
-     *   SELECT COUNT(*) as total FROM table WHERE cond1 = :cond1
+     *   SELECT COUNT(*) FROM table WHERE cond1 = :cond1
      *
      * @param string $table      Table name (must be a valid SQL identifier).
-     * @param array  $conditions Equality filters as column => value pairs; empty means COUNT all rows.
+     * @param array  $conditions Equality filters as unqualified-column-name => value pairs;
+     *                           empty means COUNT all rows. Keys must not be schema-qualified.
      * @throws InvalidArgumentException if $table or any identifier is invalid.
      * @throws RuntimeException         if the connection is not set or the query fails.
      * @return int
      */
     public function countWhere($table, array $conditions)
     {
-        $this->requireConnection();
-        Query::validateIdentifier($table, 'table name');
-
         list($where, $params) = $this->buildEqualityConditions($conditions);
-
-        $sql = "SELECT COUNT(*) as total FROM {$table}";
-        if ($where !== '') {
-            $sql .= " WHERE {$where}";
-        }
-
-        $stmt = $this->prepareAndExecute($sql, $params);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return (int) (isset($row['total']) ? $row['total'] : 0);
+        return $this->count($table, $where, $params);
     }
 
     /**
      * Updates rows in $table that match all $conditions, setting the given $data values.
      * $conditions must not be empty to prevent accidental full-table updates.
      *
+     * SET placeholders are named ':set_{col}' and WHERE placeholders ':where_{col}', so
+     * no collision can occur for any valid column name combination.
+     *
      * Generated SQL:
-     *   UPDATE table SET col1 = :col1 WHERE cond1 = :w_cond1
+     *   UPDATE table SET col1 = :set_col1 WHERE cond1 = :where_cond1
      *
      * @param string $table      Table name (must be a valid SQL identifier).
-     * @param array  $data       Associative array of column => new value pairs. Must not be empty.
-     * @param array  $conditions Equality filters as column => value pairs. Must not be empty.
-     * @throws InvalidArgumentException if $table or any identifier is invalid, $data or $conditions
-     *                                   is empty, or a placeholder collision cannot be resolved.
+     * @param array  $data       Associative array of unqualified-column-name => new value pairs.
+     *                           Must not be empty. Keys must not be schema-qualified.
+     * @param array  $conditions Equality filters as unqualified-column-name => value pairs.
+     *                           Must not be empty. Keys must not be schema-qualified.
+     * @throws InvalidArgumentException if $table or any identifier is invalid, or $data / $conditions
+     *                                   is empty.
      * @throws RuntimeException         if the connection is not set or the query fails.
      * @return int Number of affected rows.
      */
@@ -1041,28 +1039,18 @@ class Database
             );
         }
 
-        // Build SET clause
+        // SET clause: use ':set_{col}' placeholders to avoid any collision with WHERE params.
         $setParts = array();
         $params = array();
         foreach ($data as $col => $value) {
             Query::validateUnqualifiedIdentifier($col, 'data column');
-            $setParts[] = "{$col} = :{$col}";
-            $params[":{$col}"] = $value;
+            $setParts[] = "{$col} = :set_{$col}";
+            $params[":set_{$col}"] = $value;
         }
 
-        // Build WHERE clause using 'w_' prefix to prevent placeholder collisions with SET
-        list($where, $whereParams) = $this->buildEqualityConditions($conditions, 'w_');
-
-        // Detect any remaining placeholder conflicts after prefixing
-        foreach (array_keys($whereParams) as $key) {
-            if (isset($params[$key])) {
-                throw new InvalidArgumentException(
-                    "Placeholder '{$key}' is used by both \$data and \$conditions. "
-                    . "Use distinct column names to avoid conflicts."
-                );
-            }
-        }
-
+        // WHERE clause: use ':where_{col}' placeholders. Since 'set_' ≠ 'where_', no collision
+        // can occur for any valid column name combination.
+        list($where, $whereParams) = $this->buildEqualityConditions($conditions, 'where_');
         $params = array_merge($params, $whereParams);
 
         $sql = "UPDATE {$table} SET " . implode(', ', $setParts) . " WHERE {$where}";
@@ -1073,21 +1061,20 @@ class Database
     /**
      * Deletes rows from $table that match all $conditions.
      * $conditions must not be empty to prevent accidental full-table deletes.
+     * Delegates to delete() for connection management and execution.
      *
      * Generated SQL:
      *   DELETE FROM table WHERE cond1 = :cond1
      *
      * @param string $table      Table name (must be a valid SQL identifier).
-     * @param array  $conditions Equality filters as column => value pairs. Must not be empty.
+     * @param array  $conditions Equality filters as unqualified-column-name => value pairs.
+     *                           Must not be empty. Keys must not be schema-qualified.
      * @throws InvalidArgumentException if $table or any identifier is invalid, or $conditions is empty.
      * @throws RuntimeException         if the connection is not set or the query fails.
      * @return int Number of affected rows.
      */
     public function deleteWhere($table, array $conditions)
     {
-        $this->requireConnection();
-        Query::validateIdentifier($table, 'table name');
-
         if (empty($conditions)) {
             throw new InvalidArgumentException(
                 'deleteWhere() requires at least one condition to prevent accidental full-table deletes.'
@@ -1095,21 +1082,20 @@ class Database
         }
 
         list($where, $params) = $this->buildEqualityConditions($conditions);
-
-        $sql = "DELETE FROM {$table} WHERE {$where}";
-        $stmt = $this->prepareAndExecute($sql, $params);
-        return (int) $stmt->rowCount();
+        return $this->delete($table, $where, $params);
     }
 
     /**
      * Fetches rows from $table where $column's value appears in the $values list.
+     * Delegates to select() for connection management, execution, and result formatting.
      *
      * Generated SQL:
      *   SELECT col1, col2 FROM table WHERE column IN (:column_0, :column_1, :column_2)
      *
      * @param string $table   Table name (must be a valid SQL identifier).
      * @param array  $columns Columns to return; empty array defaults to '*'.
-     * @param string $column  Column name to match against $values (must be a valid unqualified identifier).
+     * @param string $column  Column name to match against $values (must be a valid unqualified identifier;
+     *                        no dots, e.g. 'id' not 'users.id').
      * @param array  $values  Non-empty list of values to match.
      * @throws InvalidArgumentException if $table, $column, or any column identifier is invalid,
      *                                   or $values is empty.
@@ -1119,7 +1105,6 @@ class Database
      */
     public function selectWhereIn($table, array $columns, $column, array $values)
     {
-        $this->requireConnection();
         Query::validateIdentifier($table, 'table name');
         Query::validateUnqualifiedIdentifier($column, 'IN column');
 
@@ -1138,19 +1123,20 @@ class Database
 
         $sql = "SELECT {$columnList} FROM {$table}"
             . " WHERE {$column} IN (" . implode(', ', $placeholders) . ")";
-        $stmt = $this->prepareAndExecute($sql, $params);
-        return $this->formatResult($stmt->fetchAll(PDO::FETCH_ASSOC));
+        return $this->select($sql, $params);
     }
 
     /**
      * Fetches rows from $table matching all $conditions, ordered by the columns in $orderBy.
+     * Delegates to select() for connection management, execution, and result formatting.
      *
      * Generated SQL:
      *   SELECT col1, col2 FROM table WHERE cond1 = :cond1 ORDER BY col3 DESC
      *
      * @param string $table      Table name (must be a valid SQL identifier).
      * @param array  $columns    Columns to return; empty array defaults to '*'.
-     * @param array  $conditions Equality filters as column => value pairs; empty means no WHERE clause.
+     * @param array  $conditions Equality filters as unqualified-column-name => value pairs;
+     *                           empty means no WHERE clause. Keys must not be schema-qualified.
      * @param array  $orderBy    Associative array of column => direction pairs (e.g. ['created_at' => 'DESC']).
      *                           Direction must be 'ASC' or 'DESC' (case-insensitive). An empty array omits
      *                           the ORDER BY clause.
@@ -1161,9 +1147,7 @@ class Database
      */
     public function selectOrderedWhere($table, array $columns, array $conditions, array $orderBy)
     {
-        $this->requireConnection();
         Query::validateIdentifier($table, 'table name');
-
         $columnList = $this->buildColumnList($columns);
         list($where, $params) = $this->buildEqualityConditions($conditions);
 
@@ -1188,19 +1172,20 @@ class Database
             $sql .= " ORDER BY " . implode(', ', $orderParts);
         }
 
-        $stmt = $this->prepareAndExecute($sql, $params);
-        return $this->formatResult($stmt->fetchAll(PDO::FETCH_ASSOC));
+        return $this->select($sql, $params);
     }
 
     /**
      * Fetches a paginated set of rows from $table matching all $conditions.
+     * Delegates to select() for connection management, execution, and result formatting.
      *
      * Generated SQL:
      *   SELECT col1, col2 FROM table WHERE cond1 = :cond1 LIMIT 20 OFFSET 0
      *
      * @param string $table      Table name (must be a valid SQL identifier).
      * @param array  $columns    Columns to return; empty array defaults to '*'.
-     * @param array  $conditions Equality filters as column => value pairs; empty means no WHERE clause.
+     * @param array  $conditions Equality filters as unqualified-column-name => value pairs;
+     *                           empty means no WHERE clause. Keys must not be schema-qualified.
      * @param int    $limit      Maximum number of rows to return (must be a positive integer).
      * @param int    $offset     Number of rows to skip (must be a non-negative integer; defaults to 0).
      * @throws InvalidArgumentException if any identifier is invalid, or $limit / $offset are out of range.
@@ -1210,9 +1195,6 @@ class Database
      */
     public function paginateWhere($table, array $columns, array $conditions, $limit, $offset = 0)
     {
-        $this->requireConnection();
-        Query::validateIdentifier($table, 'table name');
-
         if (filter_var($limit, FILTER_VALIDATE_INT, array('options' => array('min_range' => 1))) === false) {
             throw new InvalidArgumentException(
                 'paginateWhere() expects $limit to be a positive integer.'
@@ -1224,6 +1206,7 @@ class Database
             );
         }
 
+        Query::validateIdentifier($table, 'table name');
         $columnList = $this->buildColumnList($columns);
         list($where, $params) = $this->buildEqualityConditions($conditions);
 
@@ -1233,8 +1216,7 @@ class Database
         }
         $sql .= " LIMIT " . (int) $limit . " OFFSET " . (int) $offset;
 
-        $stmt = $this->prepareAndExecute($sql, $params);
-        return $this->formatResult($stmt->fetchAll(PDO::FETCH_ASSOC));
+        return $this->select($sql, $params);
     }
 
     // =========================================================================
