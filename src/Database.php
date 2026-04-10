@@ -109,8 +109,9 @@ class Database
     /**
      * Enables or disables JSON encoding of query results.
      *
-     * When enabled, methods such as select() and selectOne()
-     * will return a JSON-encoded string instead of a PHP array.
+     * When enabled, methods such as select(), selectOne(), and executePlainQuery()
+     * (for queries that return a result set) will return a JSON-encoded string
+     * instead of a PHP array.
      * If JSON encoding fails (e.g. the result contains invalid UTF-8), an
      * empty array is returned instead.
      *
@@ -285,7 +286,7 @@ class Database
      * Executes a SELECT query and returns all results.
      * @param Query|string $query A Query object or a raw SQL SELECT string.
      * @param array $data Optional parameters for the query.
-     * @throws InvalidArgumentException if $query is neither a Query instance nor a string.
+     * @throws InvalidArgumentException if $query is neither a Query instance nor a string, or if a raw SQL string does not start with SELECT/WITH.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return array|string The result set as an associative array, or a JSON-encoded string if json_encode is enabled.
      */
@@ -295,6 +296,15 @@ class Database
             throw new InvalidArgumentException(
                 'select() expects $query to be a Query instance or a string.'
             );
+        }
+
+        if (is_string($query)) {
+            $trimmed = ltrim($query);
+            if (!preg_match('/^(SELECT|WITH)\s/i', $trimmed)) {
+                throw new InvalidArgumentException(
+                    'select() expects a SELECT or WITH SQL statement when a raw string is provided.'
+                );
+            }
         }
 
         $this->requireConnection();

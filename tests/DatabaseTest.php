@@ -624,6 +624,13 @@ class DatabaseTest
         });
     }
 
+    public function testSelectRawStringNonSelectThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->select('INSERT INTO ' . self::TABLE . ' (name) VALUES (:name)', [':name' => 'X']);
+        });
+    }
+
     // =========================================================================
     // Tests — executePlainQuery
     // =========================================================================
@@ -674,6 +681,26 @@ class DatabaseTest
             'UPDATE ' . self::TABLE . ' SET active = 0'
         );
         assert_equals(2, $affected);
+    }
+
+    public function testExecutePlainQuerySelectReturnsJsonStringWhenJsonEncodeEnabled()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
+
+        $this->db->setJsonEncode(true);
+        try {
+            $result = $this->db->executePlainQuery('SELECT name, email FROM ' . self::TABLE);
+            $this->db->setJsonEncode(false);
+        } catch (Exception $e) {
+            $this->db->setJsonEncode(false);
+            throw $e;
+        }
+
+        assert_true(is_string($result), 'executePlainQuery() should return a JSON string when setJsonEncode(true).');
+        $decoded = json_decode($result, true);
+        assert_true(is_array($decoded) && count($decoded) === 1);
+        assert_equals('Alice', $decoded[0]['name']);
     }
 
     // =========================================================================
