@@ -691,10 +691,8 @@ class DatabaseTest
         $this->db->setJsonEncode(true);
         try {
             $result = $this->db->executePlainQuery('SELECT name, email FROM ' . self::TABLE);
+        } finally {
             $this->db->setJsonEncode(false);
-        } catch (Exception $e) {
-            $this->db->setJsonEncode(false);
-            throw $e;
         }
 
         assert_true(is_string($result), 'executePlainQuery() should return a JSON string when setJsonEncode(true).');
@@ -743,10 +741,8 @@ class DatabaseTest
         $this->db->setJsonEncode(true);
         try {
             $result = $this->db->select(Query::select(['name', 'email'])->from(self::TABLE));
-            $this->db->setJsonEncode(false); // restore default
-        } catch (Exception $e) {
-            $this->db->setJsonEncode(false); // restore default on failure
-            throw $e;
+        } finally {
+            $this->db->setJsonEncode(false);
         }
 
         assert_true(is_string($result), 'select() should return a JSON string when setJsonEncode(true).');
