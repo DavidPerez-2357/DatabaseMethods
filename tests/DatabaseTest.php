@@ -628,7 +628,7 @@ class DatabaseTest
     // Tests — runPlainQuery
     // =========================================================================
 
-    public function testExecutePlainQueryReturnsAffectedRowCountForWriteQuery()
+    public function testRunPlainQueryReturnsAffectedRowCountForWriteQuery()
     {
         $this->resetTable();
         $affected = $this->db->runPlainQuery(
@@ -639,7 +639,7 @@ class DatabaseTest
         assert_equals(1, $this->db->count(self::TABLE));
     }
 
-    public function testExecutePlainQueryUpdateReturnsAffectedCount()
+    public function testRunPlainQueryUpdateReturnsAffectedCount()
     {
         $this->resetTable();
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
