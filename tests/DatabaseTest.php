@@ -1399,7 +1399,8 @@ class DatabaseTest
         $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
         $this->db->insert(self::TABLE, ['name' => 'Carol', 'email' => 'carol@example.com', 'active' => 1]);
 
-        // Fetch the third page (offset=2, limit=1) using id ORDER to ensure deterministic order
+        // Retrieve all rows in insertion order by id to establish a deterministic baseline,
+        // then verify paginateWhere with offset=2, limit=1 returns only the third row.
         $allRows = $this->db->selectWhere(self::TABLE, ['id', 'name'], ['active' => 1]);
         $thirdId = $allRows[2]['id'];
 

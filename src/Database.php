@@ -861,10 +861,15 @@ class Database
      * Returns a two-element array: [whereClause string, params array].
      * An empty $conditions array returns ['', []].
      *
+     * This is a private internal helper. All callers must pass a $paramPrefix consisting
+     * solely of ASCII letters and underscores (e.g. 'w_') to ensure the resulting
+     * placeholder names remain valid PDO named-parameter identifiers.
+     *
      * @param array  $conditions  Associative array of column => value pairs.
-     * @param string $paramPrefix Optional prefix added to every placeholder key to avoid
-     *                            collisions when the same column name appears in both a SET
-     *                            clause and a WHERE clause (e.g. in updateWhere()).
+     * @param string $paramPrefix Optional prefix (letters and underscores only) added to every
+     *                            placeholder key to avoid collisions when the same column name
+     *                            appears in both a SET clause and a WHERE clause (e.g. in
+     *                            updateWhere()). Defaults to '' (no prefix).
      * @throws InvalidArgumentException if any column name is not a valid unqualified SQL identifier.
      * @return array Two-element list: [string whereClause, array params].
      */
