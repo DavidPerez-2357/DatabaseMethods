@@ -56,7 +56,7 @@ Affects `select`, `selectOne`, and `plainSelect`.
 
 ## Special keywords
 
-Certain string values in the `$data` / `$whereData` arrays are replaced automatically before execution:
+Certain string values in the `$fieldsToInsert` / `$fieldsToUpdate` / `$whereData` arrays are replaced automatically before execution:
 
 | Keyword | Value |
 |---|---|
@@ -161,7 +161,7 @@ $row  = $database->selectOne('SELECT id, name FROM users WHERE id = :userId LIMI
 
 ---
 
-### `insert($table, $data)`
+### `insert($table, $fieldsToInsert)`
 
 Insert one or more records. Auto-detects single (associative array) vs. multiple (array of associative arrays). Returns the last inserted auto-increment ID.
 
@@ -178,12 +178,12 @@ $lastId = $database->insert('users', [
 
 ---
 
-### `update($table, $data, $where, $whereData = [], $joins = [])`
+### `update($table, $fieldsToUpdate, $where, $whereData = [], $joins = [])`
 
 Update records. Returns the number of affected rows.
 
 > [!CAUTION]
-> Keys in `$whereData` must not overlap with column names in `$data`. Positional placeholders (`?`) are not supported in `$where` - use named placeholders (e.g. `id = :id`).
+> Keys in `$whereData` must not overlap with column names in `$fieldsToUpdate`. Positional placeholders (`?`) are not supported in `$where` - use named placeholders (e.g. `id = :id`).
 
 ```php
 $affected = $database->update('users',
