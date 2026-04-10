@@ -652,7 +652,7 @@ class DatabaseTest
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
         $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 0]);
 
-        $rows = $this->db->executePlainQuery('SELECT * FROM ' . self::TABLE);
+        $rows = $this->db->executePlainQuery('SELECT * FROM ' . self::TABLE . ' ORDER BY id ASC');
         assert_equals(2, count($rows));
         assert_equals('Alice', $rows[0]['name']);
     }

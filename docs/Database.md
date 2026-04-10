@@ -113,7 +113,7 @@ $database->enableKeywordCkeck(true); // re-enable when done
 Execute any SQL statement directly.
 
 - **SELECT** (or any statement that returns a result set): returns all rows as an associative array, or a JSON-encoded string when json_encode mode is enabled.
-- **INSERT / UPDATE / DELETE / DDL**: returns the PDO-reported `rowCount()` as an integer. Note that `rowCount()` is driver-dependent and may return `0` for DDL statements (e.g. `CREATE TABLE`) or other non-DML statements.
+- **Any statement that does not return a result set** (INSERT, UPDATE, DELETE, DDL, etc.): returns the PDO-reported `rowCount()` as an integer. Note that `rowCount()` is driver-dependent and may return `0` for DDL statements (e.g. `CREATE TABLE`) or other non-DML statements.
 
 Throws on error.
 
