@@ -17,8 +17,8 @@ Both styles produce identical SQL. Cast a `Query` object to string with `echo` /
 | Factory method | Description |
 |---|---|
 | `Query::select($fields)` | Start a SELECT query |
-| `Query::insert($table[, $fields])` | Start an INSERT query |
-| `Query::update($table[, $fields])` | Start an UPDATE query |
+| `Query::insert($table, [$fields])` | Start an INSERT query |
+| `Query::update($table, [$fields])` | Start an UPDATE query |
 | `Query::delete($table)` | Start a DELETE query |
 
 | Chainable setter | Applies to | Description |
