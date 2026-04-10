@@ -324,20 +324,20 @@ class Database
      * Inserts records into the specified table using the Query class.
      * This method detects if the data is a single record or multiple records and calls the appropriate method.
      * @param string $table The name of the table to insert into.
-     * @param array $fieldsToInsert An associative array of column names and values to insert,
-     *                              or an array of such arrays for multiple records.
+     * @param array $dataToInsert An associative array of column names and values to insert,
+     *                            or an array of such arrays for multiple records.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The ID of the last inserted row or the number of affected rows for multiple inserts.
      */
-    private function insert($table, $fieldsToInsert)
+    private function insert($table, $dataToInsert)
     {
         // Detect if the data is a single record or multiple records
-        if (isset($fieldsToInsert[0]) && is_array($fieldsToInsert[0])) {
+        if (isset($dataToInsert[0]) && is_array($dataToInsert[0])) {
             // Multiple records — keywords were already replaced by __call before dispatch.
-            return $this->insertMany($table, $fieldsToInsert);
+            return $this->insertMany($table, $dataToInsert);
         } else {
             // Single record
-            return $this->insertOne($table, $fieldsToInsert);
+            return $this->insertOne($table, $dataToInsert);
         }
     }
 
@@ -383,18 +383,18 @@ class Database
         $this->requireConnection();
 
         if (empty($rowsToInsert) || !isset($rowsToInsert[0]) || !is_array($rowsToInsert[0])) {
-            throw new InvalidArgumentException("Data must be a non-empty array of associative arrays.");
+            throw new InvalidArgumentException("Rows to insert must be a non-empty array of associative arrays.");
         }
 
         // Validate that all rows are arrays and contain the required fields.
         $expectedFields = array_keys($rowsToInsert[0]);
         foreach ($rowsToInsert as $i => $row) {
             if (!is_array($row)) {
-                throw new InvalidArgumentException("Data row at index {$i} must be an associative array.");
+                throw new InvalidArgumentException("Row at index {$i} must be an associative array.");
             }
             foreach ($expectedFields as $field) {
                 if (!array_key_exists($field, $row)) {
-                    throw new InvalidArgumentException("Data row at index {$i} is missing required field '{$field}'.");
+                    throw new InvalidArgumentException("Row at index {$i} is missing required field '{$field}'.");
                 }
             }
         }
@@ -684,7 +684,7 @@ class Database
         }
 
         if (empty($fieldsToUpdate) || !is_array($fieldsToUpdate)) {
-            throw new InvalidArgumentException("Data must be a non-empty associative array.");
+            throw new InvalidArgumentException("Fields to update must be a non-empty associative array.");
         }
 
         // $whereData must be associative (string keys only); numeric/list-style arrays are not supported.

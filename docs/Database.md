@@ -56,7 +56,7 @@ Affects `select`, `selectOne`, and `plainSelect`.
 
 ## Special keywords
 
-Certain string values in the `$fieldsToInsert` / `$fieldsToUpdate` / `$whereData` arrays are replaced automatically before execution:
+Certain string values in any array argument passed to CRUD methods (`$dataToInsert`, `$fieldsToUpdate`, `$whereData`, `$data`, etc.) are replaced automatically before execution:
 
 | Keyword | Value |
 |---|---|
@@ -161,7 +161,7 @@ $row  = $database->selectOne('SELECT id, name FROM users WHERE id = :userId LIMI
 
 ---
 
-### `insert($table, $fieldsToInsert)`
+### `insert($table, $dataToInsert)`
 
 Insert one or more records. Auto-detects single (associative array) vs. multiple (array of associative arrays). Returns the last inserted auto-increment ID.
 
