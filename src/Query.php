@@ -675,23 +675,10 @@ class Query
             throw new InvalidArgumentException("Number of values to insert must be at least 1.");
         }
 
-        // Validate all column names once up-front. Field names must be plain
-        // (unqualified) identifiers because they are also used as PDO named-placeholder
-        // tokens like ":{$col}_{$i}". Dots are not valid in PDO placeholder names.
-        foreach ($fields as $col) {
-            self::validateUnqualifiedIdentifier($col, 'INSERT field');
-        }
+        // buildInsertPlaceholders() validates each field name and generates the row groups.
+        $groups = PdoParameterBuilder::buildInsertPlaceholders($fields, $values);
 
-        $placeholders = array();
-        for ($i = 0; $i < $values; $i++) {
-            $rowPlaceholders = array();
-            foreach ($fields as $col) {
-                $rowPlaceholders[] = ":{$col}_{$i}";
-            }
-            $placeholders[] = '(' . implode(', ', $rowPlaceholders) . ')';
-        }
-
-        return "INSERT INTO {$table} (" . implode(', ', $fields) . ") VALUES " . implode(', ', $placeholders);
+        return "INSERT INTO {$table} (" . implode(', ', $fields) . ") VALUES " . implode(', ', $groups);
     }
 
     /**
@@ -714,17 +701,9 @@ class Query
         $table = $this->requireTable();
         $fields = $this->requireFields();
 
-        $setClauses = array();
-        foreach ($fields as $col) {
-            // Field names must be plain (unqualified) identifiers because the PDO
-            // placeholder is built as ":{$col}" — a dot in the name would make it invalid.
-            self::validateUnqualifiedIdentifier($col, 'UPDATE field');
-            $setClauses[] = "{$col} = :{$col}";
-        }
-
         $sql = "UPDATE {$table}";
         $this->appendJoinsToSql($sql);
-        $sql .= " SET " . implode(', ', $setClauses);
+        $sql .= " SET " . PdoParameterBuilder::buildSetClause($fields);
 
         if (!empty($this->data['where'])) {
             $sql .= " WHERE {$this->data['where']}";

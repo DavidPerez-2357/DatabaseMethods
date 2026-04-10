@@ -724,10 +724,7 @@ class Database
             'joins' => $joins,
         ]);
 
-        $placeholders = [];
-        foreach ($fieldsToUpdate as $field => $value) {
-            $placeholders[":{$field}"] = $value;
-        }
+        $placeholders = PdoParameterBuilder::buildNamedParams($fieldsToUpdate);
 
         $placeholders = array_merge(
             $placeholders,

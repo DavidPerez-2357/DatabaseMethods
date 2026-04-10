@@ -284,4 +284,215 @@ class PdoParameterBuilderTests
             $placeholders
         );
     }
+
+    // =========================================================================
+    // buildNamedParams — associative col => value map to named PDO params
+    // =========================================================================
+
+    public function testBuildNamedParamsBasic()
+    {
+        $params = PdoParameterBuilder::buildNamedParams(array('name' => 'Alice', 'age' => 30));
+
+        assert_equals(array(':name' => 'Alice', ':age' => 30), $params);
+    }
+
+    public function testBuildNamedParamsWithPrefix()
+    {
+        $params = PdoParameterBuilder::buildNamedParams(array('name' => 'Bob'), 'set_');
+
+        assert_equals(array(':set_name' => 'Bob'), $params);
+    }
+
+    public function testBuildNamedParamsNullValueIncluded()
+    {
+        // Unlike buildEquality, buildNamedParams includes NULL values as-is.
+        $params = PdoParameterBuilder::buildNamedParams(array('deleted_at' => null));
+
+        assert_true(array_key_exists(':deleted_at', $params));
+        assert_equals(null, $params[':deleted_at']);
+    }
+
+    public function testBuildNamedParamsEmptyReturnsEmptyArray()
+    {
+        $params = PdoParameterBuilder::buildNamedParams(array());
+
+        assert_equals(array(), $params);
+    }
+
+    public function testBuildNamedParamsInvalidColumnThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildNamedParams(array('bad.col' => 1));
+        });
+    }
+
+    public function testBuildNamedParamsKeysHaveColonPrefix()
+    {
+        $params = PdoParameterBuilder::buildNamedParams(array('a' => 1, 'b' => 2));
+
+        foreach (array_keys($params) as $key) {
+            assert_equals(':', $key[0]);
+        }
+    }
+
+    public function testBuildNamedParamsPrefixAppearedInAllKeys()
+    {
+        $params = PdoParameterBuilder::buildNamedParams(array('x' => 10, 'y' => 20), 'upd_');
+
+        assert_true(array_key_exists(':upd_x', $params));
+        assert_true(array_key_exists(':upd_y', $params));
+    }
+
+    public function testBuildNamedParamsUsedForUpdateSetBindings()
+    {
+        // Replicate how Database::update() builds SET placeholder map.
+        $fieldsToUpdate = array('name' => 'Charlie', 'email' => 'c@example.com');
+
+        $params = PdoParameterBuilder::buildNamedParams($fieldsToUpdate);
+
+        assert_equals(
+            array(':name' => 'Charlie', ':email' => 'c@example.com'),
+            $params
+        );
+    }
+
+    // =========================================================================
+    // buildSetClause — SQL SET fragment from field list
+    // =========================================================================
+
+    public function testBuildSetClauseBasic()
+    {
+        $sql = PdoParameterBuilder::buildSetClause(array('name', 'email'));
+
+        assert_equals('name = :name, email = :email', $sql);
+    }
+
+    public function testBuildSetClauseSingleField()
+    {
+        $sql = PdoParameterBuilder::buildSetClause(array('status'));
+
+        assert_equals('status = :status', $sql);
+    }
+
+    public function testBuildSetClauseManyFields()
+    {
+        $sql = PdoParameterBuilder::buildSetClause(array('a', 'b', 'c'));
+
+        assert_equals('a = :a, b = :b, c = :c', $sql);
+    }
+
+    public function testBuildSetClauseEmptyFieldsThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildSetClause(array());
+        });
+    }
+
+    public function testBuildSetClauseInvalidFieldThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildSetClause(array('bad.col'));
+        });
+    }
+
+    public function testBuildSetClauseReturnsString()
+    {
+        assert_true(is_string(PdoParameterBuilder::buildSetClause(array('col'))));
+    }
+
+    // =========================================================================
+    // buildInsertPlaceholders — VALUES row-group strings
+    // =========================================================================
+
+    public function testBuildInsertPlaceholdersSingleRowSingleField()
+    {
+        $groups = PdoParameterBuilder::buildInsertPlaceholders(array('name'), 1);
+
+        assert_equals(array('(:name_0)'), $groups);
+    }
+
+    public function testBuildInsertPlaceholdersSingleRowMultipleFields()
+    {
+        $groups = PdoParameterBuilder::buildInsertPlaceholders(array('name', 'email'), 1);
+
+        assert_equals(array('(:name_0, :email_0)'), $groups);
+    }
+
+    public function testBuildInsertPlaceholdersMultipleRows()
+    {
+        $groups = PdoParameterBuilder::buildInsertPlaceholders(array('name', 'email'), 2);
+
+        assert_equals(
+            array('(:name_0, :email_0)', '(:name_1, :email_1)'),
+            $groups
+        );
+    }
+
+    public function testBuildInsertPlaceholdersThreeRows()
+    {
+        $groups = PdoParameterBuilder::buildInsertPlaceholders(array('sku', 'price'), 3);
+
+        assert_equals(
+            array('(:sku_0, :price_0)', '(:sku_1, :price_1)', '(:sku_2, :price_2)'),
+            $groups
+        );
+    }
+
+    public function testBuildInsertPlaceholdersCountMatchesRowCount()
+    {
+        $groups = PdoParameterBuilder::buildInsertPlaceholders(array('x'), 5);
+
+        assert_equals(5, count($groups));
+    }
+
+    public function testBuildInsertPlaceholdersEmptyFieldsThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertPlaceholders(array(), 1);
+        });
+    }
+
+    public function testBuildInsertPlaceholdersZeroRowCountThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertPlaceholders(array('col'), 0);
+        });
+    }
+
+    public function testBuildInsertPlaceholdersNegativeRowCountThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertPlaceholders(array('col'), -1);
+        });
+    }
+
+    public function testBuildInsertPlaceholdersInvalidFieldThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertPlaceholders(array('bad.col'), 1);
+        });
+    }
+
+    public function testBuildInsertPlaceholdersEachGroupStartsAndEndsWithParens()
+    {
+        $groups = PdoParameterBuilder::buildInsertPlaceholders(array('id'), 3);
+
+        foreach ($groups as $group) {
+            assert_equals('(', $group[0]);
+            assert_equals(')', $group[strlen($group) - 1]);
+        }
+    }
+
+    public function testBuildInsertPlaceholdersCompatibleWithInsertSql()
+    {
+        // Verify the output integrates correctly with an INSERT statement.
+        $fields = array('name', 'email');
+        $groups = PdoParameterBuilder::buildInsertPlaceholders($fields, 2);
+        $sql    = 'INSERT INTO users (name, email) VALUES ' . implode(', ', $groups);
+
+        assert_equals(
+            'INSERT INTO users (name, email) VALUES (:name_0, :email_0), (:name_1, :email_1)',
+            $sql
+        );
+    }
 }
