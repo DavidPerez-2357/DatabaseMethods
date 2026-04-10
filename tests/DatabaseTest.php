@@ -631,6 +631,27 @@ class DatabaseTest
         });
     }
 
+    public function testSelectQueryObjectNonSelectThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->select(Query::insert(self::TABLE, ['name'])->valuesCount(1));
+        });
+    }
+
+    public function testSelectOneRawStringNonSelectThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->selectOne('DELETE FROM ' . self::TABLE);
+        });
+    }
+
+    public function testSelectOneQueryObjectNonSelectThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->selectOne(Query::insert(self::TABLE, ['name'])->valuesCount(1));
+        });
+    }
+
     // =========================================================================
     // Tests — executePlainQuery
     // =========================================================================
