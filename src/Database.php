@@ -109,7 +109,7 @@ class Database
     /**
      * Enables or disables JSON encoding of query results.
      *
-     * When enabled, methods such as select(), selectOne(), and plainSelect()
+     * When enabled, methods such as select() and selectOne()
      * will return a JSON-encoded string instead of a PHP array.
      * If JSON encoding fails (e.g. the result contains invalid UTF-8), an
      * empty array is returned instead.
@@ -130,8 +130,8 @@ class Database
      * @currentDate, @currentDateTime, @randomInt, and @lastInsertId are
      * automatically replaced with their actual values for operations routed
      * through the magic __call() method (select, insert, update, delete,
-     * deleteAll, count, selectOne). Methods such as executePlainQuery() and
-     * plainSelect() are not affected and never perform keyword replacement.
+     * deleteAll, count, selectOne). Methods such as executePlainQuery() are
+     * not affected and never perform keyword replacement.
      * Set to false to pass data values through unmodified.
      *
      * @param bool $bool True to enable keyword checking, false to disable.
@@ -244,22 +244,6 @@ class Database
     }
 
     /**
-     * Executes a plain SELECT SQL query and returns the results.
-     * @param string $query The SQL SELECT query to execute.
-     * @param array $data Optional parameters for the query.
-     * @throws RuntimeException if the connection is not set or the query execution fails.
-     * @return array|string The result set as an associative array, or a JSON-encoded string if json_encode is enabled.
-     */
-    public function plainSelect($query, $data = [])
-    {
-        $this->requireConnection();
-
-        $stmt = $this->prepareAndExecute($query, $data);
-
-        return $this->formatResult($stmt->fetchAll(PDO::FETCH_ASSOC));
-    }
-
-    /**
      * Executes a SELECT query and returns a single row.
      * @param Query|string $query A Query object (limit(1) is applied automatically) or a raw SQL string.
      * @param array $data Optional parameters for the query.
@@ -289,14 +273,21 @@ class Database
     }
 
     /**
-     * Executes a SELECT query using the Query class and returns all results.
-     * @param Query $query The Query object containing the SQL query.
+     * Executes a SELECT query and returns all results.
+     * @param Query|string $query A Query object or a raw SQL SELECT string.
      * @param array $data Optional parameters for the query.
+     * @throws InvalidArgumentException if $query is neither a Query instance nor a string.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return array|string The result set as an associative array, or a JSON-encoded string if json_encode is enabled.
      */
     private function select($query, $data = [])
     {
+        if (!($query instanceof Query) && !is_string($query)) {
+            throw new InvalidArgumentException(
+                'select() expects $query to be a Query instance or a string.'
+            );
+        }
+
         $this->requireConnection();
 
         $stmt = $this->prepareAndExecute((string) $query, $data);

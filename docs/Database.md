@@ -50,7 +50,7 @@ $mysql->setJsonEncode(false);  // disable (default)
 $result = $mysql->setJsonEncode(true)->select(Query::select()->from('users'));
 ```
 
-Affects `select`, `selectOne`, and `plainSelect`.
+Affects `select` and `selectOne`.
 
 &emsp;
 
@@ -74,7 +74,7 @@ Certain string values in the `$data` / `$whereData` arrays are replaced automati
 | `@randomFloat` | Random float 0.01–99.99 |
 | `@randomBoolean` | `true` or `false` |
 
-Keywords work in all CRUD methods (including multi-row inserts) but **not** in `executePlainQuery()` or `plainSelect()`.
+Keywords work in all CRUD methods (including multi-row inserts) but **not** in `executePlainQuery()`.
 
 To add custom keywords, edit the `replaceKeywordsInData` method in `Database.php`.
 
@@ -121,28 +121,19 @@ $database->executePlainQuery(
 
 ---
 
-### `plainSelect($query, $data = [])`
-
-Like `executePlainQuery` but for SELECT statements. Returns all rows as an array (or JSON string when encode is enabled).
-
-```php
-$result = $database->plainSelect(
-    'SELECT id, name FROM users WHERE id = :userId',
-    ['userId' => 2]
-);
-```
-
----
-
 ### `select($query, $data = [])` / `selectOne($query, $data = [])`
 
-Execute a `Query` object. `select` returns all matching rows; `selectOne` returns only the first row.
+Execute a `Query` object or a raw SQL SELECT string. `select` returns all matching rows; `selectOne` returns only the first row.
 
 ```php
+// Using a Query object
 $query = Query::select(['id', 'name'])->from('users')->where('id = :userId');
 
 $rows = $database->select($query, ['userId' => 2]);
 $row  = $database->selectOne($query, ['userId' => 2]);
+
+// Using a raw SQL string
+$rows = $database->select('SELECT id, name FROM users WHERE id = :userId', ['userId' => 2]);
 ```
 
 ---

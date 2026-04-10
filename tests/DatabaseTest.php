@@ -6,7 +6,7 @@
  * Integration test suite for the Database class.
  *
  * Covers: select, selectOne, insert (single + multiple), update, delete,
- * deleteAll, count, plainSelect, executePlainQuery, executeTransaction,
+ * deleteAll, count, executePlainQuery, executeTransaction,
  * setJsonEncode, and getLastInsertId.
  *
  * A temporary SQLite database file is created automatically before the
@@ -303,7 +303,7 @@ class DatabaseTest
     {
         $this->resetTable();
         $this->db->insert(self::TABLE, ['name' => 'Bob', 'email' => 'bob@example.com']);
-        $rows = $this->db->plainSelect('SELECT * FROM ' . self::TABLE);
+        $rows = $this->db->select('SELECT * FROM ' . self::TABLE);
         assert_equals(1, count($rows));
         assert_equals('Bob', $rows[0]['name']);
         assert_equals('bob@example.com', $rows[0]['email']);
@@ -429,7 +429,7 @@ class DatabaseTest
         $this->resetTable();
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
         // Derive the id via SELECT to avoid relying on lastInsertId() (unreliable on PostgreSQL).
-        $rows = $this->db->plainSelect(
+        $rows = $this->db->select(
             'SELECT id FROM ' . self::TABLE . ' WHERE email = :email',
             ['email' => 'alice@example.com']
         );
@@ -471,7 +471,7 @@ class DatabaseTest
         $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com']);
 
         // Derive the id via SELECT to avoid relying on lastInsertId() (unreliable on PostgreSQL).
-        $rows = $this->db->plainSelect(
+        $rows = $this->db->select(
             'SELECT id FROM ' . self::TABLE . ' WHERE email = :email',
             ['email' => 'alice@example.com']
         );
@@ -499,7 +499,7 @@ class DatabaseTest
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
 
         // Derive the id via SELECT to avoid relying on lastInsertId() (unreliable on PostgreSQL).
-        $rows     = $this->db->plainSelect(
+        $rows     = $this->db->select(
             'SELECT id FROM ' . self::TABLE . ' WHERE email = :email',
             ['email' => 'alice@example.com']
         );
@@ -590,26 +590,26 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — plainSelect
+    // Tests — select (raw SQL string)
     // =========================================================================
 
-    public function testPlainSelectReturnsAllRows()
+    public function testSelectRawSqlReturnsAllRows()
     {
         $this->resetTable();
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com']);
         $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com']);
 
-        $rows = $this->db->plainSelect('SELECT * FROM ' . self::TABLE);
+        $rows = $this->db->select('SELECT * FROM ' . self::TABLE);
         assert_equals(2, count($rows));
     }
 
-    public function testPlainSelectWithNamedBindings()
+    public function testSelectRawSqlWithNamedBindings()
     {
         $this->resetTable();
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
         $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 0]);
 
-        $rows = $this->db->plainSelect(
+        $rows = $this->db->select(
             'SELECT * FROM ' . self::TABLE . ' WHERE active = :a',
             ['a' => 1]
         );
@@ -811,7 +811,7 @@ class DatabaseTest
         $this->resetNullableTable();
         try {
             $this->db->insert(self::NULLABLE_TABLE, ['name' => 'Alice', 'notes' => null]);
-            $rows = $this->db->plainSelect('SELECT * FROM ' . self::NULLABLE_TABLE);
+            $rows = $this->db->select('SELECT * FROM ' . self::NULLABLE_TABLE);
             assert_equals(1, count($rows));
             assert_equals('Alice', $rows[0]['name']);
             assert_true($rows[0]['notes'] === null, 'NULL value must be stored as SQL NULL, not an empty string.');
@@ -828,7 +828,7 @@ class DatabaseTest
                 ['name' => 'Alice', 'notes' => 'has notes'],
                 ['name' => 'Bob',   'notes' => null],
             ]);
-            $rows = $this->db->plainSelect('SELECT * FROM ' . self::NULLABLE_TABLE . ' ORDER BY name');
+            $rows = $this->db->select('SELECT * FROM ' . self::NULLABLE_TABLE . ' ORDER BY name');
             assert_equals(2, count($rows));
             assert_equals('has notes', $rows[0]['notes']);
             assert_true($rows[1]['notes'] === null, 'NULL value in multi-row insert must be stored as SQL NULL.');
@@ -842,7 +842,7 @@ class DatabaseTest
         $this->resetNullableTable();
         try {
             $this->db->insert(self::NULLABLE_TABLE, ['name' => 'Alice', 'notes' => 'original']);
-            $rows = $this->db->plainSelect(
+            $rows = $this->db->select(
                 'SELECT id FROM ' . self::NULLABLE_TABLE . ' WHERE name = :name',
                 ['name' => 'Alice']
             );
@@ -851,7 +851,7 @@ class DatabaseTest
 
             $this->db->update(self::NULLABLE_TABLE, ['notes' => null], 'id = :id', ['id' => $id]);
 
-            $updated = $this->db->plainSelect(
+            $updated = $this->db->select(
                 'SELECT notes FROM ' . self::NULLABLE_TABLE . ' WHERE id = :id',
                 ['id' => $id]
             );
