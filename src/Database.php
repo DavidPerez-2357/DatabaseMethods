@@ -131,8 +131,8 @@ class Database
      * @currentDate, @currentDateTime, @randomInt, and @lastInsertId are
      * automatically replaced with their actual values for operations routed
      * through the magic __call() method (select, insert, update, delete,
-     * deleteAll, count, selectOne). Methods such as executePlainQuery() are
-     * not affected and never perform keyword replacement.
+     * deleteAll, count, selectOne). Methods such as executePlainQuery() and
+     * plainSelect() are not affected and never perform keyword replacement.
      * Set to false to pass data values through unmodified.
      *
      * @param bool $bool True to enable keyword checking, false to disable.

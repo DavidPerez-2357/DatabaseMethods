@@ -74,7 +74,7 @@ Certain string values in the `$data` / `$whereData` arrays are replaced automati
 | `@randomFloat` | Random float 0.01–99.99 |
 | `@randomBoolean` | `true` or `false` |
 
-Keywords work in all CRUD methods (including multi-row inserts) but **not** in `executePlainQuery()`.
+Keywords work in all CRUD methods (including multi-row inserts) but **not** in `executePlainQuery()` or `plainSelect()`.
 
 To add custom keywords, edit the `replaceKeywordsInData` method in `Database.php`.
 
