@@ -21,6 +21,7 @@ class Database
     private $properties; // Array with the initial properties of the class
     private $conn; // connection variable
     private $json_encode = false; // Default value for json_encode
+    private $keywordCheckEnabled = true; // Default value for keyword checking
 
     /**
      * Associative array of supported JOIN types for this driver.
@@ -61,9 +62,11 @@ class Database
         $canonical = isset($canonicalNames[$lower]) ? $canonicalNames[$lower] : $lower;
 
         // Replace keywords in every array argument before dispatching
-        foreach ($args as $i => $arg) {
-            if (is_array($arg)) {
-                $args[$i] = $this->replaceKeywordsInData($arg);
+        if ($this->keywordCheckEnabled) {
+            foreach ($args as $i => $arg) {
+                if (is_array($arg)) {
+                    $args[$i] = $this->replaceKeywordsInData($arg);
+                }
             }
         }
 
@@ -117,6 +120,26 @@ class Database
     public function setJsonEncode($bool)
     {
         $this->json_encode = (bool) $bool;
+        return $this;
+    }
+
+    /**
+     * Enables or disables keyword replacement in query data arrays.
+     *
+     * When enabled (the default), special placeholder strings such as
+     * @currentDate, @currentDateTime, @randomInt, and @lastInsertId are
+     * automatically replaced with their actual values for operations routed
+     * through the magic __call() method (select, insert, update, delete,
+     * deleteAll, count, selectOne). Methods such as executePlainQuery() and
+     * plainSelect() are not affected and never perform keyword replacement.
+     * Set to false to pass data values through unmodified.
+     *
+     * @param bool $bool True to enable keyword checking, false to disable.
+     * @return $this
+     */
+    public function enableKeywordCkeck($bool)
+    {
+        $this->keywordCheckEnabled = (bool) $bool;
         return $this;
     }
 

@@ -701,6 +701,45 @@ class DatabaseTest
     }
 
     // =========================================================================
+    // Tests — enableKeywordCkeck
+    // =========================================================================
+
+    public function testKeywordCheckEnabledByDefaultReplacesKeyword()
+    {
+        $this->resetTable();
+        $expectedDate = date('Y-m-d');
+        $this->db->insert(self::TABLE, ['name' => '@currentDate', 'email' => 'kw@example.com']);
+        $query = Query::select()->from(self::TABLE)->where('email = :email');
+        $rows  = $this->db->select($query, ['email' => 'kw@example.com']);
+        assert_true(count($rows) === 1, 'Expected one inserted row.');
+        assert_true($rows[0]['name'] !== '@currentDate', 'Keyword @currentDate should have been replaced.');
+        assert_equals($expectedDate, $rows[0]['name'], 'Keyword @currentDate should equal today\'s date.');
+    }
+
+    public function testKeywordCheckDisabledStoresLiteralValue()
+    {
+        $this->resetTable();
+        $this->db->enableKeywordCkeck(false);
+        try {
+            $this->db->insert(self::TABLE, ['name' => '@currentDate', 'email' => 'kw2@example.com']);
+            $this->db->enableKeywordCkeck(true); // restore
+        } catch (Exception $e) {
+            $this->db->enableKeywordCkeck(true); // restore on failure
+            throw $e;
+        }
+        $query = Query::select()->from(self::TABLE)->where('email = :email');
+        $rows  = $this->db->select($query, ['email' => 'kw2@example.com']);
+        assert_true(count($rows) === 1, 'Expected one inserted row.');
+        assert_equals('@currentDate', $rows[0]['name'], 'Literal string @currentDate should be stored when keyword checking is disabled.');
+    }
+
+    public function testEnableKeywordCheckIsChainable()
+    {
+        $result = $this->db->enableKeywordCkeck(true);
+        assert_true($result === $this->db, 'enableKeywordCkeck() must return $this for chaining.');
+    }
+
+    // =========================================================================
     // Tests — getLastInsertId
     // =========================================================================
 
