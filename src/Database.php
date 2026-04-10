@@ -255,28 +255,10 @@ class Database
     }
 
     /**
-     * Throws InvalidArgumentException when $sql does not begin with SELECT or WITH.
-     * Used by select() and selectOne() to prevent write statements from being
-     * executed through the read-only API.
-     *
-     * @param string $sql The built SQL string to validate.
-     * @param string $method The calling method name, used in the exception message.
-     * @throws InvalidArgumentException if $sql does not start with SELECT or WITH.
-     */
-    private function requireSelectStatement($sql, $method)
-    {
-        if (!preg_match('/^\s*(SELECT|WITH)\s/i', $sql)) {
-            throw new InvalidArgumentException(
-                $method . '() expects a SELECT or WITH SQL statement.'
-            );
-        }
-    }
-
-    /**
      * Executes a SELECT query and returns a single row.
-     * @param Query|string $query A Query object (limit(1) is applied automatically) or a raw SQL SELECT string.
+     * @param Query|string $query A Query object (limit(1) is applied automatically) or a raw SQL string.
      * @param array $data Optional parameters for the query.
-     * @throws InvalidArgumentException if $query is neither a Query instance nor a string, or if the resulting SQL does not start with SELECT/WITH.
+     * @throws InvalidArgumentException if $query is neither a Query instance nor a string.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return array|string The result row as an associative array, or a JSON-encoded string when json_encode mode is enabled.
      */
@@ -292,7 +274,6 @@ class Database
             $query->limit(1);
         }
         $sql = (string) $query;
-        $this->requireSelectStatement($sql, 'selectOne');
 
         $this->requireConnection();
 
@@ -306,9 +287,9 @@ class Database
 
     /**
      * Executes a SELECT query and returns all results.
-     * @param Query|string $query A Query object or a raw SQL SELECT string.
+     * @param Query|string $query A Query object or a raw SQL string.
      * @param array $data Optional parameters for the query.
-     * @throws InvalidArgumentException if $query is neither a Query instance nor a string, or if the resulting SQL does not start with SELECT/WITH.
+     * @throws InvalidArgumentException if $query is neither a Query instance nor a string.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return array|string The result set as an associative array, or a JSON-encoded string if json_encode is enabled.
      */
@@ -321,7 +302,6 @@ class Database
         }
 
         $sql = (string) $query;
-        $this->requireSelectStatement($sql, 'select');
 
         $this->requireConnection();
 

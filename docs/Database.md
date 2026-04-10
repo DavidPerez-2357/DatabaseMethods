@@ -134,7 +134,7 @@ $rows = $database->executePlainQuery('SELECT * FROM users WHERE active = 1');
 
 ### `select($query, $data = [])` / `selectOne($query, $data = [])`
 
-Execute a `Query` object or a raw SQL SELECT string. `select` returns all matching rows; `selectOne` returns only the first row.
+Execute a `Query` object or a raw SQL string. `select` returns all matching rows; `selectOne` returns only the first row.
 
 ```php
 // Using a Query object
