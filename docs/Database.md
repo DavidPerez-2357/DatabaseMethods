@@ -296,7 +296,7 @@ $affected = $database->updateWhere(
     ['last_login' => $timestamp],
     ['id' => $userId]
 );
-// Generated SQL: UPDATE users SET last_login = :set_last_login WHERE id = :where_id
+// Generated SQL: UPDATE users SET last_login = :last_login WHERE id = :where_id
 ```
 
 ---

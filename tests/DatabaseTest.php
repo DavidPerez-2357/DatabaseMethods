@@ -1409,8 +1409,9 @@ class DatabaseTest
         assert_equals(1, count($page2), 'Page 2 (limit=2, offset=2) must return exactly 1 row.');
 
         $page1Ids = array_column($page1, 'id');
-        assert_true(
-            !in_array($page2[0]['id'], $page1Ids),
+        assert_equals(
+            false,
+            in_array($page2[0]['id'], $page1Ids),
             'The row returned in page 2 must not appear in page 1.'
         );
     }
