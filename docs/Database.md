@@ -134,6 +134,7 @@ $row  = $database->selectOne($query, ['userId' => 2]);
 
 // Using a raw SQL string
 $rows = $database->select('SELECT id, name FROM users WHERE id = :userId', ['userId' => 2]);
+$row  = $database->selectOne('SELECT id, name FROM users WHERE id = :userId LIMIT 1', ['userId' => 2]);
 ```
 
 ---
