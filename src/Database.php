@@ -324,35 +324,35 @@ class Database
      * Inserts records into the specified table using the Query class.
      * This method detects if the data is a single record or multiple records and calls the appropriate method.
      * @param string $table The name of the table to insert into.
-     * @param array $data An associative array of column names and values to insert,
-     *                    or an array of such arrays for multiple records.
+     * @param array $fieldsToInsert An associative array of column names and values to insert,
+     *                              or an array of such arrays for multiple records.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The ID of the last inserted row or the number of affected rows for multiple inserts.
      */
-    private function insert($table, $data)
+    private function insert($table, $fieldsToInsert)
     {
         // Detect if the data is a single record or multiple records
-        if (isset($data[0]) && is_array($data[0])) {
+        if (isset($fieldsToInsert[0]) && is_array($fieldsToInsert[0])) {
             // Multiple records — keywords were already replaced by __call before dispatch.
-            return $this->insertMany($table, $data);
+            return $this->insertMany($table, $fieldsToInsert);
         } else {
             // Single record
-            return $this->insertOne($table, $data);
+            return $this->insertOne($table, $fieldsToInsert);
         }
     }
 
     /**
      * Inserts a single record into the specified table using the Query class.
      * @param string $table The name of the table to insert into.
-     * @param array $data An associative array of column names and values to insert.
+     * @param array $fieldsToInsert An associative array of column names and values to insert.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The ID of the last inserted row.
      */
-    private function insertOne($table, $data)
+    private function insertOne($table, $fieldsToInsert)
     {
         $this->requireConnection();
 
-        $fields = array_keys($data);
+        $fields = array_keys($fieldsToInsert);
 
         // Use the Query class to build the insert query
         $query = new Query([
@@ -364,7 +364,7 @@ class Database
 
         $placeholders = [];
         foreach ($fields as $field) {
-            $placeholders[":{$field}_0"] = $data[$field];
+            $placeholders[":{$field}_0"] = $fieldsToInsert[$field];
         }
 
         $this->prepareAndExecute((string) $query, $placeholders);
@@ -374,21 +374,21 @@ class Database
     /**
      * Inserts multiple records into the specified table using the Query class.
      * @param string $table The name of the table to insert into.
-     * @param array $data An array of associative arrays, each representing a row to insert.
+     * @param array $rowsToInsert An array of associative arrays, each representing a row to insert.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The ID of the last inserted row.
      */
-    private function insertMany($table, $data)
+    private function insertMany($table, $rowsToInsert)
     {
         $this->requireConnection();
 
-        if (empty($data) || !isset($data[0]) || !is_array($data[0])) {
+        if (empty($rowsToInsert) || !isset($rowsToInsert[0]) || !is_array($rowsToInsert[0])) {
             throw new InvalidArgumentException("Data must be a non-empty array of associative arrays.");
         }
 
         // Validate that all rows are arrays and contain the required fields.
-        $expectedFields = array_keys($data[0]);
-        foreach ($data as $i => $row) {
+        $expectedFields = array_keys($rowsToInsert[0]);
+        foreach ($rowsToInsert as $i => $row) {
             if (!is_array($row)) {
                 throw new InvalidArgumentException("Data row at index {$i} must be an associative array.");
             }
@@ -399,18 +399,18 @@ class Database
             }
         }
 
-        $fields = array_keys($data[0]);
+        $fields = array_keys($rowsToInsert[0]);
 
         // Use the Query class to build the insert query
         $query = new Query([
             'method' => 'INSERT',
             'table' => $table,
             'fields' => $fields,
-            'values_to_insert' => count($data)
+            'values_to_insert' => count($rowsToInsert)
         ]);
 
         $placeholders = [];
-        foreach ($data as $i => $row) {
+        foreach ($rowsToInsert as $i => $row) {
             foreach ($fields as $field) {
                 $placeholders[":{$field}_{$i}"] = $row[$field];
             }
@@ -602,7 +602,7 @@ class Database
 
             if (!empty($existingPlaceholders) && array_key_exists($paramKey, $existingPlaceholders)) {
                 throw new InvalidArgumentException(
-                    "Binding key '{$paramKey}' is used in both \$data (SET) and \$whereData (WHERE). " .
+                    "Binding key '{$paramKey}' is used in both \$fieldsToUpdate (SET) and \$whereData (WHERE). " .
                     "Use distinct placeholder names to avoid conflicts."
                 );
             }
@@ -661,19 +661,19 @@ class Database
     /**
      * Updates records in the specified table using the Query class.
      * @param string $table The name of the table to update.
-     * @param array $data An associative array of column names and values to update.
+     * @param array $fieldsToUpdate An associative array of column names and values to update.
      * @param string $where The WHERE clause to specify which records to update.
      * @param array $whereData Optional associative array of bindings for the WHERE clause.
-     *                         Keys must not overlap with the column names in $data.
+     *                         Keys must not overlap with the column names in $fieldsToUpdate.
      *                         Each key must be a valid PDO named-parameter name
      *                         (letters, digits, underscores; starting with a letter or underscore).
      * @param array $joins Optional joins for the query.
-     * @throws InvalidArgumentException if $data or $whereData is invalid, or a binding key
-     *                                   conflicts between $data and $whereData.
+     * @throws InvalidArgumentException if $fieldsToUpdate or $whereData is invalid, or a binding key
+     *                                   conflicts between $fieldsToUpdate and $whereData.
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The number of affected rows.
      */
-    private function update($table, $data, $where, $whereData = [], $joins = [])
+    private function update($table, $fieldsToUpdate, $where, $whereData = [], $joins = [])
     {
         $this->requireConnection();
 
@@ -683,7 +683,7 @@ class Database
             );
         }
 
-        if (empty($data) || !is_array($data)) {
+        if (empty($fieldsToUpdate) || !is_array($fieldsToUpdate)) {
             throw new InvalidArgumentException("Data must be a non-empty associative array.");
         }
 
@@ -708,13 +708,13 @@ class Database
         $query = new Query([
             'method' => 'UPDATE',
             'table' => $table,
-            'fields' => array_keys($data),
+            'fields' => array_keys($fieldsToUpdate),
             'where' => $where,
             'joins' => $joins,
         ]);
 
         $placeholders = [];
-        foreach ($data as $field => $value) {
+        foreach ($fieldsToUpdate as $field => $value) {
             $placeholders[":{$field}"] = $value;
         }
 
