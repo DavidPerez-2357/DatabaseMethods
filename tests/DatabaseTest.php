@@ -617,6 +617,13 @@ class DatabaseTest
         assert_equals('Alice', $rows[0]['name']);
     }
 
+    public function testSelectInvalidArgumentThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->select([]);
+        });
+    }
+
     // =========================================================================
     // Tests — executePlainQuery
     // =========================================================================
