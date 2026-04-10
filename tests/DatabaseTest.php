@@ -657,8 +657,8 @@ class DatabaseTest
         $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 0]);
 
         $rows = $this->db->executePlainQuery(
-            'SELECT * FROM ' . self::TABLE . ' WHERE active = :a',
-            ['a' => 1]
+            'SELECT * FROM ' . self::TABLE . ' WHERE active = :active',
+            ['active' => 1]
         );
         assert_equals(1, count($rows));
         assert_equals('Alice', $rows[0]['name']);

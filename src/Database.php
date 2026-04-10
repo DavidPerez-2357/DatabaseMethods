@@ -232,7 +232,7 @@ class Database
      * Executes a plain SQL query.
      * For SELECT statements (or any query that returns a result set) the method
      * returns all rows as an associative array (or a JSON-encoded string when
-     * json_encode mode is enabled).  For all other statements (INSERT, UPDATE,
+     * json_encode mode is enabled). For all other statements (INSERT, UPDATE,
      * DELETE, DDL, …) it returns the number of rows affected.
      * @param string $query The SQL query to execute.
      * @param array $data Optional parameters for the query.
