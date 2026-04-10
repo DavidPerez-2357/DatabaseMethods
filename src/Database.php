@@ -131,7 +131,7 @@ class Database
      * @currentDate, @currentDateTime, @randomInt, and @lastInsertId are
      * automatically replaced with their actual values for operations routed
      * through the magic __call() method (select, insert, update, delete,
-     * deleteAll, count, selectOne). Methods such as executePlainQuery() and
+     * deleteAll, count, selectOne). Methods such as runPlainQuery() and
      * plainSelect() are not affected and never perform keyword replacement.
      * Set to false to pass data values through unmodified.
      *
@@ -237,7 +237,7 @@ class Database
      * @throws RuntimeException if the connection is not set or the query execution fails.
      * @return int The PDO-reported rowCount() (may be 0 for DDL statements).
      */
-    public function executePlainQuery($query, $data = [])
+    public function runPlainQuery($query, $data = [])
     {
         $this->requireConnection();
 
@@ -248,7 +248,7 @@ class Database
 
     /**
      * Executes a plain SQL query and returns all result rows.
-     * Use executePlainQuery() for write statements that do not return a result set.
+     * Use runPlainQuery() for write statements that do not return a result set.
      * @param string $query The SQL query to execute.
      * @param array $data Optional parameters for the query.
      * @throws RuntimeException if the connection is not set or the query execution fails.

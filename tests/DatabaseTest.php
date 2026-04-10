@@ -6,7 +6,7 @@
  * Integration test suite for the Database class.
  *
  * Covers: select, selectOne, insert (single + multiple), update, delete,
- * deleteAll, count, executePlainQuery, plainSelect, executeTransaction,
+ * deleteAll, count, runPlainQuery, plainSelect, executeTransaction,
  * setJsonEncode, and getLastInsertId.
  *
  * A temporary SQLite database file is created automatically before the
@@ -167,7 +167,7 @@ class DatabaseTest
     public function teardown()
     {
         try {
-            $this->db->executePlainQuery($this->getDropTableSql());
+            $this->db->runPlainQuery($this->getDropTableSql());
         } catch (Exception $e) {
             // Best-effort; ignore if already gone.
         }
@@ -268,7 +268,7 @@ class DatabaseTest
 
     private function createTable()
     {
-        $this->db->executePlainQuery($this->getCreateTableSql());
+        $this->db->runPlainQuery($this->getCreateTableSql());
     }
 
     /**
@@ -277,8 +277,8 @@ class DatabaseTest
      */
     private function resetTable()
     {
-        $this->db->executePlainQuery($this->getDropTableSql());
-        $this->db->executePlainQuery($this->getCreateTableSql());
+        $this->db->runPlainQuery($this->getDropTableSql());
+        $this->db->runPlainQuery($this->getCreateTableSql());
     }
 
     // =========================================================================
@@ -625,13 +625,13 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — executePlainQuery
+    // Tests — runPlainQuery
     // =========================================================================
 
     public function testExecutePlainQueryReturnsAffectedRowCountForWriteQuery()
     {
         $this->resetTable();
-        $affected = $this->db->executePlainQuery(
+        $affected = $this->db->runPlainQuery(
             'INSERT INTO ' . self::TABLE . ' (name, email) VALUES (:name, :email)',
             [':name' => 'Alice', ':email' => 'alice@example.com']
         );
@@ -645,7 +645,7 @@ class DatabaseTest
         $this->db->insert(self::TABLE, ['name' => 'Alice', 'email' => 'alice@example.com', 'active' => 1]);
         $this->db->insert(self::TABLE, ['name' => 'Bob',   'email' => 'bob@example.com',   'active' => 1]);
 
-        $affected = $this->db->executePlainQuery(
+        $affected = $this->db->runPlainQuery(
             'UPDATE ' . self::TABLE . ' SET active = 0'
         );
         assert_equals(2, $affected);
@@ -866,8 +866,8 @@ class DatabaseTest
     /** Drops and recreates the nullable test table. */
     private function resetNullableTable()
     {
-        $this->db->executePlainQuery($this->getNullableDropTableSql());
-        $this->db->executePlainQuery($this->getNullableCreateTableSql());
+        $this->db->runPlainQuery($this->getNullableDropTableSql());
+        $this->db->runPlainQuery($this->getNullableCreateTableSql());
     }
 
     public function testInsertNullValueStoresNull()
@@ -880,7 +880,7 @@ class DatabaseTest
             assert_equals('Alice', $rows[0]['name']);
             assert_true($rows[0]['notes'] === null, 'NULL value must be stored as SQL NULL, not an empty string.');
         } finally {
-            $this->db->executePlainQuery($this->getNullableDropTableSql());
+            $this->db->runPlainQuery($this->getNullableDropTableSql());
         }
     }
 
@@ -897,7 +897,7 @@ class DatabaseTest
             assert_equals('has notes', $rows[0]['notes']);
             assert_true($rows[1]['notes'] === null, 'NULL value in multi-row insert must be stored as SQL NULL.');
         } finally {
-            $this->db->executePlainQuery($this->getNullableDropTableSql());
+            $this->db->runPlainQuery($this->getNullableDropTableSql());
         }
     }
 
@@ -922,7 +922,7 @@ class DatabaseTest
             assert_equals(1, count($updated));
             assert_true($updated[0]['notes'] === null, 'Updating a column to null must store SQL NULL.');
         } finally {
-            $this->db->executePlainQuery($this->getNullableDropTableSql());
+            $this->db->runPlainQuery($this->getNullableDropTableSql());
         }
     }
 
@@ -932,7 +932,7 @@ class DatabaseTest
         try {
             // A params array with both integer (positional) and string (named) keys
             // must be rejected with InvalidArgumentException before prepare() is called.
-            $this->db->executePlainQuery('SELECT 1', [0 => 'val', 'name' => 'Alice']);
+            $this->db->runPlainQuery('SELECT 1', [0 => 'val', 'name' => 'Alice']);
         } catch (InvalidArgumentException $e) {
             $caughtException = true;
         }

@@ -74,7 +74,7 @@ Certain string values in the `$data` / `$whereData` arrays are replaced automati
 | `@randomFloat` | Random float 0.01–99.99 |
 | `@randomBoolean` | `true` or `false` |
 
-Keywords work in all CRUD methods (including multi-row inserts) but **not** in `executePlainQuery()` or `plainSelect()`.
+Keywords work in all CRUD methods (including multi-row inserts) but **not** in `runPlainQuery()` or `plainSelect()`.
 
 To add custom keywords, edit the `replaceKeywordsInData` method in `Database.php`.
 
@@ -108,7 +108,7 @@ $database->enableKeywordCkeck(true); // re-enable when done
 
 ## Methods
 
-### `executePlainQuery($query, $data = [])`
+### `runPlainQuery($query, $data = [])`
 
 Execute any SQL write statement directly. Always returns the PDO-reported `rowCount()` as an integer (may be 0 for DDL statements). Use `plainSelect()` for queries that return a result set.
 
@@ -116,7 +116,7 @@ Throws on error.
 
 ```php
 // Write query — returns affected row count
-$affected = $database->executePlainQuery(
+$affected = $database->runPlainQuery(
     'UPDATE users SET active = 0 WHERE id = :userId',
     ['userId' => 2]
 );
@@ -127,7 +127,7 @@ $affected = $database->executePlainQuery(
 
 ### `plainSelect($query, $data = [])`
 
-Execute a plain SQL query and return all result rows as an associative array, or a JSON-encoded string when json_encode mode is enabled. Use `executePlainQuery()` for write statements.
+Execute a plain SQL query and return all result rows as an associative array, or a JSON-encoded string when json_encode mode is enabled. Use `runPlainQuery()` for write statements.
 
 Throws on error.
 
