@@ -9,12 +9,13 @@
  *   require_once 'DatabaseMethods.php';
  *
  * Available classes:
- *   - Query    — SQL query builder (SELECT / INSERT / UPDATE / DELETE)
- *   - Database — PDO-based base class with querying, CRUD, transactions
- *   - Mysql    — MySQL / MariaDB driver
- *   - Postgres — PostgreSQL driver
- *   - Sqlite   — SQLite driver
- *   - Sql      — Microsoft SQL Server driver
+ *   - Query                — SQL query builder (SELECT / INSERT / UPDATE / DELETE)
+ *   - Database             — PDO-based base class with querying, CRUD, transactions
+ *   - PdoParameterBuilder  — Static utility for SQL fragments and PDO named parameters
+ *   - Mysql                — MySQL / MariaDB driver
+ *   - Postgres             — PostgreSQL driver
+ *   - Sqlite               — SQLite driver
+ *   - Sql                  — Microsoft SQL Server driver
  *
  * @author DavidPerez-2357
  * @link https://github.com/DavidPerez-2357/DatabaseMethods
@@ -23,6 +24,7 @@
 $__dm_base = __DIR__ . '/src/';
 
 require_once $__dm_base . 'Query.php';
+require_once $__dm_base . 'PdoParameterBuilder.php';
 require_once $__dm_base . 'Database.php';
 require_once $__dm_base . 'drivers/Mysql.php';
 require_once $__dm_base . 'drivers/Postgres.php';

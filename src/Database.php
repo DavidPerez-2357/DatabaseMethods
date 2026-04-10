@@ -362,9 +362,13 @@ class Database
             'values_to_insert' => 1
         ]);
 
-        $placeholders = [];
+        // Build one named-placeholder entry per field for row 0 (e.g. ':name_0' => 'John').
+        $placeholders = array();
         foreach ($fields as $field) {
-            $placeholders[":{$field}_0"] = $fieldsToInsert[$field];
+            $placeholders = array_merge(
+                $placeholders,
+                PdoParameterBuilder::buildValues(array($fieldsToInsert[$field]), $field . '_')
+            );
         }
 
         $this->prepareAndExecute((string) $query, $placeholders);
@@ -409,11 +413,18 @@ class Database
             'values_to_insert' => count($rowsToInsert)
         ]);
 
-        $placeholders = [];
-        foreach ($rowsToInsert as $i => $row) {
-            foreach ($fields as $field) {
-                $placeholders[":{$field}_{$i}"] = $row[$field];
+        // Build named-placeholder entries per field across all rows.
+        // For field 'name' with 2 rows: [':name_0' => 'John', ':name_1' => 'Jane'].
+        $placeholders = array();
+        foreach ($fields as $field) {
+            $fieldValues = array();
+            foreach ($rowsToInsert as $row) {
+                $fieldValues[] = $row[$field];
             }
+            $placeholders = array_merge(
+                $placeholders,
+                PdoParameterBuilder::buildValues($fieldValues, $field . '_')
+            );
         }
 
         $this->prepareAndExecute((string) $query, $placeholders);
