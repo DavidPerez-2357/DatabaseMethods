@@ -352,22 +352,14 @@ class Database
     {
         $this->requireConnection();
 
-        $fields = array_keys($fieldsToInsert);
-
-        // Use the Query class to build the insert query
         $query = new Query([
             'method' => 'INSERT',
             'table' => $table,
-            'fields' => $fields,
+            'fields' => array_keys($fieldsToInsert),
             'values_to_insert' => 1
         ]);
 
-        $placeholders = [];
-        foreach ($fields as $field) {
-            $placeholders[":{$field}_0"] = $fieldsToInsert[$field];
-        }
-
-        $this->prepareAndExecute((string) $query, $placeholders);
+        $this->prepareAndExecute((string) $query, PdoParameterBuilder::buildInsertParams(array($fieldsToInsert)));
         return (int) $this->conn->lastInsertId();
     }
 
@@ -386,7 +378,6 @@ class Database
             throw new InvalidArgumentException("Rows to insert must be a non-empty array of associative arrays.");
         }
 
-        // Validate that all rows are arrays and contain the required fields.
         $expectedFields = array_keys($rowsToInsert[0]);
         foreach ($rowsToInsert as $i => $row) {
             if (!is_array($row)) {
@@ -397,26 +388,23 @@ class Database
                     throw new InvalidArgumentException("Row at index {$i} is missing required field '{$field}'.");
                 }
             }
-        }
 
-        $fields = array_keys($rowsToInsert[0]);
-
-        // Use the Query class to build the insert query
-        $query = new Query([
-            'method' => 'INSERT',
-            'table' => $table,
-            'fields' => $fields,
-            'values_to_insert' => count($rowsToInsert)
-        ]);
-
-        $placeholders = [];
-        foreach ($rowsToInsert as $i => $row) {
-            foreach ($fields as $field) {
-                $placeholders[":{$field}_{$i}"] = $row[$field];
+            $unexpectedFields = array_diff(array_keys($row), $expectedFields);
+            if (!empty($unexpectedFields)) {
+                throw new InvalidArgumentException(
+                    "Row at index {$i} contains unexpected field(s): '" . implode("', '", $unexpectedFields) . "'."
+                );
             }
         }
 
-        $this->prepareAndExecute((string) $query, $placeholders);
+        $query = new Query([
+            'method' => 'INSERT',
+            'table' => $table,
+            'fields' => $expectedFields,
+            'values_to_insert' => count($rowsToInsert)
+        ]);
+
+        $this->prepareAndExecute((string) $query, PdoParameterBuilder::buildInsertParams($rowsToInsert));
         return (int) $this->conn->lastInsertId();
     }
 
@@ -713,10 +701,7 @@ class Database
             'joins' => $joins,
         ]);
 
-        $placeholders = [];
-        foreach ($fieldsToUpdate as $field => $value) {
-            $placeholders[":{$field}"] = $value;
-        }
+        $placeholders = PdoParameterBuilder::buildNamedParams($fieldsToUpdate);
 
         $placeholders = array_merge(
             $placeholders,

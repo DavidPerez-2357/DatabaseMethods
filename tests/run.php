@@ -18,6 +18,7 @@
 // Load all library classes (Query, Database, Mysql, Postgres, Sqlite, Sql).
 require_once __DIR__ . '/../DatabaseMethods.php';
 require_once __DIR__ . '/QueryTests.php';
+require_once __DIR__ . '/PdoParameterBuilderTests.php';
 require_once __DIR__ . '/DatabaseTest.php';
 
 // ---------------------------------------------------------------------------
@@ -207,6 +208,9 @@ $totalFailed = 0;
 
 // Unit tests — Query class
 $totalFailed += run_suite(new QueryTests(), 'Query');
+
+// Unit tests — PdoParameterBuilder utility
+$totalFailed += run_suite(new PdoParameterBuilderTests(), 'PdoParameterBuilder');
 
 // Integration tests — Database class (SQLite by default; configure in DatabaseTest.php)
 $dbSuite = null;

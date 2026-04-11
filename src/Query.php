@@ -10,6 +10,8 @@
  * @link https://github.com/DavidPerez-2357/DatabaseMethods
  */
 
+require_once __DIR__ . '/PdoParameterBuilder.php';
+
 /**
  * Query class to build SQL queries based on provided data.
  * Supports SELECT, INSERT, UPDATE, and DELETE methods.
@@ -657,13 +659,10 @@ class Query
      * @return string The constructed SQL INSERT query.
      * @example
      * ```php
-     * $query = new Query([
-     *     'method' => 'INSERT',
-     *     'table' => 'users',
-     *     'fields' => ['name', 'email'],
-     *     'values_to_insert' => 3
-     * ]);
-     * */
+     * // new Query(['method'=>'INSERT','table'=>'users','fields'=>['name','email'],'values_to_insert'=>2])
+     * // => "INSERT INTO users (name, email) VALUES (:name_0, :email_0), (:name_1, :email_1)"
+     * ```
+     */
     public function buildPDOInsertQuery()
     {
         $this->assertMethod('INSERT');
@@ -675,56 +674,31 @@ class Query
             throw new InvalidArgumentException("Number of values to insert must be at least 1.");
         }
 
-        // Validate all column names once up-front. Field names must be plain
-        // (unqualified) identifiers because they are also used as PDO named-placeholder
-        // tokens like ":{$col}_{$i}". Dots are not valid in PDO placeholder names.
-        foreach ($fields as $col) {
-            self::validateUnqualifiedIdentifier($col, 'INSERT field');
-        }
+        // buildInsertPlaceholders() validates each field name and generates the row groups.
+        $groups = PdoParameterBuilder::buildInsertPlaceholders($fields, $values);
 
-        $placeholders = array();
-        for ($i = 0; $i < $values; $i++) {
-            $rowPlaceholders = array();
-            foreach ($fields as $col) {
-                $rowPlaceholders[] = ":{$col}_{$i}";
-            }
-            $placeholders[] = '(' . implode(', ', $rowPlaceholders) . ')';
-        }
-
-        return "INSERT INTO {$table} (" . implode(', ', $fields) . ") VALUES " . implode(', ', $placeholders);
+        return "INSERT INTO {$table} (" . implode(', ', $fields) . ") VALUES " . implode(', ', $groups);
     }
 
     /**
      * Builds an UPDATE SQL query based on the provided data.
      * @throws InvalidArgumentException if the method is not UPDATE or required fields are missing.
-     * @return string The constructed SQL UPDATE query and parameters.
+     * @return string The constructed SQL UPDATE query.
      * @example
      * ```php
-     * $query = new Query([
-     *   'method' => 'UPDATE',
-     *   'table' => 'users',
-     *   'fields' => ['name', 'email'],
-     *   'where' => 'id = 1',
-     *   'joins' => ['LEFT JOIN orders ON users.id = orders.user_id']
-     * ]);
-     * */
+     * // new Query(['method'=>'UPDATE','table'=>'users','fields'=>['name','email'],'where'=>'id=:id'])
+     * // => "UPDATE users SET name = :name, email = :email WHERE id=:id"
+     * ```
+     */
     public function buildPDOUpdateQuery()
     {
         $this->assertMethod('UPDATE');
         $table = $this->requireTable();
         $fields = $this->requireFields();
 
-        $setClauses = array();
-        foreach ($fields as $col) {
-            // Field names must be plain (unqualified) identifiers because the PDO
-            // placeholder is built as ":{$col}" — a dot in the name would make it invalid.
-            self::validateUnqualifiedIdentifier($col, 'UPDATE field');
-            $setClauses[] = "{$col} = :{$col}";
-        }
-
         $sql = "UPDATE {$table}";
         $this->appendJoinsToSql($sql);
-        $sql .= " SET " . implode(', ', $setClauses);
+        $sql .= " SET " . PdoParameterBuilder::buildSetClause($fields);
 
         if (!empty($this->data['where'])) {
             $sql .= " WHERE {$this->data['where']}";
