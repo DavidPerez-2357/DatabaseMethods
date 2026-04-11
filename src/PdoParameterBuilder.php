@@ -3,60 +3,37 @@
 /**
  * PdoParameterBuilder.php
  *
- * Standalone static utility for generating SQL fragments and PDO named parameters.
- * Centralizes placeholder creation so that Database and Query stay focused on their
- * own responsibilities (execution and SQL structure, respectively).
+ * Static utility for generating SQL fragments and PDO named parameters.
  *
  * @author DavidPerez-2357
  * @link https://github.com/DavidPerez-2357/DatabaseMethods
  */
 
 /**
- * Utility class for generating PDO named-parameter placeholders and the
- * associated SQL fragments.
- *
- * All methods are static. The class has no state and no dependencies on
- * Database or Query — it can be used independently.
+ * Utility class for generating PDO named-parameter placeholders and SQL fragments.
+ * All methods are static; no state, no dependencies on Database or Query.
  *
  * @package DatabaseMethods
  */
 class PdoParameterBuilder
 {
     /**
-     * Builds an equality SQL fragment and a matching PDO parameter array from an
-     * associative column => value map.
-     *
-     * Each column name is validated as a plain (unqualified) SQL identifier via
-     * Query::validateUnqualifiedIdentifier() to prevent SQL injection.
-     *
-     * NULL values are handled specially: instead of generating a named placeholder
-     * that would be bound to NULL, the method emits an IS NULL clause in the SQL
-     * fragment and omits the column from the returned $params array. This produces
-     * valid SQL because `col = NULL` is always false in standard SQL, while
-     * `col IS NULL` correctly matches NULL values.
+     * Builds an AND-joined equality SQL fragment and matching PDO params from a column => value map.
+     * NULL values produce "col IS NULL" and are omitted from the params array.
+     * Column names are validated as plain SQL identifiers.
      *
      * @param array  $conditions Associative array of column => value pairs.
-     * @param string $prefix     Optional prefix applied to every placeholder name
-     *                           (e.g. 'where_' produces ':where_col').
-     *                           Must consist only of letters, digits, and underscores.
+     * @param string $prefix     Optional prefix for placeholder names (e.g. 'w_' → ':w_col').
      * @throws InvalidArgumentException If any column name is not a valid unqualified identifier.
-     * @return array Two-element array: [string $sql, array $params].
-     *               $sql is the AND-joined equality fragment (empty string when $conditions is empty).
-     *               $params maps ':prefix_col' => value for each non-NULL entry.
+     * @return array [string $sql, array $params]
      *
      * @example
      * ```php
-     * list($sql, $params) = PdoParameterBuilder::buildEquality(
-     *     ['id' => 5, 'email' => 'john@email.com'],
-     *     'where_'
-     * );
-     * // $sql   === 'id = :where_id AND email = :where_email'
-     * // $params === [':where_id' => 5, ':where_email' => 'john@email.com']
+     * // buildEquality(['id' => 5, 'email' => 'a@b.com'], 'w_')
+     * // => ['id = :w_id AND email = :w_email', [':w_id' => 5, ':w_email' => 'a@b.com']]
      *
-     * // NULL values produce IS NULL:
-     * list($sql, $params) = PdoParameterBuilder::buildEquality(['deleted_at' => null]);
-     * // $sql   === 'deleted_at IS NULL'
-     * // $params === []
+     * // buildEquality(['deleted_at' => null])
+     * // => ['deleted_at IS NULL', []]
      * ```
      */
     public static function buildEquality(array $conditions, $prefix = '')
@@ -81,30 +58,16 @@ class PdoParameterBuilder
 
     /**
      * Builds a PDO named-parameter array from an indexed list of values.
+     * Keys are re-indexed before placeholder names are assigned.
      *
-     * Each value is stored under a key of the form ':prefix_N', where N is the
-     * zero-based position in the (re-indexed) input array. This is intentionally
-     * generic: the method only creates the placeholder map and does not assume any
-     * particular SQL operator or clause.
-     *
-     * Typical uses include generating parameter maps for IN-list expressions or
-     * multi-row INSERT placeholders when combined with SQL built elsewhere.
-     *
-     * @param array  $values Sequential (or any) array of values to parameterize.
-     *                       Non-zero-based or non-sequential keys are re-indexed
-     *                       before placeholder names are assigned.
-     * @param string $prefix Optional prefix applied to every placeholder name
-     *                       (e.g. 'ids_' produces ':ids_0', ':ids_1', …).
+     * @param array  $values Array of values to parameterize.
+     * @param string $prefix Optional prefix for placeholder names (e.g. 'ids_' → ':ids_0').
      * @return array Associative array mapping ':prefix_N' => value.
-     *               Returns an empty array when $values is empty.
      *
      * @example
      * ```php
-     * $params = PdoParameterBuilder::buildValues([1, 2, 3], 'ids_');
-     * // [':ids_0' => 1, ':ids_1' => 2, ':ids_2' => 3]
-     *
-     * $params = PdoParameterBuilder::buildValues(['john@email.com'], 'email_');
-     * // [':email_0' => 'john@email.com']
+     * // buildValues([1, 2, 3], 'ids_')
+     * // => [':ids_0' => 1, ':ids_1' => 2, ':ids_2' => 3]
      * ```
      */
     public static function buildValues(array $values, $prefix = '')
@@ -119,31 +82,18 @@ class PdoParameterBuilder
     }
 
     /**
-     * Builds a PDO named-parameter array from an associative column => value map,
-     * giving each entry a placeholder key of the form ':prefix_col'.
-     *
-     * Each column name is validated as a plain (unqualified) SQL identifier via
-     * Query::validateUnqualifiedIdentifier() to prevent injection through key names.
-     *
-     * Unlike buildEquality(), this method does NOT treat NULL specially — NULL values
-     * are included in the returned array as-is so that the caller can bind them to
-     * PDO::PARAM_NULL at execution time. Use this method when you only need the
-     * parameter map (not the SQL fragment), for example when building UPDATE SET bindings.
+     * Builds a PDO named-parameter array from a column => value map.
+     * NULL values are included as-is. Column names are validated as plain SQL identifiers.
      *
      * @param array  $data   Associative array of column => value pairs.
-     * @param string $prefix Optional prefix applied to every placeholder name
-     *                       (e.g. 'set_' produces ':set_col').
+     * @param string $prefix Optional prefix for placeholder names (e.g. 'set_' → ':set_col').
      * @throws InvalidArgumentException If any column name is not a valid unqualified identifier.
      * @return array Associative array mapping ':prefix_col' => value.
-     *               Returns an empty array when $data is empty.
      *
      * @example
      * ```php
-     * $params = PdoParameterBuilder::buildNamedParams(['name' => 'Alice', 'age' => 30]);
-     * // [':name' => 'Alice', ':age' => 30]
-     *
-     * $params = PdoParameterBuilder::buildNamedParams(['name' => 'Alice'], 'set_');
-     * // [':set_name' => 'Alice']
+     * // buildNamedParams(['name' => 'Alice', 'age' => 30])
+     * // => [':name' => 'Alice', ':age' => 30]
      * ```
      */
     public static function buildNamedParams(array $data, $prefix = '')
@@ -160,20 +110,16 @@ class PdoParameterBuilder
 
     /**
      * Builds the SQL SET fragment for an UPDATE statement from an array of column names.
+     * Column names are validated as plain SQL identifiers.
      *
-     * Each column name is validated as a plain (unqualified) SQL identifier via
-     * Query::validateUnqualifiedIdentifier(). Each column maps to a same-named PDO
-     * placeholder (e.g. 'email' -> 'email = :email'). The resulting fragments are
-     * joined by a comma and a space.
-     *
-     * @param array $fields Non-empty array of column names to include in the SET clause.
+     * @param array $fields Non-empty array of column names.
      * @throws InvalidArgumentException If $fields is empty or any name fails identifier validation.
-     * @return string Comma-separated SET fragment, e.g. 'name = :name, email = :email'.
+     * @return string Comma-separated SET fragment.
      *
      * @example
      * ```php
-     * $sql = PdoParameterBuilder::buildSetClause(['name', 'email']);
-     * // 'name = :name, email = :email'
+     * // buildSetClause(['name', 'email'])
+     * // => 'name = :name, email = :email'
      * ```
      */
     public static function buildSetClause(array $fields)
@@ -192,27 +138,18 @@ class PdoParameterBuilder
     }
 
     /**
-     * Builds the per-row placeholder groups for a multi-row INSERT statement.
-     *
-     * For each row index from 0 to ($rowCount - 1) the method produces a parenthesised,
-     * comma-separated list of named placeholders — one per field — in the form
-     * ':col_N' (where N is the row index). The resulting array of row-group strings can
-     * be joined with ', ' and embedded directly into the VALUES clause of an INSERT query.
-     *
-     * Each column name is validated as a plain (unqualified) SQL identifier via
-     * Query::validateUnqualifiedIdentifier() to prevent injection.
+     * Builds the per-row placeholder groups for a multi-row INSERT VALUES clause.
+     * Column names are validated as plain SQL identifiers.
      *
      * @param array $fields   Non-empty array of column names.
-     * @param int   $rowCount Number of rows to generate placeholders for (must be >= 1).
-     * @throws InvalidArgumentException If $fields is empty or $rowCount is less than 1.
-     * @return array Array of row-group strings, e.g.
-     *               ['(:name_0, :email_0)', '(:name_1, :email_1)'] for 2 rows.
+     * @param int   $rowCount Number of rows (must be >= 1).
+     * @throws InvalidArgumentException If $fields is empty or $rowCount < 1.
+     * @return array Array of row-group strings.
      *
      * @example
      * ```php
-     * $groups = PdoParameterBuilder::buildInsertPlaceholders(['name', 'email'], 2);
-     * // ['(:name_0, :email_0)', '(:name_1, :email_1)']
-     * $sql = 'INSERT INTO users (name, email) VALUES ' . implode(', ', $groups);
+     * // buildInsertPlaceholders(['name', 'email'], 2)
+     * // => ['(:name_0, :email_0)', '(:name_1, :email_1)']
      * ```
      */
     public static function buildInsertPlaceholders(array $fields, $rowCount)
@@ -239,5 +176,37 @@ class PdoParameterBuilder
         }
 
         return $groups;
+    }
+
+    /**
+     * Builds the flat PDO named-parameter map for a multi-row INSERT from an array of row arrays.
+     * Each key uses the form ':col_N' (N = zero-based row index).
+     * Column names are validated as plain SQL identifiers.
+     *
+     * @param array $rows Non-empty array of associative arrays (each row must have the same keys).
+     * @throws InvalidArgumentException If $rows is empty or any column name fails identifier validation.
+     * @return array Flat params map, e.g. [':name_0' => 'Alice', ':name_1' => 'Bob'].
+     *
+     * @example
+     * ```php
+     * // buildInsertParams([['name' => 'Alice', 'age' => 30], ['name' => 'Bob', 'age' => 25]])
+     * // => [':name_0' => 'Alice', ':age_0' => 30, ':name_1' => 'Bob', ':age_1' => 25]
+     * ```
+     */
+    public static function buildInsertParams(array $rows)
+    {
+        if (empty($rows)) {
+            throw new InvalidArgumentException('buildInsertParams() requires at least one row.');
+        }
+
+        $params = array();
+        foreach (array_values($rows) as $i => $row) {
+            foreach ($row as $col => $value) {
+                Query::validateUnqualifiedIdentifier($col, 'INSERT field');
+                $params[":{$col}_{$i}"] = $value;
+            }
+        }
+
+        return $params;
     }
 }

@@ -495,4 +495,81 @@ class PdoParameterBuilderTests
             $sql
         );
     }
+
+    // =========================================================================
+    // buildInsertParams — flat PDO param map from array of rows
+    // =========================================================================
+
+    public function testBuildInsertParamsSingleRow()
+    {
+        $params = PdoParameterBuilder::buildInsertParams(array(
+            array('name' => 'Alice', 'age' => 30)
+        ));
+
+        assert_equals(array(':name_0' => 'Alice', ':age_0' => 30), $params);
+    }
+
+    public function testBuildInsertParamsMultipleRows()
+    {
+        $params = PdoParameterBuilder::buildInsertParams(array(
+            array('name' => 'Alice', 'age' => 30),
+            array('name' => 'Bob',   'age' => 25),
+        ));
+
+        assert_equals(
+            array(':name_0' => 'Alice', ':age_0' => 30, ':name_1' => 'Bob', ':age_1' => 25),
+            $params
+        );
+    }
+
+    public function testBuildInsertParamsKeysHaveColonPrefix()
+    {
+        $params = PdoParameterBuilder::buildInsertParams(array(array('x' => 1)));
+
+        foreach (array_keys($params) as $key) {
+            assert_equals(':', $key[0]);
+        }
+    }
+
+    public function testBuildInsertParamsCountMatchesFieldsTimesRows()
+    {
+        $params = PdoParameterBuilder::buildInsertParams(array(
+            array('a' => 1, 'b' => 2),
+            array('a' => 3, 'b' => 4),
+            array('a' => 5, 'b' => 6),
+        ));
+
+        assert_equals(6, count($params));
+    }
+
+    public function testBuildInsertParamsNullValueIncluded()
+    {
+        $params = PdoParameterBuilder::buildInsertParams(array(array('deleted_at' => null)));
+
+        assert_true(array_key_exists(':deleted_at_0', $params));
+        assert_equals(null, $params[':deleted_at_0']);
+    }
+
+    public function testBuildInsertParamsEmptyRowsThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertParams(array());
+        });
+    }
+
+    public function testBuildInsertParamsInvalidColumnThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertParams(array(array('bad.col' => 1)));
+        });
+    }
+
+    public function testBuildInsertParamsUsedForInsertOneLikeBuildValues()
+    {
+        // buildInsertParams([row]) must produce the same keys as the old buildValues loop.
+        $row    = array('name' => 'Alice', 'email' => 'a@b.com');
+        $params = PdoParameterBuilder::buildInsertParams(array($row));
+
+        assert_equals(array(':name_0' => 'Alice', ':email_0' => 'a@b.com'), $params);
+    }
 }

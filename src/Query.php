@@ -657,13 +657,10 @@ class Query
      * @return string The constructed SQL INSERT query.
      * @example
      * ```php
-     * $query = new Query([
-     *     'method' => 'INSERT',
-     *     'table' => 'users',
-     *     'fields' => ['name', 'email'],
-     *     'values_to_insert' => 3
-     * ]);
-     * */
+     * // new Query(['method'=>'INSERT','table'=>'users','fields'=>['name','email'],'values_to_insert'=>2])
+     * // => "INSERT INTO users (name, email) VALUES (:name_0, :email_0), (:name_1, :email_1)"
+     * ```
+     */
     public function buildPDOInsertQuery()
     {
         $this->assertMethod('INSERT');
@@ -684,17 +681,13 @@ class Query
     /**
      * Builds an UPDATE SQL query based on the provided data.
      * @throws InvalidArgumentException if the method is not UPDATE or required fields are missing.
-     * @return string The constructed SQL UPDATE query and parameters.
+     * @return string The constructed SQL UPDATE query.
      * @example
      * ```php
-     * $query = new Query([
-     *   'method' => 'UPDATE',
-     *   'table' => 'users',
-     *   'fields' => ['name', 'email'],
-     *   'where' => 'id = 1',
-     *   'joins' => ['LEFT JOIN orders ON users.id = orders.user_id']
-     * ]);
-     * */
+     * // new Query(['method'=>'UPDATE','table'=>'users','fields'=>['name','email'],'where'=>'id=:id'])
+     * // => "UPDATE users SET name = :name, email = :email WHERE id=:id"
+     * ```
+     */
     public function buildPDOUpdateQuery()
     {
         $this->assertMethod('UPDATE');

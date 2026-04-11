@@ -352,26 +352,14 @@ class Database
     {
         $this->requireConnection();
 
-        $fields = array_keys($fieldsToInsert);
-
-        // Use the Query class to build the insert query
         $query = new Query([
             'method' => 'INSERT',
             'table' => $table,
-            'fields' => $fields,
+            'fields' => array_keys($fieldsToInsert),
             'values_to_insert' => 1
         ]);
 
-        // Build one named-placeholder entry per field for row 0 (e.g. ':name_0' => 'John').
-        $placeholders = array();
-        foreach ($fields as $field) {
-            $placeholders = array_merge(
-                $placeholders,
-                PdoParameterBuilder::buildValues(array($fieldsToInsert[$field]), $field . '_')
-            );
-        }
-
-        $this->prepareAndExecute((string) $query, $placeholders);
+        $this->prepareAndExecute((string) $query, PdoParameterBuilder::buildInsertParams(array($fieldsToInsert)));
         return (int) $this->conn->lastInsertId();
     }
 
@@ -390,7 +378,6 @@ class Database
             throw new InvalidArgumentException("Rows to insert must be a non-empty array of associative arrays.");
         }
 
-        // Validate that all rows are arrays and contain the required fields.
         $expectedFields = array_keys($rowsToInsert[0]);
         foreach ($rowsToInsert as $i => $row) {
             if (!is_array($row)) {
@@ -403,31 +390,14 @@ class Database
             }
         }
 
-        $fields = array_keys($rowsToInsert[0]);
-
-        // Use the Query class to build the insert query
         $query = new Query([
             'method' => 'INSERT',
             'table' => $table,
-            'fields' => $fields,
+            'fields' => $expectedFields,
             'values_to_insert' => count($rowsToInsert)
         ]);
 
-        // Build named-placeholder entries per field across all rows.
-        // For field 'name' with 2 rows: [':name_0' => 'John', ':name_1' => 'Jane'].
-        $placeholders = array();
-        foreach ($fields as $field) {
-            $fieldValues = array();
-            foreach ($rowsToInsert as $row) {
-                $fieldValues[] = $row[$field];
-            }
-            $placeholders = array_merge(
-                $placeholders,
-                PdoParameterBuilder::buildValues($fieldValues, $field . '_')
-            );
-        }
-
-        $this->prepareAndExecute((string) $query, $placeholders);
+        $this->prepareAndExecute((string) $query, PdoParameterBuilder::buildInsertParams($rowsToInsert));
         return (int) $this->conn->lastInsertId();
     }
 
