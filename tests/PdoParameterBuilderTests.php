@@ -620,4 +620,21 @@ class PdoParameterBuilderTests
             ));
         });
     }
+
+    public function testBuildInsertParamsDifferentKeyOrderSucceeds()
+    {
+        // Rows with the same key set but different insertion order must succeed.
+        // Values are mapped by the first row's field order.
+        $params = PdoParameterBuilder::buildInsertParams(array(
+            array('name' => 'Alice', 'age' => 30),
+            array('age' => 25, 'name' => 'Bob'),
+        ));
+
+        assert_equals(array(
+            ':name_0' => 'Alice',
+            ':age_0'  => 30,
+            ':name_1' => 'Bob',
+            ':age_1'  => 25,
+        ), $params);
+    }
 }
