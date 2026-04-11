@@ -221,8 +221,13 @@ class PdoParameterBuilder
                 throw new InvalidArgumentException('buildInsertParams() requires each row to be an associative array.');
             }
 
-            if (array_keys($row) !== $fields) {
-                throw new InvalidArgumentException('buildInsertParams() requires every row to have the same fields in the same order.');
+            $rowFields = array_keys($row);
+            if (
+                count($rowFields) !== count($fields) ||
+                array_diff($fields, $rowFields) ||
+                array_diff($rowFields, $fields)
+            ) {
+                throw new InvalidArgumentException('buildInsertParams() requires every row to have the same fields.');
             }
 
             foreach ($fields as $col) {
