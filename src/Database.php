@@ -388,6 +388,13 @@ class Database
                     throw new InvalidArgumentException("Row at index {$i} is missing required field '{$field}'.");
                 }
             }
+
+            $unexpectedFields = array_diff(array_keys($row), $expectedFields);
+            if (!empty($unexpectedFields)) {
+                throw new InvalidArgumentException(
+                    "Row at index {$i} contains unexpected field(s): '" . implode("', '", $unexpectedFields) . "'."
+                );
+            }
         }
 
         $query = new Query([

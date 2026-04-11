@@ -572,4 +572,48 @@ class PdoParameterBuilderTests
 
         assert_equals(array(':name_0' => 'Alice', ':email_0' => 'a@b.com'), $params);
     }
+
+    public function testBuildInsertParamsRowNotArrayThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertParams(array('not-an-array'));
+        });
+    }
+
+    public function testBuildInsertParamsEmptyFirstRowThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertParams(array(array()));
+        });
+    }
+
+    public function testBuildInsertParamsMismatchedRowKeysThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertParams(array(
+                array('name' => 'Alice', 'age' => 30),
+                array('name' => 'Bob', 'extra' => 99),
+            ));
+        });
+    }
+
+    public function testBuildInsertParamsExtraKeyInLaterRowThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertParams(array(
+                array('name' => 'Alice'),
+                array('name' => 'Bob', 'extra' => 99),
+            ));
+        });
+    }
+
+    public function testBuildInsertParamsSecondRowNotArrayThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertParams(array(
+                array('name' => 'Alice'),
+                'not-an-array',
+            ));
+        });
+    }
 }

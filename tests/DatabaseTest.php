@@ -346,6 +346,17 @@ class DatabaseTest
         assert_equals(2, $this->db->count(self::TABLE));
     }
 
+    public function testInsertManyWithExtraFieldInRowThrows()
+    {
+        $this->resetTable();
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->insert(self::TABLE, [
+                ['name' => 'Alice', 'email' => 'alice@example.com'],
+                ['name' => 'Bob',   'email' => 'bob@example.com', 'extra' => 'x'],
+            ]);
+        });
+    }
+
     // =========================================================================
     // Tests — select / selectOne
     // =========================================================================

@@ -11,7 +11,8 @@
 
 /**
  * Utility class for generating PDO named-parameter placeholders and SQL fragments.
- * All methods are static; no state, no dependencies on Database or Query.
+ * All methods are static and the class maintains no state. Identifier validation
+ * in relevant methods relies on Query::validateUnqualifiedIdentifier().
  *
  * @package DatabaseMethods
  */
@@ -199,11 +200,33 @@ class PdoParameterBuilder
             throw new InvalidArgumentException('buildInsertParams() requires at least one row.');
         }
 
+        $rows = array_values($rows);
+
+        if (!is_array($rows[0])) {
+            throw new InvalidArgumentException('buildInsertParams() requires each row to be an associative array.');
+        }
+
+        if (empty($rows[0])) {
+            throw new InvalidArgumentException('buildInsertParams() requires each row to contain at least one field.');
+        }
+
+        $fields = array_keys($rows[0]);
+        foreach ($fields as $col) {
+            Query::validateUnqualifiedIdentifier($col, 'INSERT field');
+        }
+
         $params = array();
-        foreach (array_values($rows) as $i => $row) {
-            foreach ($row as $col => $value) {
-                Query::validateUnqualifiedIdentifier($col, 'INSERT field');
-                $params[":{$col}_{$i}"] = $value;
+        foreach ($rows as $i => $row) {
+            if (!is_array($row)) {
+                throw new InvalidArgumentException('buildInsertParams() requires each row to be an associative array.');
+            }
+
+            if (array_keys($row) !== $fields) {
+                throw new InvalidArgumentException('buildInsertParams() requires every row to have the same fields in the same order.');
+            }
+
+            foreach ($fields as $col) {
+                $params[":{$col}_{$i}"] = $row[$col];
             }
         }
 
