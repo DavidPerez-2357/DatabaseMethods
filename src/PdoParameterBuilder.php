@@ -184,8 +184,8 @@ class PdoParameterBuilder
      * Each key uses the form ':col_N' (N = zero-based row index).
      * Column names are validated as plain SQL identifiers.
      *
-     * @param array $rows Non-empty array of associative arrays (each row must have the same keys).
-     * @throws InvalidArgumentException If $rows is empty or any column name fails identifier validation.
+     * @param array $rows Non-empty array of associative arrays (each row must have the same keys in the same order as the first row).
+     * @throws InvalidArgumentException If $rows is empty, if any row does not match the first row's keys and key order, or if any column name fails identifier validation.
      * @return array Flat params map, e.g. [':name_0' => 'Alice', ':name_1' => 'Bob'].
      *
      * @example
