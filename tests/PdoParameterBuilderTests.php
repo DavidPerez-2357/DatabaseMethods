@@ -6,9 +6,13 @@
  * Unit tests for the PdoParameterBuilder utility class.
  *
  * Covers:
- *   - buildEquality() — basic equality, prefixed placeholders, NULL (IS NULL), empty input,
- *     invalid identifiers, mixed NULL/non-NULL conditions
- *   - buildValues()   — indexed params, prefixed placeholders, empty input, non-sequential keys
+ *   - buildEquality()           — basic equality, prefixed placeholders, NULL (IS NULL), empty input,
+ *                                 invalid identifiers, mixed NULL/non-NULL conditions
+ *   - buildValues()             — indexed params, prefixed placeholders, empty input, non-sequential keys
+ *   - buildNamedParams()        — named parameter array generation
+ *   - buildSetClause()          — SQL SET clause generation
+ *   - buildInsertPlaceholders() — INSERT placeholder generation
+ *   - buildInsertParams()       — INSERT parameter array generation
  *
  * Run via: php tests/run.php
  *
