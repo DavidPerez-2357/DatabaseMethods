@@ -18,14 +18,20 @@
  */
 class PdoParameterBuilder
 {
+    /** Regex that matches a plain SQL identifier: letter/underscore-first, then alphanumeric/underscores. */
+    const IDENTIFIER_PATTERN = '/^[a-zA-Z_][a-zA-Z0-9_]*$/';
+
+    /** Regex that matches a plain or table-qualified SQL identifier (e.g. 'col' or 'alias.col'). */
+    const QUALIFIED_IDENTIFIER_PATTERN = '/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/';
     /**
      * Builds an AND-joined equality SQL fragment and matching PDO params from a column => value map.
      * NULL values produce "col IS NULL" and are omitted from the params array.
-     * Column names are validated as plain SQL identifiers.
+     * Column names may be plain (e.g. 'email') or table-qualified (e.g. 'u.email').
+     * Dots in qualified names are replaced with underscores in the placeholder (e.g. 'u.email' → ':u_email').
      *
      * @param array  $conditions Associative array of column => value pairs.
      * @param string $prefix     Optional prefix for placeholder names (e.g. 'w_' → ':w_col').
-     * @throws InvalidArgumentException If any column name is not a valid unqualified identifier.
+     * @throws InvalidArgumentException If any column name is not a valid plain or qualified identifier.
      * @return array [string $sql, array $params]
      *
      * @example
@@ -35,6 +41,9 @@ class PdoParameterBuilder
      *
      * // buildEquality(['deleted_at' => null])
      * // => ['deleted_at IS NULL', []]
+     *
+     * // buildEquality(['u.id' => 5, 'u.deleted_at' => null])
+     * // => ['u.id = :u_id AND u.deleted_at IS NULL', [':u_id' => 5]]
      * ```
      */
     public static function buildEquality(array $conditions, $prefix = '')
@@ -87,17 +96,22 @@ class PdoParameterBuilder
 
     /**
      * Builds a PDO named-parameter array from a column => value map.
-     * NULL values are included as-is. Column names are validated as plain SQL identifiers.
+     * NULL values are included as-is.
+     * Column names may be plain (e.g. 'email') or table-qualified (e.g. 'u.email').
+     * Dots in qualified names are replaced with underscores in the placeholder (e.g. 'u.email' → ':u_email').
      *
      * @param array  $data   Associative array of column => value pairs.
      * @param string $prefix Optional prefix for placeholder names (e.g. 'set_' → ':set_col').
-     * @throws InvalidArgumentException If any column name is not a valid unqualified identifier.
-     * @return array Associative array mapping ':prefix_col' => value.
+     * @throws InvalidArgumentException If any column name is not a valid plain or qualified identifier.
+     * @return array Associative array mapping ':prefixCol' => value.
      *
      * @example
      * ```php
      * // buildNamedParams(['name' => 'Alice', 'age' => 30])
      * // => [':name' => 'Alice', ':age' => 30]
+     *
+     * // buildNamedParams(['u.name' => 'Alice', 'u.age' => 30])
+     * // => [':u_name' => 'Alice', ':u_age' => 30]
      * ```
      */
     public static function buildNamedParams(array $data, $prefix = '')
@@ -250,7 +264,7 @@ class PdoParameterBuilder
      */
     private static function validateIdentifier($name, $context)
     {
-        if (!is_string($name) || !preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) {
+        if (!is_string($name) || !preg_match(self::IDENTIFIER_PATTERN, $name)) {
             throw new InvalidArgumentException(
                 "Invalid {$context}: must start with a letter or underscore and contain only"
                 . " alphanumeric characters and underscores (unqualified column name, e.g. 'email' or 'created_at')."
@@ -267,7 +281,7 @@ class PdoParameterBuilder
      */
     private static function validateQualifiedIdentifier($name, $context)
     {
-        if (!is_string($name) || !preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $name)) {
+        if (!is_string($name) || !preg_match(self::QUALIFIED_IDENTIFIER_PATTERN, $name)) {
             throw new InvalidArgumentException(
                 "Invalid {$context}: expected an unqualified name (e.g. 'email') or a"
                 . " qualified name (e.g. 'u.email'); only letters, digits, underscores and one optional dot are allowed."
