@@ -12,7 +12,7 @@
 /**
  * Utility class for generating PDO named-parameter placeholders and SQL fragments.
  * All methods are static and the class maintains no state. Identifier validation
- * in relevant methods relies on Query::validateUnqualifiedIdentifier().
+ * is handled internally by this class.
  *
  * @package DatabaseMethods
  */
@@ -43,7 +43,7 @@ class PdoParameterBuilder
         $params = array();
 
         foreach ($conditions as $col => $value) {
-            Query::validateUnqualifiedIdentifier($col, 'condition column');
+            self::validateIdentifier($col, 'condition column');
 
             if ($value === null) {
                 $parts[] = "{$col} IS NULL";
@@ -105,7 +105,7 @@ class PdoParameterBuilder
         $params = array();
 
         foreach ($data as $col => $value) {
-            Query::validateUnqualifiedIdentifier($col, 'parameter column');
+            self::validateIdentifier($col, 'parameter column');
             $params[':' . $prefix . $col] = $value;
         }
 
@@ -134,7 +134,7 @@ class PdoParameterBuilder
 
         $clauses = array();
         foreach ($fields as $col) {
-            Query::validateUnqualifiedIdentifier($col, 'SET field');
+            self::validateIdentifier($col, 'SET field');
             $clauses[] = "{$col} = :{$col}";
         }
 
@@ -167,7 +167,7 @@ class PdoParameterBuilder
         }
 
         foreach ($fields as $col) {
-            Query::validateUnqualifiedIdentifier($col, 'INSERT field');
+            self::validateIdentifier($col, 'INSERT field');
         }
 
         $groups = array();
@@ -215,7 +215,7 @@ class PdoParameterBuilder
 
         $fields = array_keys($rows[0]);
         foreach ($fields as $col) {
-            Query::validateUnqualifiedIdentifier($col, 'INSERT field');
+            self::validateIdentifier($col, 'INSERT field');
         }
 
         $params = array();
@@ -239,5 +239,22 @@ class PdoParameterBuilder
         }
 
         return $params;
+    }
+
+    /**
+     * Validates that $name is a plain SQL identifier (letter/underscore first, then alphanumeric/underscores).
+     *
+     * @param string $name    The identifier to validate.
+     * @param string $context Human-readable label used in the exception message.
+     * @throws InvalidArgumentException If $name is not a valid unqualified identifier.
+     */
+    private static function validateIdentifier($name, $context)
+    {
+        if (!is_string($name) || !preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) {
+            throw new InvalidArgumentException(
+                "Invalid {$context}: must start with a letter or underscore and contain only"
+                . " alphanumeric characters and underscores (unqualified column name, e.g. 'email' or 'created_at')."
+            );
+        }
     }
 }

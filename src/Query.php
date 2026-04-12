@@ -10,8 +10,6 @@
  * @link https://github.com/DavidPerez-2357/DatabaseMethods
  */
 
-require_once __DIR__ . '/PdoParameterBuilder.php';
-
 /**
  * Query class to build SQL queries based on provided data.
  * Supports SELECT, INSERT, UPDATE, and DELETE methods.
