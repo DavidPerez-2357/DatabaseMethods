@@ -90,11 +90,11 @@ class PdoParameterBuilderTests
         assert_equals(array(':ids_0' => 1, ':ids_1' => 2, ':ids_2' => 3), $params);
     }
 
-    public function testBuildValuesEmptyPrefix()
+    public function testBuildValuesUnderscorePrefix()
     {
-        $params = PdoParameterBuilder::buildValues(array('a', 'b'), '');
+        $params = PdoParameterBuilder::buildValues(array('a', 'b'), '_');
 
-        assert_equals(array(':0' => 'a', ':1' => 'b'), $params);
+        assert_equals(array(':_0' => 'a', ':_1' => 'b'), $params);
     }
 
     public function testBuildValuesEmptyArrayReturnsEmptyArray()

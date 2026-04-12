@@ -116,9 +116,11 @@ PdoParameterBuilder::buildValues(array $values, $prefix = '')
 | Parameter | Type | Description |
 |---|---|---|
 | `$values` | `array` | Indexed array of values |
-| `$prefix` | `string` | Optional prefix for placeholder names (default `''`) |
+| `$prefix` | `string` | Prefix for placeholder names. For PDO named parameters, use a prefix that starts with a letter or underscore (for example, `'id_'`). Although the method signature defaults to `''`, an empty prefix produces placeholders like `:0`, `:1`, ... which are not valid PDO named parameters. |
 
-**Returns:** `array` - associative array mapping `':prefix_N' => value`.
+**Returns:** `array` - associative array mapping `':{prefix}N' => value` (for example, `':id_0' => 10` when `$prefix` is `'id_'`).
+
+> **Note:** For portable PDO named placeholders, always pass a non-empty `$prefix` beginning with a letter or underscore.
 
 **Example:**
 ```php

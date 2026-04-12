@@ -62,8 +62,11 @@ class PdoParameterBuilder
      * Keys are re-indexed before placeholder names are assigned.
      *
      * @param array  $values Array of values to parameterize.
-     * @param string $prefix Optional prefix for placeholder names (e.g. 'ids_' → ':ids_0').
-     * @return array Associative array mapping ':prefix_N' => value.
+     * @param string $prefix Prefix for placeholder names (e.g. 'ids_' → ':ids_0').
+     *                       For PDO named parameters, use a prefix that starts with a letter
+     *                       or underscore (e.g. 'id_'). An empty prefix produces keys like
+     *                       ':0', ':1', ... which are not valid PDO named placeholders.
+     * @return array Associative array mapping ':prefixN' => value.
      *
      * @example
      * ```php
