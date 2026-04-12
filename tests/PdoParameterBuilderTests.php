@@ -75,8 +75,16 @@ class PdoParameterBuilderTests
     public function testBuildEqualityInvalidColumnThrows()
     {
         assert_throws('InvalidArgumentException', function () {
-            PdoParameterBuilder::buildEquality(array('bad.column' => 1));
+            PdoParameterBuilder::buildEquality(array('bad-column' => 1));
         });
+    }
+
+    public function testBuildEqualityQualifiedColumn()
+    {
+        list($sql, $params) = PdoParameterBuilder::buildEquality(array('u.id' => 5, 'u.deleted_at' => null));
+
+        assert_equals('u.id = :u_id AND u.deleted_at IS NULL', $sql);
+        assert_equals(array(':u_id' => 5), $params);
     }
 
     // =========================================================================
@@ -140,8 +148,15 @@ class PdoParameterBuilderTests
     public function testBuildNamedParamsInvalidColumnThrows()
     {
         assert_throws('InvalidArgumentException', function () {
-            PdoParameterBuilder::buildNamedParams(array('bad.col' => 1));
+            PdoParameterBuilder::buildNamedParams(array('bad-col' => 1));
         });
+    }
+
+    public function testBuildNamedParamsQualifiedColumn()
+    {
+        $params = PdoParameterBuilder::buildNamedParams(array('u.name' => 'Alice', 'u.age' => 30));
+
+        assert_equals(array(':u_name' => 'Alice', ':u_age' => 30), $params);
     }
 
     // =========================================================================

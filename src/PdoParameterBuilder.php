@@ -43,12 +43,12 @@ class PdoParameterBuilder
         $params = array();
 
         foreach ($conditions as $col => $value) {
-            self::validateIdentifier($col, 'condition column');
+            self::validateQualifiedIdentifier($col, 'condition column');
 
             if ($value === null) {
                 $parts[] = "{$col} IS NULL";
             } else {
-                $placeholder    = ':' . $prefix . $col;
+                $placeholder    = ':' . $prefix . self::toPlaceholderName($col);
                 $parts[]        = "{$col} = {$placeholder}";
                 $params[$placeholder] = $value;
             }
@@ -105,8 +105,8 @@ class PdoParameterBuilder
         $params = array();
 
         foreach ($data as $col => $value) {
-            self::validateIdentifier($col, 'parameter column');
-            $params[':' . $prefix . $col] = $value;
+            self::validateQualifiedIdentifier($col, 'parameter column');
+            $params[':' . $prefix . self::toPlaceholderName($col)] = $value;
         }
 
         return $params;
@@ -256,5 +256,34 @@ class PdoParameterBuilder
                 . " alphanumeric characters and underscores (unqualified column name, e.g. 'email' or 'created_at')."
             );
         }
+    }
+
+    /**
+     * Validates that $name is a plain or qualified SQL identifier (e.g. 'col' or 'alias.col').
+     *
+     * @param string $name    The identifier to validate.
+     * @param string $context Human-readable label used in the exception message.
+     * @throws InvalidArgumentException If $name is not a valid identifier.
+     */
+    private static function validateQualifiedIdentifier($name, $context)
+    {
+        if (!is_string($name) || !preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/', $name)) {
+            throw new InvalidArgumentException(
+                "Invalid {$context}: expected an unqualified name (e.g. 'email') or a"
+                . " qualified name (e.g. 'u.email'); only letters, digits, underscores and one optional dot are allowed."
+            );
+        }
+    }
+
+    /**
+     * Converts a column name to a safe PDO placeholder name by replacing '.' with '_'.
+     * E.g. 'u.email' becomes 'u_email'.
+     *
+     * @param string $col Column name (unqualified or qualified).
+     * @return string Safe placeholder name.
+     */
+    private static function toPlaceholderName($col)
+    {
+        return str_replace('.', '_', $col);
     }
 }
