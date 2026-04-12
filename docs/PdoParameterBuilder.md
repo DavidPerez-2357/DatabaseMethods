@@ -3,13 +3,13 @@
 `PdoParameterBuilder` is a static utility class for generating PDO named-parameter maps and common SQL fragments. All methods are stateless - no object instantiation required.
 
 > [!NOTE]
-> Identifier validation in relevant methods relies on `Query::validateUnqualifiedIdentifier()`. Column names must be plain unqualified SQL identifiers (letters, digits, underscores, starting with a letter or underscore). Qualified names like `users.email` are rejected.
+> Relevant methods validate identifiers internally using the class's regex-based rules. `buildEquality()` and `buildNamedParams()` accept both unqualified identifiers (for example, `email`) and table-qualified identifiers (for example, `u.email`). When generating placeholder names for qualified identifiers, dots are converted to underscores (for example, `u.email` becomes `:u_email`). If two columns would produce the same placeholder name after substitution, an `InvalidArgumentException` is thrown to prevent silent data loss.
 
 &emsp;
 
 ## buildNamedParams
 
-Builds a PDO named-parameter map from a column -> value associative array. Column names are validated as plain SQL identifiers.
+Builds a PDO named-parameter map from a column -> value associative array. Column names may be plain (e.g. `email`) or table-qualified (e.g. `u.email`). Dots in qualified names are replaced with underscores in the generated placeholder (e.g. `u.email` becomes `:u_email`). If the optional prefix is non-empty, it must be a valid identifier (letter/underscore first). If two columns would produce the same placeholder name, an exception is thrown.
 
 **Signature:**
 ```php
@@ -18,12 +18,12 @@ PdoParameterBuilder::buildNamedParams(array $data, $prefix = '')
 
 | Parameter | Type | Description |
 |---|---|---|
-| `$data` | `array` | Associative array of `column => value` pairs |
-| `$prefix` | `string` | Optional prefix for placeholder names (default `''`) |
+| `$data` | `array` | Associative array of `column => value` pairs; columns may be plain or table-qualified (e.g. `u.email`) |
+| `$prefix` | `string` | Optional prefix for placeholder names (default `''`); if non-empty must be a valid identifier |
 
-**Returns:** `array` - associative array mapping `':prefix_col' => value`.
+**Returns:** `array` - associative array mapping `':prefixCol' => value` (dots in column names are replaced with underscores, e.g. `u.email` → `:u_email`).
 
-**Throws:** `InvalidArgumentException` if any column name fails identifier validation.
+**Throws:** `InvalidArgumentException` if any column name fails identifier validation, if the prefix is non-empty but not a valid identifier, or if two columns produce the same placeholder name after dot-to-underscore substitution.
 
 **Example:**
 ```php
@@ -32,6 +32,10 @@ $params = PdoParameterBuilder::buildNamedParams(['name' => 'Alice', 'age' => 30]
 
 $params = PdoParameterBuilder::buildNamedParams(['name' => 'Alice', 'age' => 30], 'set_');
 // => [':set_name' => 'Alice', ':set_age' => 30]
+
+// Qualified column names: dots are replaced with underscores in placeholders
+$params = PdoParameterBuilder::buildNamedParams(['u.name' => 'Alice', 'u.age' => 30]);
+// => [':u_name' => 'Alice', ':u_age' => 30]
 ```
 
 &emsp;
@@ -116,11 +120,13 @@ PdoParameterBuilder::buildValues(array $values, $prefix = '')
 | Parameter | Type | Description |
 |---|---|---|
 | `$values` | `array` | Indexed array of values |
-| `$prefix` | `string` | Prefix for placeholder names. For PDO named parameters, use a prefix that starts with a letter or underscore (for example, `'id_'`). Although the method signature defaults to `''`, an empty prefix produces placeholders like `:0`, `:1`, ... which are not valid PDO named parameters. |
+| `$prefix` | `string` | Prefix for placeholder names. Must be non-empty when `$values` is non-empty, and must start with a letter or underscore (for example, `'id_'`). An empty prefix with a non-empty `$values` array is rejected because it would produce invalid PDO named placeholder keys like `:0`. |
 
 **Returns:** `array` - associative array mapping `':{prefix}N' => value` (for example, `':id_0' => 10` when `$prefix` is `'id_'`).
 
-> **Note:** For portable PDO named placeholders, always pass a non-empty `$prefix` beginning with a letter or underscore.
+**Throws:** `InvalidArgumentException` if `$values` is non-empty and `$prefix` is empty or not a valid identifier.
+
+> **Note:** Always pass a non-empty `$prefix` beginning with a letter or underscore when `$values` is non-empty.
 
 **Example:**
 ```php

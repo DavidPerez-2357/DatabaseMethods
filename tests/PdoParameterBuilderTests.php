@@ -79,6 +79,21 @@ class PdoParameterBuilderTests
         });
     }
 
+    public function testBuildEqualityInvalidPrefixThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildEquality(array('id' => 1), '123bad');
+        });
+    }
+
+    public function testBuildEqualityPlaceholderCollisionThrows()
+    {
+        // 'u_a.b' → 'u_a_b' and 'u.a_b' → 'u_a_b': both produce the same placeholder name
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildEquality(array('u_a.b' => 1, 'u.a_b' => 2));
+        });
+    }
+
     public function testBuildEqualityQualifiedColumn()
     {
         list($sql, $params) = PdoParameterBuilder::buildEquality(array('u.id' => 5, 'u.deleted_at' => null));
@@ -103,6 +118,20 @@ class PdoParameterBuilderTests
         $params = PdoParameterBuilder::buildValues(array('a', 'b'), '_');
 
         assert_equals(array(':_0' => 'a', ':_1' => 'b'), $params);
+    }
+
+    public function testBuildValuesEmptyPrefixWithValuesThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildValues(array(1, 2, 3));
+        });
+    }
+
+    public function testBuildValuesInvalidPrefixThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildValues(array(1, 2), '9bad_');
+        });
     }
 
     public function testBuildValuesEmptyArrayReturnsEmptyArray()
@@ -149,6 +178,21 @@ class PdoParameterBuilderTests
     {
         assert_throws('InvalidArgumentException', function () {
             PdoParameterBuilder::buildNamedParams(array('bad-col' => 1));
+        });
+    }
+
+    public function testBuildNamedParamsInvalidPrefixThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildNamedParams(array('name' => 'Alice'), '1bad_');
+        });
+    }
+
+    public function testBuildNamedParamsPlaceholderCollisionThrows()
+    {
+        // 'a.b' → 'a_b' and 'a_b' → 'a_b': same placeholder name
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildNamedParams(array('a.b' => 1, 'a_b' => 2));
         });
     }
 

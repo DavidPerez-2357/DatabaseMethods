@@ -28,10 +28,14 @@ class PdoParameterBuilder
      * NULL values produce "col IS NULL" and are omitted from the params array.
      * Column names may be plain (e.g. 'email') or table-qualified (e.g. 'u.email').
      * Dots in qualified names are replaced with underscores in the placeholder (e.g. 'u.email' → ':u_email').
+     * If two column names produce the same placeholder after substitution, an exception is thrown.
      *
      * @param array  $conditions Associative array of column => value pairs.
      * @param string $prefix     Optional prefix for placeholder names (e.g. 'w_' → ':w_col').
-     * @throws InvalidArgumentException If any column name is not a valid plain or qualified identifier.
+     *                           If non-empty, it must be a valid identifier (letter/underscore first).
+     * @throws InvalidArgumentException If any column name is not a valid plain or qualified identifier,
+     *                                  if the prefix is non-empty but not a valid identifier,
+     *                                  or if two columns produce the same placeholder name.
      * @return array [string $sql, array $params]
      *
      * @example
@@ -48,8 +52,16 @@ class PdoParameterBuilder
      */
     public static function buildEquality(array $conditions, $prefix = '')
     {
-        $parts  = array();
-        $params = array();
+        if ($prefix !== '' && !preg_match(self::IDENTIFIER_PATTERN, $prefix)) {
+            throw new InvalidArgumentException(
+                "Invalid prefix for buildEquality(): must start with a letter or underscore and contain only"
+                . " alphanumeric characters and underscores."
+            );
+        }
+
+        $parts            = array();
+        $params           = array();
+        $seenPlaceholders = array();
 
         foreach ($conditions as $col => $value) {
             self::validateQualifiedIdentifier($col, 'condition column');
@@ -57,9 +69,19 @@ class PdoParameterBuilder
             if ($value === null) {
                 $parts[] = "{$col} IS NULL";
             } else {
-                $placeholder    = ':' . $prefix . self::toPlaceholderName($col);
-                $parts[]        = "{$col} = {$placeholder}";
-                $params[$placeholder] = $value;
+                $name = $prefix . self::toPlaceholderName($col);
+
+                if (isset($seenPlaceholders[$name])) {
+                    throw new InvalidArgumentException(
+                        "Placeholder name collision: '{$name}' is produced by more than one column after"
+                        . " dot-to-underscore substitution."
+                    );
+                }
+
+                $seenPlaceholders[$name] = true;
+                $placeholder             = ':' . $name;
+                $parts[]                 = "{$col} = {$placeholder}";
+                $params[$placeholder]    = $value;
             }
         }
 
@@ -72,9 +94,11 @@ class PdoParameterBuilder
      *
      * @param array  $values Array of values to parameterize.
      * @param string $prefix Prefix for placeholder names (e.g. 'ids_' → ':ids_0').
-     *                       For PDO named parameters, use a prefix that starts with a letter
-     *                       or underscore (e.g. 'id_'). An empty prefix produces keys like
-     *                       ':0', ':1', ... which are not valid PDO named placeholders.
+     *                       Must be non-empty when $values is non-empty, and must start with a letter
+     *                       or underscore (e.g. 'id_'). An empty prefix with non-empty $values is
+     *                       rejected because it would produce invalid PDO named placeholder keys
+     *                       like ':0', ':1'.
+     * @throws InvalidArgumentException If $values is non-empty and $prefix is empty or not a valid identifier.
      * @return array Associative array mapping ':prefixN' => value.
      *
      * @example
@@ -85,6 +109,22 @@ class PdoParameterBuilder
      */
     public static function buildValues(array $values, $prefix = '')
     {
+        if (!empty($values)) {
+            if ($prefix === '') {
+                throw new InvalidArgumentException(
+                    'buildValues() requires a non-empty $prefix when $values is non-empty;'
+                    . ' an empty prefix produces invalid PDO named placeholder keys like ":0".'
+                );
+            }
+
+            if (!preg_match(self::IDENTIFIER_PATTERN, $prefix)) {
+                throw new InvalidArgumentException(
+                    "Invalid prefix for buildValues(): must start with a letter or underscore and contain only"
+                    . " alphanumeric characters and underscores."
+                );
+            }
+        }
+
         $params = array();
 
         foreach (array_values($values) as $i => $value) {
@@ -99,10 +139,14 @@ class PdoParameterBuilder
      * NULL values are included as-is.
      * Column names may be plain (e.g. 'email') or table-qualified (e.g. 'u.email').
      * Dots in qualified names are replaced with underscores in the placeholder (e.g. 'u.email' → ':u_email').
+     * If two column names produce the same placeholder after substitution, an exception is thrown.
      *
      * @param array  $data   Associative array of column => value pairs.
      * @param string $prefix Optional prefix for placeholder names (e.g. 'set_' → ':set_col').
-     * @throws InvalidArgumentException If any column name is not a valid plain or qualified identifier.
+     *                       If non-empty, it must be a valid identifier (letter/underscore first).
+     * @throws InvalidArgumentException If any column name is not a valid plain or qualified identifier,
+     *                                  if the prefix is non-empty but not a valid identifier,
+     *                                  or if two columns produce the same placeholder name.
      * @return array Associative array mapping ':prefixCol' => value.
      *
      * @example
@@ -116,11 +160,30 @@ class PdoParameterBuilder
      */
     public static function buildNamedParams(array $data, $prefix = '')
     {
-        $params = array();
+        if ($prefix !== '' && !preg_match(self::IDENTIFIER_PATTERN, $prefix)) {
+            throw new InvalidArgumentException(
+                "Invalid prefix for buildNamedParams(): must start with a letter or underscore and contain only"
+                . " alphanumeric characters and underscores."
+            );
+        }
+
+        $params           = array();
+        $seenPlaceholders = array();
 
         foreach ($data as $col => $value) {
             self::validateQualifiedIdentifier($col, 'parameter column');
-            $params[':' . $prefix . self::toPlaceholderName($col)] = $value;
+
+            $name = $prefix . self::toPlaceholderName($col);
+
+            if (isset($seenPlaceholders[$name])) {
+                throw new InvalidArgumentException(
+                    "Placeholder name collision: '{$name}' is produced by more than one column after"
+                    . " dot-to-underscore substitution."
+                );
+            }
+
+            $seenPlaceholders[$name] = true;
+            $params[':' . $name]     = $value;
         }
 
         return $params;
