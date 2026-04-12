@@ -70,14 +70,6 @@ $params = PdoParameterBuilder::buildInsertParams([
     ['name' => 'Bob',   'age' => 25],
 ]);
 // => [':name_0' => 'Alice', ':age_0' => 30, ':name_1' => 'Bob', ':age_1' => 25]
-
-// Build a SET clause for UPDATE
-$set = PdoParameterBuilder::buildSetClause(['name', 'email']);
-// => 'name = :name, email = :email'
-
-// Build params for an IN clause
-$params = PdoParameterBuilder::buildValues([3, 7, 42], 'id_');
-// => [':id_0' => 3, ':id_1' => 7, ':id_2' => 42]
 ```
 
 [Full PdoParameterBuilder documentation →](docs/PdoParameterBuilder.md)
