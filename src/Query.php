@@ -150,7 +150,11 @@ class Query
      * The `fields` must be provided (either here or via `->fields()`) before the
      * query string is generated.
      *
-     * @param string       $table  Target table name.
+     * `$table` must be a plain or schema-qualified identifier (`'users'`, `'public.users'`).
+     * Table aliases are not valid in INSERT statements and will cause an
+     * `InvalidArgumentException` to be thrown at query-build time.
+     *
+     * @param string       $table  Target table name (plain or schema-qualified; no alias).
      * @param array|string $fields Columns to insert (optional; can be set later with ->fields()).
      *                             A string is normalized to a single-element array.
      * @return static
@@ -180,7 +184,10 @@ class Query
      * The `fields` must be provided (either here or via `->fields()`) before the
      * query string is generated.
      *
-     * @param string       $table  Target table name.
+     * `$table` accepts plain, schema-qualified, or aliased forms:
+     * `'users'`, `'public.users'`, `'users u'`, `'users AS u'`, `'public.users AS u'`.
+     *
+     * @param string       $table  Target table expression (plain, schema-qualified, or with alias).
      * @param array|string $fields Columns to update (optional; can be set later with ->fields()).
      *                             A string is normalized to a single-element array.
      * @return static
@@ -206,7 +213,10 @@ class Query
     /**
      * Creates a DELETE Query for the given table.
      *
-     * @param string $table Target table name.
+     * `$table` accepts plain, schema-qualified, or aliased forms:
+     * `'users'`, `'public.users'`, `'users u'`, `'users AS u'`, `'public.users AS u'`.
+     *
+     * @param string $table Target table expression (plain, schema-qualified, or with alias).
      * @return static
      * @example
      * ```php
@@ -228,7 +238,10 @@ class Query
     /**
      * Sets the target table (alias of table()).
      *
-     * @param string $table Table name.
+     * Accepts plain, schema-qualified, or aliased forms:
+     * `'users'`, `'public.users'`, `'users u'`, `'users AS u'`, `'public.users AS u'`.
+     *
+     * @param string $table Table expression (plain, schema-qualified, or with alias).
      * @return $this
      */
     public function from($table)
@@ -241,7 +254,10 @@ class Query
     /**
      * Sets the target table (alias of from()).
      *
-     * @param string $table Table name.
+     * Accepts plain, schema-qualified, or aliased forms:
+     * `'users'`, `'public.users'`, `'users u'`, `'users AS u'`, `'public.users AS u'`.
+     *
+     * @param string $table Table expression (plain, schema-qualified, or with alias).
      * @return $this
      */
     public function table($table)
@@ -658,7 +674,7 @@ class Query
     public function buildPDOInsertQuery()
     {
         $this->assertMethod('INSERT');
-        $table = $this->requireTable();
+        $table = $this->requirePlainTable();
         $fields = $this->requireFields();
 
         $values = isset($this->data['values_to_insert']) ? (int) $this->data['values_to_insert'] : 1;
@@ -753,11 +769,29 @@ class Query
     }
 
     /**
-     * Returns the table name from data, throwing if it is missing or not a valid identifier.
+     * Returns the table expression from data, throwing if it is missing or not valid.
+     * See SqlValidator::assertAlias() for the exact accepted table-expression syntax.
      * @throws InvalidArgumentException
      * @return string
      */
     private function requireTable()
+    {
+        if (!isset($this->data['table'])) {
+            throw new InvalidArgumentException("Table is required.");
+        }
+        SqlValidator::assertAlias($this->data['table']);
+        return $this->data['table'];
+    }
+
+    /**
+     * Returns the plain table name from data, throwing if it is missing or not a valid
+     * plain identifier (schema-qualified identifiers are allowed; aliases are not).
+     * Used for INSERT, where table aliases are not valid SQL.
+     * See SqlValidator::assertTable() for the exact accepted syntax.
+     * @throws InvalidArgumentException
+     * @return string
+     */
+    private function requirePlainTable()
     {
         if (!isset($this->data['table'])) {
             throw new InvalidArgumentException("Table is required.");
