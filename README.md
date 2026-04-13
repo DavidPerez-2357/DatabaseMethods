@@ -57,6 +57,23 @@ $db->executeTransaction(function($db) {
 
 [Full Database documentation →](docs/Database.md)
 
+---
+
+### [`PdoParameterBuilder`](docs/PdoParameterBuilder.md) - PDO parameter helper
+
+Static utility for building PDO named-parameter arrays and common SQL fragments. Useful when writing queries by hand or extending the library:
+
+```php
+// Build params for a multi-row INSERT
+$params = PdoParameterBuilder::buildInsertParams([
+    ['name' => 'Alice', 'age' => 30],
+    ['name' => 'Bob',   'age' => 25],
+]);
+// => [':name_0' => 'Alice', ':age_0' => 30, ':name_1' => 'Bob', ':age_1' => 25]
+```
+
+[Full PdoParameterBuilder documentation →](docs/PdoParameterBuilder.md)
+
 &emsp;
 
 ## Contributing
