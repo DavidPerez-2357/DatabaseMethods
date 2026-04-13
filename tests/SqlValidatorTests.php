@@ -9,6 +9,7 @@
  *   - assertIdentifier()          - valid plain identifiers, invalid input, context label
  *   - assertQualifiedIdentifier() - plain and schema-qualified identifiers, invalid input
  *   - assertTable()               - plain and schema-qualified table names, invalid input
+ *   - assertAlias()               - table with optional alias expressions, invalid input
  *   - assertField()               - plain field names only (no dots), invalid input
  *   - assertOrderBy()             - valid expressions, whitespace trimming, invalid input
  *   - assertGroupBy()             - valid expressions, whitespace trimming, invalid input
@@ -91,6 +92,28 @@ class SqlValidatorTests
         foreach (array('', 'my table', 'users; DROP TABLE users', 42) as $bad) {
             assert_throws('InvalidArgumentException', function () use ($bad) {
                 SqlValidator::assertTable($bad);
+            });
+        }
+    }
+
+    // =========================================================================
+    // assertAlias
+    // =========================================================================
+
+    public function testAssertAliasAcceptsValidExpressions()
+    {
+        SqlValidator::assertAlias('users');
+        SqlValidator::assertAlias('users u');
+        SqlValidator::assertAlias('users AS u');
+        SqlValidator::assertAlias('public.orders AS o');
+        assert_true(true);
+    }
+
+    public function testAssertAliasRejectsInvalid()
+    {
+        foreach (array('', '1name', 'users; DROP TABLE', 99) as $bad) {
+            assert_throws('InvalidArgumentException', function () use ($bad) {
+                SqlValidator::assertAlias($bad);
             });
         }
     }

@@ -18,20 +18,30 @@
 class SqlValidator
 {
     /**
-     * Regex that matches a plain SQL identifier:
-     * letter/underscore first, then alphanumeric/underscores.
+     * Base identifier segment (no delimiters/anchors): letter/underscore first,
+     * then alphanumeric/underscores.  Repeated literally in every regex below
+     * because PHP 5.4 class constants do not support expression initializers.
+     *
+     * Segment: [a-zA-Z_][a-zA-Z0-9_]*
+     */
+
+    /**
+     * Regex that matches a plain SQL identifier.
+     * Base segment: [a-zA-Z_][a-zA-Z0-9_]*
      * E.g. 'users', 'created_at'.
      */
     const IDENTIFIER_REGEX = '/^[a-zA-Z_][a-zA-Z0-9_]*$/';
 
     /**
      * Regex that matches a plain or schema-qualified SQL identifier.
+     * Built from: IDENTIFIER_REGEX ( "." IDENTIFIER_REGEX )?
      * E.g. 'users', 'public.users', 'dbo.orders'.
      */
     const QUALIFIED_IDENTIFIER_REGEX = '/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/';
 
     /**
      * Regex that matches a table expression with an optional alias.
+     * Built from: QUALIFIED_IDENTIFIER_REGEX ( \s+ (AS \s+)? IDENTIFIER_REGEX )?
      * Supports: 'users', 'users u', 'users AS u', 'public.users u', 'public.users AS u'.
      * Case-insensitive for the AS keyword.
      */
@@ -39,7 +49,7 @@ class SqlValidator
 
     /**
      * Regex that matches a comma-separated ORDER BY expression list.
-     * Each item: [table.]column [ASC|DESC].
+     * Each item: QUALIFIED_IDENTIFIER_REGEX \s* (ASC|DESC)?
      * E.g. 'name ASC', 'created_at DESC', 'users.name ASC, email DESC'.
      * Case-insensitive for ASC/DESC.
      */
@@ -47,7 +57,7 @@ class SqlValidator
 
     /**
      * Regex that matches a comma-separated GROUP BY expression list.
-     * Each item: [table.]column (no ASC/DESC allowed).
+     * Each item: QUALIFIED_IDENTIFIER_REGEX (no ASC/DESC allowed).
      * E.g. 'name', 'users.id', 'name, email'.
      */
     const GROUP_BY_REGEX = '/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?(\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?)*$/';
@@ -98,6 +108,23 @@ class SqlValidator
             throw new InvalidArgumentException(
                 "Invalid table name: only alphanumeric characters and underscores are allowed"
                 . " (optionally schema-qualified, e.g. 'schema.table')."
+            );
+        }
+    }
+
+    /**
+     * Asserts that $expr is a valid table expression with an optional alias.
+     * Accepts: 'users', 'users u', 'users AS u', 'public.users AS u'.
+     *
+     * @param string $expr The table expression to validate.
+     * @throws InvalidArgumentException If $expr is not a valid aliased table expression.
+     */
+    public static function assertAlias($expr)
+    {
+        if (!is_string($expr) || !preg_match(self::ALIAS_IDENTIFIER_REGEX, $expr)) {
+            throw new InvalidArgumentException(
+                "Invalid table expression: expected a table name with an optional alias,"
+                . " e.g. 'users', 'users u', or 'public.orders AS o'."
             );
         }
     }
