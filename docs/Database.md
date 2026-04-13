@@ -115,7 +115,7 @@ Execute any SQL write statement directly. Always returns the PDO-reported `rowCo
 Throws on error.
 
 ```php
-// Write query — returns affected row count
+// Write query - returns affected row count
 $affected = $database->runPlainQuery(
     'UPDATE users SET active = 0 WHERE id = :userId',
     ['userId' => 2]

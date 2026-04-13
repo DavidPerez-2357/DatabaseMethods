@@ -3,7 +3,7 @@
 /**
  * tests/run.php
  *
- * Minimal test runner — no external libraries required.
+ * Minimal test runner - no external libraries required.
  * Runs QueryTests (unit tests) and DatabaseTest (integration tests).
  *
  * Usage:
@@ -126,7 +126,7 @@ function assert_throws($expectedClass, $fn, $msg = '')
                 )
             );
         }
-        return; // Expected exception was thrown — test passes
+        return; // Expected exception was thrown - test passes
     }
 
     throw new TestAssertionException(
@@ -206,13 +206,13 @@ function run_suite($suite, $label, $teardown = null)
 
 $totalFailed = 0;
 
-// Unit tests — Query class
+// Unit tests - Query class
 $totalFailed += run_suite(new QueryTests(), 'Query');
 
-// Unit tests — PdoParameterBuilder utility
+// Unit tests - PdoParameterBuilder utility
 $totalFailed += run_suite(new PdoParameterBuilderTests(), 'PdoParameterBuilder');
 
-// Integration tests — Database class (SQLite by default; configure in DatabaseTest.php)
+// Integration tests - Database class (SQLite by default; configure in DatabaseTest.php)
 $dbSuite = null;
 try {
     $dbSuite = new DatabaseTest();

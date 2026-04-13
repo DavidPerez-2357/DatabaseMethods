@@ -1,0 +1,55 @@
+# Project Structure and Architecture
+
+## Project Structure
+
+```
+DatabaseMethods/
+├── DatabaseMethods.php          # Single entry-point: auto-loads all classes below
+├── src/
+│   ├── Database.php             # PDO wrapper base class (select, insert, update, delete, count, transactions)
+│   ├── Query.php                # SQL builder (fluent API + array constructor)
+│   ├── PdoParameterBuilder.php  # Static helper for building named PDO parameter arrays
+│   └── drivers/
+│       ├── Mysql.php            # MySQL driver (extends Database)
+│       ├── Postgres.php         # PostgreSQL driver (extends Database)
+│       ├── Sql.php              # SQL Server driver (extends Database)
+│       └── Sqlite.php           # SQLite driver (extends Database)
+├── tests/
+│   ├── run.php                  # Custom test runner (no PHPUnit)
+│   ├── QueryTests.php           # Unit tests for Query
+│   ├── DatabaseTest.php         # Integration tests for Database (uses SQLite)
+│   └── PdoParameterBuilderTests.php  # Unit tests for PdoParameterBuilder
+├── docs/
+│   ├── Query.md                 # Full Query API documentation
+│   ├── Database.md              # Full Database API documentation
+│   └── PdoParameterBuilder.md  # Full PdoParameterBuilder API documentation
+├── README.md
+├── CONTRIBUTING.md
+└── LICENSE
+```
+
+## Layered Architecture
+
+Follow this strict layering when adding code:
+
+1. **`Query`** (`src/Query.php`): Pure SQL-string builder. No PDO, no I/O. Validates identifiers, builds parameterised SQL strings. New query-builder features go here.
+2. **`PdoParameterBuilder`** (`src/PdoParameterBuilder.php`): Static utility. Builds named-parameter arrays and common SQL fragments (equality, set clauses, insert placeholders). No PDO execution.
+3. **`Database`** (`src/Database.php`): Base PDO wrapper. Executes SQL using `Query` objects or raw strings. Handles connection, locking (where applicable), result formatting, and keyword replacement for CRUD sugar. Driver-agnostic logic lives here.
+4. **Drivers** (`src/drivers/`): Thin subclasses of `Database`. Each driver sets up the PDO DSN and may override `$supportedJoins` or connection-specific behaviour. Keep driver classes minimal.
+
+## Entry Point
+
+`DatabaseMethods.php` uses `require_once` to load all classes. Any new source file added to `src/` (or `src/drivers/`) **must** be added to this loader.
+
+## Query Builder: Key Invariants
+
+- The `getQuery()` method builds and caches the SQL string; it is called by `__toString()`.
+- Whenever a fluent setter changes state, set `$this->query = null` to invalidate the cache.
+- All column/table identifiers that are interpolated into SQL must be validated.
+- Both the fluent API (static factory + chained setters) and the array constructor must produce identical SQL for the same logical query.
+
+## Database: Key Invariants
+
+- Public CRUD methods (`select`, `selectOne`, `insert`, `update`, `delete`, `deleteAll`, `count`) are routed through `__call()`, which applies keyword replacement before delegating to the private implementation.
+- Parameterised values are always bound via `bindNamedParams()`; never concatenated.
+- `executeTransaction($callback)` wraps a callback in a PDO transaction with automatic rollback on exception.

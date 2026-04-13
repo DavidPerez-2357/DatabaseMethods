@@ -83,13 +83,13 @@ class Database
      * or $default when none of the keys are present.
      *
      * Canonical connection-config keys and their accepted aliases:
-     *  - serverName  : host      — hostname or IP address of the database server
-     *  - username    : user      — database user
-     *  - DB          : dbname    — database/schema identifier for server-based drivers
+     *  - serverName  : host      - hostname or IP address of the database server
+     *  - username    : user      - database user
+     *  - DB          : dbname    - database/schema identifier for server-based drivers
      *                             and the SQLite database file path when using the
      *                             SQLite driver (used as dsn "sqlite:{DB}")
-     *  - password    : (none)    — user password
-     *  - codification: (none)    — character encoding (e.g. "utf8", "utf8mb4")
+     *  - password    : (none)    - user password
+     *  - codification: (none)    - character encoding (e.g. "utf8", "utf8mb4")
      *
      * @param array $ppt     Configuration array passed to the driver constructor.
      * @param array $keys    Ordered list of key names to try (first match wins).
@@ -333,7 +333,7 @@ class Database
     {
         // Detect if the data is a single record or multiple records
         if (isset($dataToInsert[0]) && is_array($dataToInsert[0])) {
-            // Multiple records — keywords were already replaced by __call before dispatch.
+            // Multiple records: keywords were already replaced by __call before dispatch.
             return $this->insertMany($table, $dataToInsert);
         } else {
             // Single record

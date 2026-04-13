@@ -43,7 +43,7 @@ define(
     . '.sqlite'
 );
 
-// MySQL / PostgreSQL / SQL Server — fill in your credentials:
+// MySQL / PostgreSQL / SQL Server - fill in your credentials:
 define('DB_TEST_HOST', 'localhost');
 define('DB_TEST_USER', 'root');
 define('DB_TEST_PASS', '');
@@ -160,7 +160,7 @@ class DatabaseTest
     /**
      * Drops the test table and, where supported, removes the test database or
      * file. SQLite deletes DB_TEST_FILE; MySQL and PostgreSQL drop DB_TEST_NAME.
-     * SQL Server only drops the test table — it does not create or drop a
+     * SQL Server only drops the test table - it does not create or drop a
      * database, so no extra cleanup is needed.
      * Must be called after all tests have run.
      */
@@ -282,7 +282,7 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — insert
+    // Tests - insert
     // =========================================================================
 
     public function testInsertSingleRecordReturnsPositiveId()
@@ -358,7 +358,7 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — select / selectOne
+    // Tests - select / selectOne
     // =========================================================================
 
     public function testSelectReturnsAllRows()
@@ -432,7 +432,7 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — update
+    // Tests - update
     // =========================================================================
 
     public function testUpdateModifiesRecord()
@@ -472,7 +472,7 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — delete
+    // Tests - delete
     // =========================================================================
 
     public function testDeleteRemovesMatchingRow()
@@ -522,7 +522,7 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — deleteAll
+    // Tests - deleteAll
     // =========================================================================
 
     public function testDeleteAllRemovesAllRows()
@@ -543,7 +543,7 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — count
+    // Tests - count
     // =========================================================================
 
     public function testCountReturnsTotal()
@@ -601,7 +601,7 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — select (raw SQL string)
+    // Tests - select (raw SQL string)
     // =========================================================================
 
     public function testSelectRawSqlReturnsAllRows()
@@ -636,7 +636,7 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — runPlainQuery
+    // Tests - runPlainQuery
     // =========================================================================
 
     public function testRunPlainQueryReturnsAffectedRowCountForWriteQuery()
@@ -663,7 +663,7 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — plainSelect
+    // Tests - plainSelect
     // =========================================================================
 
     public function testPlainSelectReturnsRowsForSelectQuery()
@@ -710,7 +710,7 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — executeTransaction
+    // Tests - executeTransaction
     // =========================================================================
 
     public function testExecuteTransactionCommitsOnSuccess()
@@ -732,13 +732,13 @@ class DatabaseTest
                 throw new RuntimeException('Simulated failure');
             });
         } catch (RuntimeException $e) {
-            // Expected — the transaction should have been rolled back.
+            // Expected - the transaction should have been rolled back.
         }
         assert_equals(0, $this->db->count(self::TABLE), 'Rolled-back transaction must leave no rows.');
     }
 
     // =========================================================================
-    // Tests — setJsonEncode
+    // Tests - setJsonEncode
     // =========================================================================
 
     public function testSetJsonEncodeTrueReturnsJsonStringFromSelect()
@@ -776,7 +776,7 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — enableKeywordCkeck
+    // Tests - enableKeywordCkeck
     // =========================================================================
 
     public function testKeywordCheckEnabledByDefaultReplacesKeyword()
@@ -815,7 +815,7 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — getLastInsertId
+    // Tests - getLastInsertId
     // =========================================================================
 
     public function testGetLastInsertIdMatchesInsertReturnValue()
@@ -827,7 +827,7 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — NULL value handling
+    // Tests - NULL value handling
     // Requires a table with a nullable column. A dedicated table is created and
     // dropped within each test to keep them fully independent.
     // =========================================================================
@@ -951,7 +951,7 @@ class DatabaseTest
     }
 
     // =========================================================================
-    // Tests — getSupportedJoinTypes
+    // Tests - getSupportedJoinTypes
     // =========================================================================
 
     public function testGetSupportedJoinTypesReturnsArray()

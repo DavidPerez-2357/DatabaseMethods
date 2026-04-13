@@ -3,7 +3,7 @@
 /**
  * Mysql.php
  *
- * MySQL driver — extends the Database base class and establishes
+ * MySQL driver - extends the Database base class and establishes
  * a PDO connection to a MySQL / MariaDB server.
  *
  * @author DavidPerez-2357

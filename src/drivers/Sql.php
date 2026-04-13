@@ -3,7 +3,7 @@
 /**
  * Sql.php
  *
- * SQL Server driver — extends the Database base class and establishes
+ * SQL Server driver - extends the Database base class and establishes
  * a PDO connection to a Microsoft SQL Server instance via the sqlsrv DSN.
  *
  * @author DavidPerez-2357

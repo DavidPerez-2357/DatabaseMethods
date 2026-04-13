@@ -3,7 +3,7 @@
 /**
  * Sqlite.php
  *
- * SQLite driver — extends the Database base class and establishes
+ * SQLite driver - extends the Database base class and establishes
  * a PDO connection to a SQLite database file.
  *
  * @author DavidPerez-2357

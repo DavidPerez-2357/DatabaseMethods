@@ -3,7 +3,7 @@
 /**
  * Postgres.php
  *
- * PostgreSQL driver — extends the Database base class and establishes
+ * PostgreSQL driver - extends the Database base class and establishes
  * a PDO connection to a PostgreSQL server.
  *
  * @author DavidPerez-2357

@@ -13,11 +13,11 @@
  *   - All chainable setters: from(), table(), fields(), where(), join(),
  *     joins(), groupBy(), having(), orderBy(), limit(), offset(), valuesCount()
  *   - Cache-invalidation: setter after build resets cached SQL
- *   - buildSelectQuery() — full SQL, all clauses, edge cases
- *   - buildPDOInsertQuery() — single/multi-row placeholders, error paths
- *   - buildPDOUpdateQuery() — SET clause, JOINs, error paths
- *   - buildDeleteQuery() — WHERE, ORDER BY, LIMIT semantics, error paths
- *   - validateOrderBy() — valid patterns, injection attempts, type errors
+ *   - buildSelectQuery() - full SQL, all clauses, edge cases
+ *   - buildPDOInsertQuery() - single/multi-row placeholders, error paths
+ *   - buildPDOUpdateQuery() - SET clause, JOINs, error paths
+ *   - buildDeleteQuery() - WHERE, ORDER BY, LIMIT semantics, error paths
+ *   - validateOrderBy() - valid patterns, injection attempts, type errors
  *
  * Run via: php tests/run.php
  *
@@ -122,7 +122,7 @@ class QueryTests
 
     public function testToStringOnBuildErrorEmitsWarningAndReturnsEmptyString()
     {
-        $q      = new Query(); // lazy; no method set — buildQuery() will throw
+        $q      = new Query(); // lazy; no method set - buildQuery() will throw
         $result = $this->captureWarnings(function () use ($q) {
             return (string) $q;
         });
@@ -278,7 +278,7 @@ class QueryTests
 
     public function testInsertMissingFieldsThrowsAtBuildTime()
     {
-        $q = Query::insert('users'); // fields not yet set — lazy
+        $q = Query::insert('users'); // fields not yet set - lazy
         assert_throws('InvalidArgumentException', function () use ($q) {
             $q->getQuery();
         });
@@ -336,7 +336,7 @@ class QueryTests
 
     public function testUpdateMissingFieldsThrowsAtBuildTime()
     {
-        $q = Query::update('users'); // fields not yet set — lazy
+        $q = Query::update('users'); // fields not yet set - lazy
         assert_throws('InvalidArgumentException', function () use ($q) {
             $q->getQuery();
         });
@@ -542,7 +542,7 @@ class QueryTests
     public function testJoinNormalizesNonArrayExistingJoins()
     {
         // Simulate the array-constructor path where 'joins' is stored as a plain
-        // string and then join() is called — join() must normalize it first.
+        // string and then join() is called - join() must normalize it first.
         $q = new Query([
             'method' => 'SELECT',
             'fields' => ['*'],
@@ -708,7 +708,7 @@ class QueryTests
     }
 
     // =========================================================================
-    // Cache invalidation — setter after build must reset cached SQL
+    // Cache invalidation - setter after build must reset cached SQL
     // =========================================================================
 
     public function testWhereInvalidatesBuiltQuery()
@@ -763,7 +763,7 @@ class QueryTests
     }
 
     // =========================================================================
-    // buildSelectQuery — full SQL output and all clauses
+    // buildSelectQuery - full SQL output and all clauses
     // =========================================================================
 
     public function testSelectFullSqlWithAllClauses()
@@ -837,7 +837,7 @@ class QueryTests
 
     public function testSelectArrayConstructorStringSqlInjectionInLimitIsIgnored()
     {
-        // filter_var rejects the malicious string — no LIMIT and no injected SQL
+        // filter_var rejects the malicious string - no LIMIT and no injected SQL
         $q = new Query([
             'method' => 'SELECT',
             'table'  => 't',
@@ -882,7 +882,7 @@ class QueryTests
     }
 
     // =========================================================================
-    // buildPDOInsertQuery — placeholders
+    // buildPDOInsertQuery - placeholders
     // =========================================================================
 
     public function testInsertSingleRowPlaceholders()
@@ -915,7 +915,7 @@ class QueryTests
     }
 
     // =========================================================================
-    // buildPDOUpdateQuery — SET clause
+    // buildPDOUpdateQuery - SET clause
     // =========================================================================
 
     public function testUpdateSetClauseMultipleFields()
@@ -1315,7 +1315,7 @@ class QueryTests
     }
 
     // =========================================================================
-    // buildQuery — unsupported / missing method
+    // buildQuery - unsupported / missing method
     // =========================================================================
 
     public function testUnsupportedMethodThrowsViaArrayConstructor()
