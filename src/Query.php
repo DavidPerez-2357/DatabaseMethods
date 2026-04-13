@@ -150,7 +150,10 @@ class Query
      * The `fields` must be provided (either here or via `->fields()`) before the
      * query string is generated.
      *
-     * @param string       $table  Target table name.
+     * `$table` must be a plain or schema-qualified identifier (`'users'`, `'public.users'`).
+     * Table aliases are not valid in INSERT statements and will throw.
+     *
+     * @param string       $table  Target table name (plain or schema-qualified; no alias).
      * @param array|string $fields Columns to insert (optional; can be set later with ->fields()).
      *                             A string is normalized to a single-element array.
      * @return static
@@ -180,7 +183,10 @@ class Query
      * The `fields` must be provided (either here or via `->fields()`) before the
      * query string is generated.
      *
-     * @param string       $table  Target table name.
+     * `$table` accepts plain, schema-qualified, or aliased forms:
+     * `'users'`, `'public.users'`, `'users u'`, `'users AS u'`, `'public.users AS u'`.
+     *
+     * @param string       $table  Target table expression (plain, schema-qualified, or with alias).
      * @param array|string $fields Columns to update (optional; can be set later with ->fields()).
      *                             A string is normalized to a single-element array.
      * @return static
@@ -206,7 +212,10 @@ class Query
     /**
      * Creates a DELETE Query for the given table.
      *
-     * @param string $table Target table name.
+     * `$table` accepts plain, schema-qualified, or aliased forms:
+     * `'users'`, `'public.users'`, `'users u'`, `'users AS u'`, `'public.users AS u'`.
+     *
+     * @param string $table Target table expression (plain, schema-qualified, or with alias).
      * @return static
      * @example
      * ```php
@@ -228,7 +237,10 @@ class Query
     /**
      * Sets the target table (alias of table()).
      *
-     * @param string $table Table name.
+     * Accepts plain, schema-qualified, or aliased forms:
+     * `'users'`, `'public.users'`, `'users u'`, `'users AS u'`, `'public.users AS u'`.
+     *
+     * @param string $table Table expression (plain, schema-qualified, or with alias).
      * @return $this
      */
     public function from($table)
@@ -241,7 +253,10 @@ class Query
     /**
      * Sets the target table (alias of from()).
      *
-     * @param string $table Table name.
+     * Accepts plain, schema-qualified, or aliased forms:
+     * `'users'`, `'public.users'`, `'users u'`, `'users AS u'`, `'public.users AS u'`.
+     *
+     * @param string $table Table expression (plain, schema-qualified, or with alias).
      * @return $this
      */
     public function table($table)

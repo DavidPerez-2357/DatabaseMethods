@@ -975,10 +975,10 @@ class QueryTests
         });
     }
 
-    public function testInsertWithPlainTableProducesCorrectSql()
+    public function testInsertWithSchemaQualifiedTableProducesCorrectSql()
     {
-        $sql = Query::insert('users', ['name', 'email'])->getQuery();
-        assert_equals('INSERT INTO users (name, email) VALUES (:name_0, :email_0)', $sql);
+        $sql = Query::insert('public.users', ['name', 'email'])->getQuery();
+        assert_equals('INSERT INTO public.users (name, email) VALUES (:name_0, :email_0)', $sql);
     }
 
     public function testInsertWithTableAliasThrows()
