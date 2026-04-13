@@ -151,7 +151,8 @@ class Query
      * query string is generated.
      *
      * `$table` must be a plain or schema-qualified identifier (`'users'`, `'public.users'`).
-     * Table aliases are not valid in INSERT statements and will throw.
+     * Table aliases are not valid in INSERT statements and will cause an
+     * `InvalidArgumentException` to be thrown at query-build time.
      *
      * @param string       $table  Target table name (plain or schema-qualified; no alias).
      * @param array|string $fields Columns to insert (optional; can be set later with ->fields()).
