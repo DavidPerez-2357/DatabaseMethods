@@ -9,6 +9,7 @@ DatabaseMethods/
 │   ├── Database.php             # PDO wrapper base class (select, insert, update, delete, count, transactions)
 │   ├── Query.php                # SQL builder (fluent API + array constructor)
 │   ├── PdoParameterBuilder.php  # Static helper for building named PDO parameter arrays
+│   ├── SqlValidator.php         # Centralized SQL identifier/expression validation utility
 │   └── drivers/
 │       ├── Mysql.php            # MySQL driver (extends Database)
 │       ├── Postgres.php         # PostgreSQL driver (extends Database)
@@ -16,9 +17,10 @@ DatabaseMethods/
 │       └── Sqlite.php           # SQLite driver (extends Database)
 ├── tests/
 │   ├── run.php                  # Custom test runner (no PHPUnit)
+│   ├── SqlValidatorTests.php    # Unit tests for SqlValidator
 │   ├── QueryTests.php           # Unit tests for Query
-│   ├── DatabaseTest.php         # Integration tests for Database (uses SQLite)
-│   └── PdoParameterBuilderTests.php  # Unit tests for PdoParameterBuilder
+│   ├── PdoParameterBuilderTests.php  # Unit tests for PdoParameterBuilder
+│   └── DatabaseTest.php         # Integration tests for Database (uses SQLite)
 ├── docs/
 │   ├── Query.md                 # Full Query API documentation
 │   ├── Database.md              # Full Database API documentation

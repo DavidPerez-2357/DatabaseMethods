@@ -33,12 +33,6 @@
  */
 class Query
 {
-    /**
-     * Regex segment matching a single SQL identifier: letters, digits, and underscores,
-     * must start with a letter or underscore. Used by all identifier-validation methods.
-     */
-    const IDENTIFIER = '[a-zA-Z_][a-zA-Z0-9_]*';
-
     private $data;
     private $query;
 
@@ -461,7 +455,7 @@ class Query
     /**
      * Sets the GROUP BY clause.
      *
-     * The value is validated by validateGroupBy() when the query is built.
+     * The value is validated by SqlValidator::assertGroupBy() when the query is built.
      * Only plain column names (optionally table-qualified) are allowed, e.g.
      * `'users.id'` or `'id, name'`.
      *
@@ -494,7 +488,7 @@ class Query
 
     /**
      * Sets the ORDER BY clause.
-     * The value is validated by validateOrderBy() when the query is built.
+     * The value is validated by SqlValidator::assertOrderBy() when the query is built.
      *
      * @param string $orderBy Column(s) with optional ASC/DESC (e.g. `name ASC, id DESC`).
      * @return $this
@@ -623,7 +617,7 @@ class Query
         }
 
         if (!empty($this->data['group_by'])) {
-            $sql .= " GROUP BY " . self::validateGroupBy($this->data['group_by']);
+            $sql .= " GROUP BY " . SqlValidator::assertGroupBy($this->data['group_by']);
         }
 
         if (!empty($this->data['having'])) {
@@ -631,7 +625,7 @@ class Query
         }
 
         if (!empty($this->data['order_by'])) {
-            $sql .= " ORDER BY " . self::validateOrderBy($this->data['order_by']);
+            $sql .= " ORDER BY " . SqlValidator::assertOrderBy($this->data['order_by']);
         }
 
         $limit = $this->getValidatedLimit();
@@ -706,65 +700,6 @@ class Query
     }
 
     /**
-     * Validates an ORDER BY value to prevent SQL injection.
-     * Each token must be a valid SQL identifier (optionally table-qualified) followed
-     * by an optional ASC or DESC keyword. Multiple columns may be separated by commas.
-     * @param string $orderBy The ORDER BY value to validate.
-     * @throws InvalidArgumentException if the value is not a string or contains disallowed characters.
-     * @return string The trimmed, validated ORDER BY string.
-     */
-    public static function validateOrderBy($orderBy)
-    {
-        if (!is_string($orderBy)) {
-            throw new InvalidArgumentException("order_by must be a string.");
-        }
-
-        $orderBy = trim($orderBy);
-        $id = self::IDENTIFIER;
-
-        // Each token: optional_table.column_name optional_ASC_DESC, separated by commas
-        $pattern = '/^' . $id . '(\.' . $id . ')?\s*(ASC|DESC)?'
-            . '(\s*,\s*' . $id . '(\.' . $id . ')?\s*(ASC|DESC)?)*$/i';
-
-        if (!preg_match($pattern, $orderBy)) {
-            throw new InvalidArgumentException(
-                "Invalid order_by value. Use column names with optional ASC/DESC, e.g. 'created_at DESC, id ASC'."
-            );
-        }
-
-        return $orderBy;
-    }
-
-    /**
-     * Validates a GROUP BY value to prevent SQL injection.
-     * Each token must be a valid SQL identifier (optionally table-qualified).
-     * Multiple columns may be separated by commas.
-     * @param string $groupBy The GROUP BY value to validate.
-     * @throws InvalidArgumentException if the value is not a string or contains disallowed characters.
-     * @return string The trimmed, validated GROUP BY string.
-     */
-    public static function validateGroupBy($groupBy)
-    {
-        if (!is_string($groupBy)) {
-            throw new InvalidArgumentException("group_by must be a string.");
-        }
-
-        $groupBy = trim($groupBy);
-        $id = self::IDENTIFIER;
-
-        // Each token: optional_table.column_name, separated by commas (no ASC/DESC)
-        $pattern = '/^' . $id . '(\.' . $id . ')?(\s*,\s*' . $id . '(\.' . $id . ')?)*$/';
-
-        if (!preg_match($pattern, $groupBy)) {
-            throw new InvalidArgumentException(
-                "Invalid group_by value. Use plain column names, e.g. 'users.id' or 'id, name'."
-            );
-        }
-
-        return $groupBy;
-    }
-
-    /**
      * Builds a DELETE SQL query based on the provided data.
      * @throws InvalidArgumentException if the method is not DELETE or required fields are missing.
      * @return string The constructed SQL DELETE query.
@@ -790,7 +725,7 @@ class Query
         }
 
         if (!empty($this->data['order_by'])) {
-            $sql .= " ORDER BY " . self::validateOrderBy($this->data['order_by']);
+            $sql .= " ORDER BY " . SqlValidator::assertOrderBy($this->data['order_by']);
         }
 
         $limit = $this->getValidatedLimit();
@@ -827,7 +762,7 @@ class Query
         if (!isset($this->data['table'])) {
             throw new InvalidArgumentException("Table is required.");
         }
-        self::validateIdentifier($this->data['table'], 'table name');
+        SqlValidator::assertTable($this->data['table']);
         return $this->data['table'];
     }
 
@@ -914,50 +849,5 @@ class Query
             return $fields;
         }
         throw new InvalidArgumentException("{$context} expects \$fields to be an array or string.");
-    }
-
-    /**
-     * Validates that a value is a safe SQL identifier (or schema-qualified identifier).
-     * Allows `identifier` or `schema.identifier` - the same character set used by
-     * validateOrderBy() and validateGroupBy().
-     *
-     * This is the primary guard against SQL injection for table names and column names
-     * that are interpolated directly into the query string.
-     *
-     * @param string $name    The identifier to validate.
-     * @param string $context Human-readable name used in exception messages (e.g. 'table name').
-     * @throws InvalidArgumentException if $name is not a safe SQL identifier.
-     * @return void
-     */
-    public static function validateIdentifier($name, $context)
-    {
-        $id = self::IDENTIFIER;
-        if (!is_string($name) || !preg_match('/^' . $id . '(\.' . $id . ')?$/', $name)) {
-            throw new InvalidArgumentException(
-                "Invalid {$context}: only alphanumeric characters and underscores are allowed"
-                . " (optionally schema-qualified, e.g. 'schema.table')."
-            );
-        }
-    }
-
-    /**
-     * Validates that a value is a plain (unqualified) SQL identifier with no dots.
-     *
-     * Use this instead of validateIdentifier() for INSERT/UPDATE column names, because
-     * those names are also embedded in PDO named-placeholder tokens (e.g. `:col_0`).
-     * PDO does not accept dots in placeholder names, so `schema.column` must be rejected.
-     *
-     * @param string $name    The identifier to validate.
-     * @param string $context Human-readable name used in exception messages (e.g. 'INSERT field').
-     * @throws InvalidArgumentException if $name is not a plain SQL identifier.
-     */
-    public static function validateUnqualifiedIdentifier($name, $context)
-    {
-        if (!is_string($name) || !preg_match('/^' . self::IDENTIFIER . '$/', $name)) {
-            throw new InvalidArgumentException(
-                "Invalid {$context}: must start with a letter or underscore and contain only"
-                . " alphanumeric characters and underscores (unqualified column name, e.g. 'email' or 'created_at')."
-            );
-        }
     }
 }

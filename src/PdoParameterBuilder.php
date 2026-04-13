@@ -12,17 +12,12 @@
 /**
  * Utility class for generating PDO named-parameter placeholders and SQL fragments.
  * All methods are static and the class maintains no state. Identifier validation
- * is handled internally by this class.
+ * is delegated to SqlValidator.
  *
  * @package DatabaseMethods
  */
 class PdoParameterBuilder
 {
-    /** Regex that matches a plain SQL identifier: letter/underscore-first, then alphanumeric/underscores. */
-    const IDENTIFIER_PATTERN = '/^[a-zA-Z_][a-zA-Z0-9_]*$/';
-
-    /** Regex that matches a plain or table-qualified SQL identifier (e.g. 'col' or 'alias.col'). */
-    const QUALIFIED_IDENTIFIER_PATTERN = '/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/';
     /**
      * Builds an AND-joined equality SQL fragment and matching PDO params from a column => value map.
      * NULL values produce "col IS NULL" and are omitted from the params array.
@@ -52,7 +47,7 @@ class PdoParameterBuilder
      */
     public static function buildEquality(array $conditions, $prefix = '')
     {
-        if ($prefix !== '' && !preg_match(self::IDENTIFIER_PATTERN, $prefix)) {
+        if ($prefix !== '' && !preg_match(SqlValidator::IDENTIFIER_REGEX, $prefix)) {
             throw new InvalidArgumentException(
                 "Invalid prefix for buildEquality(): must start with a letter or underscore and contain only"
                 . " alphanumeric characters and underscores."
@@ -64,7 +59,7 @@ class PdoParameterBuilder
         $seenPlaceholders = array();
 
         foreach ($conditions as $col => $value) {
-            self::validateQualifiedIdentifier($col, 'condition column');
+            SqlValidator::assertQualifiedIdentifier($col, 'condition column');
 
             if ($value === null) {
                 $parts[] = "{$col} IS NULL";
@@ -117,7 +112,7 @@ class PdoParameterBuilder
                 );
             }
 
-            if (!preg_match(self::IDENTIFIER_PATTERN, $prefix)) {
+            if (!preg_match(SqlValidator::IDENTIFIER_REGEX, $prefix)) {
                 throw new InvalidArgumentException(
                     "Invalid prefix for buildValues(): must start with a letter or underscore and contain only"
                     . " alphanumeric characters and underscores."
@@ -160,7 +155,7 @@ class PdoParameterBuilder
      */
     public static function buildNamedParams(array $data, $prefix = '')
     {
-        if ($prefix !== '' && !preg_match(self::IDENTIFIER_PATTERN, $prefix)) {
+        if ($prefix !== '' && !preg_match(SqlValidator::IDENTIFIER_REGEX, $prefix)) {
             throw new InvalidArgumentException(
                 "Invalid prefix for buildNamedParams(): must start with a letter or underscore and contain only"
                 . " alphanumeric characters and underscores."
@@ -171,7 +166,7 @@ class PdoParameterBuilder
         $seenPlaceholders = array();
 
         foreach ($data as $col => $value) {
-            self::validateQualifiedIdentifier($col, 'parameter column');
+            SqlValidator::assertQualifiedIdentifier($col, 'parameter column');
 
             $name = $prefix . self::toPlaceholderName($col);
 
@@ -211,7 +206,7 @@ class PdoParameterBuilder
 
         $clauses = array();
         foreach ($fields as $col) {
-            self::validateIdentifier($col, 'SET field');
+            SqlValidator::assertIdentifier($col, 'SET field');
             $clauses[] = "{$col} = :{$col}";
         }
 
@@ -244,7 +239,7 @@ class PdoParameterBuilder
         }
 
         foreach ($fields as $col) {
-            self::validateIdentifier($col, 'INSERT field');
+            SqlValidator::assertIdentifier($col, 'INSERT field');
         }
 
         $groups = array();
@@ -292,7 +287,7 @@ class PdoParameterBuilder
 
         $fields = array_keys($rows[0]);
         foreach ($fields as $col) {
-            self::validateIdentifier($col, 'INSERT field');
+            SqlValidator::assertIdentifier($col, 'INSERT field');
         }
 
         $params = array();
@@ -316,40 +311,6 @@ class PdoParameterBuilder
         }
 
         return $params;
-    }
-
-    /**
-     * Validates that $name is a plain SQL identifier (letter/underscore first, then alphanumeric/underscores).
-     *
-     * @param string $name    The identifier to validate.
-     * @param string $context Human-readable label used in the exception message.
-     * @throws InvalidArgumentException If $name is not a valid unqualified identifier.
-     */
-    private static function validateIdentifier($name, $context)
-    {
-        if (!is_string($name) || !preg_match(self::IDENTIFIER_PATTERN, $name)) {
-            throw new InvalidArgumentException(
-                "Invalid {$context}: must start with a letter or underscore and contain only"
-                . " alphanumeric characters and underscores (unqualified column name, e.g. 'email' or 'created_at')."
-            );
-        }
-    }
-
-    /**
-     * Validates that $name is a plain or qualified SQL identifier (e.g. 'col' or 'alias.col').
-     *
-     * @param string $name    The identifier to validate.
-     * @param string $context Human-readable label used in the exception message.
-     * @throws InvalidArgumentException If $name is not a valid identifier.
-     */
-    private static function validateQualifiedIdentifier($name, $context)
-    {
-        if (!is_string($name) || !preg_match(self::QUALIFIED_IDENTIFIER_PATTERN, $name)) {
-            throw new InvalidArgumentException(
-                "Invalid {$context}: expected an unqualified name (e.g. 'email') or a"
-                . " qualified name (e.g. 'u.email'); only letters, digits, underscores and one optional dot are allowed."
-            );
-        }
     }
 
     /**

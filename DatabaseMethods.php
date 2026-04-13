@@ -9,6 +9,7 @@
  *   require_once 'DatabaseMethods.php';
  *
  * Available classes:
+ *   - SqlValidator         : Static utility for SQL identifier and expression validation
  *   - Query                : SQL query builder (SELECT / INSERT / UPDATE / DELETE)
  *   - Database             : PDO-based base class with querying, CRUD, transactions
  *   - PdoParameterBuilder  : Static utility for SQL fragments and PDO named parameters
@@ -23,6 +24,7 @@
 
 $__dm_base = __DIR__ . '/src/';
 
+require_once $__dm_base . 'SqlValidator.php';
 require_once $__dm_base . 'Query.php';
 require_once $__dm_base . 'PdoParameterBuilder.php';
 require_once $__dm_base . 'Database.php';

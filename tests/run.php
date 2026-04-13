@@ -4,7 +4,8 @@
  * tests/run.php
  *
  * Minimal test runner - no external libraries required.
- * Runs QueryTests (unit tests) and DatabaseTest (integration tests).
+ * Runs SqlValidatorTests (unit tests), QueryTests (unit tests),
+ * PdoParameterBuilderTests (unit tests), and DatabaseTest (integration tests).
  *
  * Usage:
  *   php tests/run.php
@@ -17,6 +18,7 @@
 
 // Load all library classes (Query, Database, Mysql, Postgres, Sqlite, Sql).
 require_once __DIR__ . '/../DatabaseMethods.php';
+require_once __DIR__ . '/SqlValidatorTests.php';
 require_once __DIR__ . '/QueryTests.php';
 require_once __DIR__ . '/PdoParameterBuilderTests.php';
 require_once __DIR__ . '/DatabaseTest.php';
@@ -205,6 +207,9 @@ function run_suite($suite, $label, $teardown = null)
 // ---------------------------------------------------------------------------
 
 $totalFailed = 0;
+
+// Unit tests - SqlValidator utility
+$totalFailed += run_suite(new SqlValidatorTests(), 'SqlValidator');
 
 // Unit tests - Query class
 $totalFailed += run_suite(new QueryTests(), 'Query');

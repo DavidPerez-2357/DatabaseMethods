@@ -794,7 +794,7 @@ class Database
     {
         $this->requireConnection();
 
-        Query::validateIdentifier($table, 'table name');
+        SqlValidator::assertTable($table);
 
         if (!is_array($whereData)) {
             throw new InvalidArgumentException("\$whereData must be an array of bindings for the WHERE clause.");
