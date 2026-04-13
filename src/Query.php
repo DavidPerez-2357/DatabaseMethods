@@ -753,7 +753,9 @@ class Query
     }
 
     /**
-     * Returns the table name from data, throwing if it is missing or not a valid identifier.
+     * Returns the table expression from data, throwing if it is missing or not a valid
+     * table expression (plain, schema-qualified, or with an optional alias).
+     * Accepted forms: 'users', 'public.users', 'users u', 'users AS u', 'public.users AS u'.
      * @throws InvalidArgumentException
      * @return string
      */
@@ -762,7 +764,7 @@ class Query
         if (!isset($this->data['table'])) {
             throw new InvalidArgumentException("Table is required.");
         }
-        SqlValidator::assertTable($this->data['table']);
+        SqlValidator::assertAlias($this->data['table']);
         return $this->data['table'];
     }
 

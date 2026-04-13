@@ -414,6 +414,67 @@ class QueryTests
         });
     }
 
+    public function testFromWithTableAlias()
+    {
+        $sql = Query::select(['u.id', 'u.name'])->from('users u')->getQuery();
+        assert_equals('SELECT u.id, u.name FROM users u', $sql);
+    }
+
+    public function testFromWithAsTableAlias()
+    {
+        $sql = Query::select(['u.id'])->from('users AS u')->getQuery();
+        assert_equals('SELECT u.id FROM users AS u', $sql);
+    }
+
+    public function testFromWithSchemaQualifiedAlias()
+    {
+        $sql = Query::select(['u.id'])->from('public.users AS u')->getQuery();
+        assert_equals('SELECT u.id FROM public.users AS u', $sql);
+    }
+
+    public function testTableSetterWithAlias()
+    {
+        $sql = Query::select(['e.id'])->table('events e')->getQuery();
+        assert_equals('SELECT e.id FROM events e', $sql);
+    }
+
+    public function testUpdateWithTableAlias()
+    {
+        $sql = Query::update('users u', ['name'])->where('u.id = :id')->getQuery();
+        assert_equals('UPDATE users u SET name = :name WHERE u.id = :id', $sql);
+    }
+
+    public function testUpdateWithAsTableAlias()
+    {
+        $sql = Query::update('users AS u', ['name'])->where('u.id = :id')->getQuery();
+        assert_equals('UPDATE users AS u SET name = :name WHERE u.id = :id', $sql);
+    }
+
+    public function testDeleteWithTableAlias()
+    {
+        $sql = Query::delete('orders o')->where('o.id = :id')->getQuery();
+        assert_equals('DELETE FROM orders o WHERE o.id = :id', $sql);
+    }
+
+    public function testDeleteWithAsTableAlias()
+    {
+        $sql = Query::delete('orders AS o')->where('o.id = :id')->getQuery();
+        assert_equals('DELETE FROM orders AS o WHERE o.id = :id', $sql);
+    }
+
+    public function testArrayConstructorWithTableAlias()
+    {
+        $q = new Query(array('method' => 'SELECT', 'table' => 'users u', 'fields' => array('u.id')));
+        assert_equals('SELECT u.id FROM users u', $q->getQuery());
+    }
+
+    public function testFromWithInvalidAliasThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::select()->from('users u extra')->getQuery();
+        });
+    }
+
     // =========================================================================
     // Fluent setters: fields()
     // =========================================================================
