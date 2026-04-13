@@ -464,7 +464,7 @@ class QueryTests
 
     public function testArrayConstructorWithTableAlias()
     {
-        $q = new Query(array('method' => 'SELECT', 'table' => 'users u', 'fields' => array('u.id')));
+        $q = new Query(['method' => 'SELECT', 'table' => 'users u', 'fields' => ['u.id']]);
         assert_equals('SELECT u.id FROM users u', $q->getQuery());
     }
 
