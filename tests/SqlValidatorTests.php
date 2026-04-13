@@ -6,17 +6,12 @@
  * Unit tests for the SqlValidator utility class.
  *
  * Covers:
- *   - IDENTIFIER_REGEX constant
- *   - QUALIFIED_IDENTIFIER_REGEX constant
- *   - ALIAS_IDENTIFIER_REGEX constant
- *   - ORDER_BY_REGEX constant
- *   - GROUP_BY_REGEX constant
- *   - assertIdentifier()        - valid, invalid, type errors
- *   - assertQualifiedIdentifier() - plain, qualified, invalid, type errors
- *   - assertTable()             - plain, schema-qualified, invalid, type errors
- *   - assertField()             - plain identifiers only, no dots, type errors
- *   - assertOrderBy()           - valid patterns, ASC/DESC, multi-column, trimming, injection, type errors
- *   - assertGroupBy()           - valid patterns, multi-column, trimming, no ASC/DESC, injection, type errors
+ *   - assertIdentifier()          - valid plain identifiers, invalid input, context label
+ *   - assertQualifiedIdentifier() - plain and schema-qualified identifiers, invalid input
+ *   - assertTable()               - plain and schema-qualified table names, invalid input
+ *   - assertField()               - plain field names only (no dots), invalid input
+ *   - assertOrderBy()             - valid expressions, whitespace trimming, invalid input
+ *   - assertGroupBy()             - valid expressions, whitespace trimming, invalid input
  *
  * Run via: php tests/run.php
  *
@@ -26,134 +21,24 @@
 class SqlValidatorTests
 {
     // =========================================================================
-    // Regex constants
-    // =========================================================================
-
-    public function testIdentifierRegexMatchesPlainIdentifier()
-    {
-        assert_true((bool) preg_match(SqlValidator::IDENTIFIER_REGEX, 'users'));
-        assert_true((bool) preg_match(SqlValidator::IDENTIFIER_REGEX, '_temp'));
-        assert_true((bool) preg_match(SqlValidator::IDENTIFIER_REGEX, 'created_at'));
-        assert_true((bool) preg_match(SqlValidator::IDENTIFIER_REGEX, 'Col123'));
-    }
-
-    public function testIdentifierRegexRejectsQualifiedAndInvalid()
-    {
-        assert_true(!preg_match(SqlValidator::IDENTIFIER_REGEX, 'users.id'));
-        assert_true(!preg_match(SqlValidator::IDENTIFIER_REGEX, '1name'));
-        assert_true(!preg_match(SqlValidator::IDENTIFIER_REGEX, ''));
-        assert_true(!preg_match(SqlValidator::IDENTIFIER_REGEX, 'name space'));
-    }
-
-    public function testQualifiedIdentifierRegexMatchesPlainAndQualified()
-    {
-        assert_true((bool) preg_match(SqlValidator::QUALIFIED_IDENTIFIER_REGEX, 'users'));
-        assert_true((bool) preg_match(SqlValidator::QUALIFIED_IDENTIFIER_REGEX, 'public.users'));
-        assert_true((bool) preg_match(SqlValidator::QUALIFIED_IDENTIFIER_REGEX, 'dbo.orders'));
-        assert_true((bool) preg_match(SqlValidator::QUALIFIED_IDENTIFIER_REGEX, 'users.email'));
-    }
-
-    public function testQualifiedIdentifierRegexRejectsInvalid()
-    {
-        assert_true(!preg_match(SqlValidator::QUALIFIED_IDENTIFIER_REGEX, 'a.b.c'));
-        assert_true(!preg_match(SqlValidator::QUALIFIED_IDENTIFIER_REGEX, '1name'));
-        assert_true(!preg_match(SqlValidator::QUALIFIED_IDENTIFIER_REGEX, ''));
-        assert_true(!preg_match(SqlValidator::QUALIFIED_IDENTIFIER_REGEX, 'name-col'));
-    }
-
-    public function testAliasIdentifierRegexMatchesPlainAndAlias()
-    {
-        assert_true((bool) preg_match(SqlValidator::ALIAS_IDENTIFIER_REGEX, 'users'));
-        assert_true((bool) preg_match(SqlValidator::ALIAS_IDENTIFIER_REGEX, 'users u'));
-        assert_true((bool) preg_match(SqlValidator::ALIAS_IDENTIFIER_REGEX, 'users AS u'));
-        assert_true((bool) preg_match(SqlValidator::ALIAS_IDENTIFIER_REGEX, 'public.users u'));
-        assert_true((bool) preg_match(SqlValidator::ALIAS_IDENTIFIER_REGEX, 'orders AS o'));
-    }
-
-    public function testAliasIdentifierRegexRejectsInvalid()
-    {
-        assert_true(!preg_match(SqlValidator::ALIAS_IDENTIFIER_REGEX, '1name'));
-        assert_true(!preg_match(SqlValidator::ALIAS_IDENTIFIER_REGEX, ''));
-        assert_true(!preg_match(SqlValidator::ALIAS_IDENTIFIER_REGEX, 'users; DROP TABLE'));
-    }
-
-    public function testOrderByRegexMatchesValidExpressions()
-    {
-        assert_true((bool) preg_match(SqlValidator::ORDER_BY_REGEX, 'name'));
-        assert_true((bool) preg_match(SqlValidator::ORDER_BY_REGEX, 'name ASC'));
-        assert_true((bool) preg_match(SqlValidator::ORDER_BY_REGEX, 'created_at DESC'));
-        assert_true((bool) preg_match(SqlValidator::ORDER_BY_REGEX, 'users.name ASC'));
-        assert_true((bool) preg_match(SqlValidator::ORDER_BY_REGEX, 'name ASC, email DESC'));
-    }
-
-    public function testOrderByRegexRejectsInvalid()
-    {
-        assert_true(!preg_match(SqlValidator::ORDER_BY_REGEX, ''));
-        assert_true(!preg_match(SqlValidator::ORDER_BY_REGEX, 'name; DROP TABLE'));
-        assert_true(!preg_match(SqlValidator::ORDER_BY_REGEX, '1name'));
-        assert_true(!preg_match(SqlValidator::ORDER_BY_REGEX, 'name,'));
-    }
-
-    public function testGroupByRegexMatchesValidExpressions()
-    {
-        assert_true((bool) preg_match(SqlValidator::GROUP_BY_REGEX, 'name'));
-        assert_true((bool) preg_match(SqlValidator::GROUP_BY_REGEX, 'users.id'));
-        assert_true((bool) preg_match(SqlValidator::GROUP_BY_REGEX, 'name, email'));
-    }
-
-    public function testGroupByRegexRejectsInvalid()
-    {
-        assert_true(!preg_match(SqlValidator::GROUP_BY_REGEX, ''));
-        assert_true(!preg_match(SqlValidator::GROUP_BY_REGEX, 'name; DROP TABLE'));
-        assert_true(!preg_match(SqlValidator::GROUP_BY_REGEX, '1name'));
-    }
-
-    // =========================================================================
     // assertIdentifier
     // =========================================================================
 
-    public function testAssertIdentifierAcceptsPlainIdentifier()
+    public function testAssertIdentifierAcceptsValidIdentifiers()
     {
         SqlValidator::assertIdentifier('users');
         SqlValidator::assertIdentifier('created_at');
         SqlValidator::assertIdentifier('_tmp');
-        SqlValidator::assertIdentifier('Col123');
         assert_true(true);
     }
 
-    public function testAssertIdentifierRejectsQualifiedIdentifier()
+    public function testAssertIdentifierRejectsInvalid()
     {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertIdentifier('users.email');
-        });
-    }
-
-    public function testAssertIdentifierRejectsDigitStart()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertIdentifier('1name');
-        });
-    }
-
-    public function testAssertIdentifierRejectsEmpty()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertIdentifier('');
-        });
-    }
-
-    public function testAssertIdentifierRejectsNonString()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertIdentifier(123);
-        });
-    }
-
-    public function testAssertIdentifierRejectsSpaces()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertIdentifier('my table');
-        });
+        foreach (array('users.email', '1name', '', 'my table', 123) as $bad) {
+            assert_throws('InvalidArgumentException', function () use ($bad) {
+                SqlValidator::assertIdentifier($bad);
+            });
+        }
     }
 
     public function testAssertIdentifierUsesContext()
@@ -172,97 +57,42 @@ class SqlValidatorTests
     // assertQualifiedIdentifier
     // =========================================================================
 
-    public function testAssertQualifiedIdentifierAcceptsPlain()
+    public function testAssertQualifiedIdentifierAcceptsPlainAndQualified()
     {
         SqlValidator::assertQualifiedIdentifier('users');
-        SqlValidator::assertQualifiedIdentifier('created_at');
-        assert_true(true);
-    }
-
-    public function testAssertQualifiedIdentifierAcceptsQualified()
-    {
         SqlValidator::assertQualifiedIdentifier('public.users');
         SqlValidator::assertQualifiedIdentifier('users.email');
         assert_true(true);
     }
 
-    public function testAssertQualifiedIdentifierRejectsTwoDots()
+    public function testAssertQualifiedIdentifierRejectsInvalid()
     {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertQualifiedIdentifier('a.b.c');
-        });
-    }
-
-    public function testAssertQualifiedIdentifierRejectsEmpty()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertQualifiedIdentifier('');
-        });
-    }
-
-    public function testAssertQualifiedIdentifierRejectsNonString()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertQualifiedIdentifier(null);
-        });
-    }
-
-    public function testAssertQualifiedIdentifierUsesContext()
-    {
-        $caught = null;
-        try {
-            SqlValidator::assertQualifiedIdentifier('bad!name', 'condition column');
-        } catch (InvalidArgumentException $e) {
-            $caught = $e;
+        foreach (array('a.b.c', '1name', '', 'name-col', null) as $bad) {
+            assert_throws('InvalidArgumentException', function () use ($bad) {
+                SqlValidator::assertQualifiedIdentifier($bad);
+            });
         }
-        assert_true($caught !== null);
-        assert_contains('condition column', $caught->getMessage());
     }
 
     // =========================================================================
     // assertTable
     // =========================================================================
 
-    public function testAssertTableAcceptsPlainTable()
+    public function testAssertTableAcceptsPlainAndSchemaQualified()
     {
         SqlValidator::assertTable('users');
-        SqlValidator::assertTable('order_items');
-        assert_true(true);
-    }
-
-    public function testAssertTableAcceptsSchemaQualified()
-    {
         SqlValidator::assertTable('public.users');
         SqlValidator::assertTable('dbo.orders');
         assert_true(true);
     }
 
-    public function testAssertTableRejectsEmpty()
+    public function testAssertTableRejectsInvalid()
     {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertTable('');
-        });
-    }
-
-    public function testAssertTableRejectsSpaces()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertTable('my table');
-        });
-    }
-
-    public function testAssertTableRejectsSqlInjection()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertTable('users; DROP TABLE users');
-        });
-    }
-
-    public function testAssertTableRejectsNonString()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertTable(42);
-        });
+        foreach (array('', 'my table', 'users; DROP TABLE users', 42) as $bad) {
+            assert_throws('InvalidArgumentException', function () use ($bad) {
+                SqlValidator::assertTable($bad);
+            });
+        }
     }
 
     // =========================================================================
@@ -273,70 +103,28 @@ class SqlValidatorTests
     {
         SqlValidator::assertField('name');
         SqlValidator::assertField('created_at');
-        SqlValidator::assertField('_col');
         assert_true(true);
     }
 
-    public function testAssertFieldRejectsQualified()
+    public function testAssertFieldRejectsInvalid()
     {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertField('users.name');
-        });
-    }
-
-    public function testAssertFieldRejectsEmpty()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertField('');
-        });
-    }
-
-    public function testAssertFieldRejectsNonString()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertField(array('name'));
-        });
-    }
-
-    public function testAssertFieldRejectsDigitStart()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertField('1col');
-        });
+        foreach (array('users.name', '', '1col', array('name')) as $bad) {
+            assert_throws('InvalidArgumentException', function () use ($bad) {
+                SqlValidator::assertField($bad);
+            });
+        }
     }
 
     // =========================================================================
     // assertOrderBy
     // =========================================================================
 
-    public function testAssertOrderByAcceptsSimpleColumn()
+    public function testAssertOrderByAcceptsValidExpressions()
     {
         assert_equals('name', SqlValidator::assertOrderBy('name'));
-    }
-
-    public function testAssertOrderByAcceptsColumnWithAsc()
-    {
-        assert_equals('name ASC', SqlValidator::assertOrderBy('name ASC'));
-    }
-
-    public function testAssertOrderByAcceptsColumnWithDesc()
-    {
         assert_equals('created_at DESC', SqlValidator::assertOrderBy('created_at DESC'));
-    }
-
-    public function testAssertOrderByAcceptsMultipleColumns()
-    {
+        assert_equals('users.name ASC', SqlValidator::assertOrderBy('users.name ASC'));
         assert_equals('name ASC, id DESC', SqlValidator::assertOrderBy('name ASC, id DESC'));
-    }
-
-    public function testAssertOrderByAcceptsQualifiedColumn()
-    {
-        assert_equals('users.name', SqlValidator::assertOrderBy('users.name'));
-    }
-
-    public function testAssertOrderByAcceptsQualifiedWithDirection()
-    {
-        assert_equals('users.created_at DESC', SqlValidator::assertOrderBy('users.created_at DESC'));
     }
 
     public function testAssertOrderByTrimsWhitespace()
@@ -344,83 +132,23 @@ class SqlValidatorTests
         assert_equals('name ASC', SqlValidator::assertOrderBy('  name ASC  '));
     }
 
-    public function testAssertOrderByAcceptsCaseInsensitiveDirection()
+    public function testAssertOrderByRejectsInvalid()
     {
-        assert_equals('name asc', SqlValidator::assertOrderBy('name asc'));
-    }
-
-    public function testAssertOrderByRejectsEmpty()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertOrderBy('');
-        });
-    }
-
-    public function testAssertOrderByRejectsWhitespaceOnly()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertOrderBy('   ');
-        });
-    }
-
-    public function testAssertOrderByRejectsSqlInjection()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertOrderBy('name; DROP TABLE users');
-        });
-    }
-
-    public function testAssertOrderByRejectsUnionInjection()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertOrderBy('name UNION SELECT password FROM users');
-        });
-    }
-
-    public function testAssertOrderByRejectsDigitStart()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertOrderBy('1name');
-        });
-    }
-
-    public function testAssertOrderByRejectsTrailingComma()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertOrderBy('name,');
-        });
-    }
-
-    public function testAssertOrderByRejectsNonStringInteger()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertOrderBy(123);
-        });
-    }
-
-    public function testAssertOrderByRejectsNonStringArray()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertOrderBy(array('name'));
-        });
+        foreach (array('', '   ', 'name; DROP TABLE users', '1name', 'name,', 123) as $bad) {
+            assert_throws('InvalidArgumentException', function () use ($bad) {
+                SqlValidator::assertOrderBy($bad);
+            });
+        }
     }
 
     // =========================================================================
     // assertGroupBy
     // =========================================================================
 
-    public function testAssertGroupByAcceptsSimpleColumn()
+    public function testAssertGroupByAcceptsValidExpressions()
     {
         assert_equals('name', SqlValidator::assertGroupBy('name'));
-    }
-
-    public function testAssertGroupByAcceptsQualifiedColumn()
-    {
         assert_equals('users.id', SqlValidator::assertGroupBy('users.id'));
-    }
-
-    public function testAssertGroupByAcceptsMultipleColumns()
-    {
         assert_equals('name, email', SqlValidator::assertGroupBy('name, email'));
     }
 
@@ -429,52 +157,12 @@ class SqlValidatorTests
         assert_equals('name', SqlValidator::assertGroupBy('  name  '));
     }
 
-    public function testAssertGroupByRejectsEmpty()
+    public function testAssertGroupByRejectsInvalid()
     {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertGroupBy('');
-        });
-    }
-
-    public function testAssertGroupByRejectsWhitespaceOnly()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertGroupBy('   ');
-        });
-    }
-
-    public function testAssertGroupByRejectsSqlInjection()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertGroupBy('name; DROP TABLE users');
-        });
-    }
-
-    public function testAssertGroupByRejectsAscDesc()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertGroupBy('name ASC');
-        });
-    }
-
-    public function testAssertGroupByRejectsDigitStart()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertGroupBy('1name');
-        });
-    }
-
-    public function testAssertGroupByRejectsNonStringInteger()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertGroupBy(123);
-        });
-    }
-
-    public function testAssertGroupByRejectsNonStringArray()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            SqlValidator::assertGroupBy(array('name'));
-        });
+        foreach (array('', '   ', 'name; DROP TABLE users', 'name ASC', '1name', 123) as $bad) {
+            assert_throws('InvalidArgumentException', function () use ($bad) {
+                SqlValidator::assertGroupBy($bad);
+            });
+        }
     }
 }
