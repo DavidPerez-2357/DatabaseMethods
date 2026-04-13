@@ -10,7 +10,7 @@
 ## PHP Style
 
 - Opening brace for classes and methods on the **same line**; follow the existing file style.
-- Use `array()` syntax, not short array syntax `[]`, to preserve PHP 5.4 compatibility.
+- Both `array()` and short array syntax `[]` are compatible with PHP 5.4+; prefer consistency with the existing file.
 - Use `isset()` / `array_key_exists()` for optional keys rather than `??`.
 - DocBlocks (`/** ... */`) for all public methods; inline comments with `//` for non-obvious logic.
 

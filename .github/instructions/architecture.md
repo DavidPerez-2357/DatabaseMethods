@@ -52,4 +52,4 @@ Follow this strict layering when adding code:
 
 - Public CRUD methods (`select`, `selectOne`, `insert`, `update`, `delete`, `deleteAll`, `count`) are routed through `__call()`, which applies keyword replacement before delegating to the private implementation.
 - Parameterised values are always bound via `bindNamedParams()`; never concatenated.
-- `executeTransaction(callable $fn)` wraps a callback in a PDO transaction with automatic rollback on exception.
+- `executeTransaction($callback)` wraps a callback in a PDO transaction with automatic rollback on exception.
