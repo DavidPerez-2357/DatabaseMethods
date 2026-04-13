@@ -3,7 +3,7 @@
 /**
  * SqlValidator.php
  *
- * Centralised SQL naming and expression validation utility.
+ * Centralized SQL naming and expression validation utility.
  *
  * @author DavidPerez-2357
  * @link https://github.com/DavidPerez-2357/DatabaseMethods
