@@ -19,7 +19,7 @@
  * setter API:
  *
  * ```php
- * // Array constructor (original API — still fully supported)
+ * // Array constructor (original API - still fully supported)
  * $query = new Query(['method' => 'SELECT', 'fields' => ['id'], 'table' => 'users']);
  *
  * // Fluent API
@@ -46,8 +46,8 @@ class Query
      * Creates a Query instance.
      *
      * When $queryData is a non-empty array the query is built immediately
-     * (original behavior). When called with an empty array — as the static
-     * factory methods do — building is deferred until the query string is
+     * (original behavior). When called with an empty array - as the static
+     * factory methods do - building is deferred until the query string is
      * first needed.
      *
      * @param array $queryData Configuration array (optional when using factory methods).
@@ -417,7 +417,7 @@ class Query
     /**
      * Replaces all JOIN clauses with the given value.
      *
-     * Each JOIN expression is a raw SQL fragment — see join() for the SQL injection
+     * Each JOIN expression is a raw SQL fragment - see join() for the SQL injection
      * warning that applies here as well.
      *
      * Accepts an array of JOIN expressions (each element must be a non-empty string),
@@ -918,7 +918,7 @@ class Query
 
     /**
      * Validates that a value is a safe SQL identifier (or schema-qualified identifier).
-     * Allows `identifier` or `schema.identifier` — the same character set used by
+     * Allows `identifier` or `schema.identifier` - the same character set used by
      * validateOrderBy() and validateGroupBy().
      *
      * This is the primary guard against SQL injection for table names and column names

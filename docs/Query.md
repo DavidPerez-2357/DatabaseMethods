@@ -179,7 +179,7 @@ LIMIT 10
 
 ## JOINs
 
-JOIN clauses can be appended to SELECT and UPDATE queries. Use the typed helpers (`innerJoin`, `leftJoin`, `rightJoin`, `fullJoin`) — each takes a table expression and an ON condition:
+JOIN clauses can be appended to SELECT and UPDATE queries. Use the typed helpers (`innerJoin`, `leftJoin`, `rightJoin`, `fullJoin`) - each takes a table expression and an ON condition:
 
 ```php
 $query = Query::select(['users.id', 'users.name', 'r.name AS role'])

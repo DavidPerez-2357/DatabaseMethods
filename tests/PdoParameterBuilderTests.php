@@ -6,13 +6,13 @@
  * Unit tests for the PdoParameterBuilder utility class.
  *
  * Covers:
- *   - buildEquality()           — basic equality, prefixed placeholders, NULL (IS NULL), empty input,
+ *   - buildEquality()           - basic equality, prefixed placeholders, NULL (IS NULL), empty input,
  *                                 invalid identifiers, mixed NULL/non-NULL conditions
- *   - buildValues()             — indexed params, prefixed placeholders, empty input, non-sequential keys
- *   - buildNamedParams()        — named parameter array generation
- *   - buildSetClause()          — SQL SET clause generation
- *   - buildInsertPlaceholders() — INSERT placeholder generation
- *   - buildInsertParams()       — INSERT parameter array generation
+ *   - buildValues()             - indexed params, prefixed placeholders, empty input, non-sequential keys
+ *   - buildNamedParams()        - named parameter array generation
+ *   - buildSetClause()          - SQL SET clause generation
+ *   - buildInsertPlaceholders() - INSERT placeholder generation
+ *   - buildInsertParams()       - INSERT parameter array generation
  *
  * Run via: php tests/run.php
  *
@@ -22,7 +22,7 @@
 class PdoParameterBuilderTests
 {
     // =========================================================================
-    // buildEquality — SQL fragment + params
+    // buildEquality - SQL fragment + params
     // =========================================================================
 
     public function testBuildEqualityBasic()
@@ -103,7 +103,7 @@ class PdoParameterBuilderTests
     }
 
     // =========================================================================
-    // buildValues — indexed params
+    // buildValues - indexed params
     // =========================================================================
 
     public function testBuildValuesBasic()
@@ -150,7 +150,7 @@ class PdoParameterBuilderTests
     }
 
     // =========================================================================
-    // buildNamedParams — associative col => value map to named PDO params
+    // buildNamedParams - associative col => value map to named PDO params
     // =========================================================================
 
     public function testBuildNamedParamsBasic()
@@ -204,7 +204,7 @@ class PdoParameterBuilderTests
     }
 
     // =========================================================================
-    // buildSetClause — SQL SET fragment from field list
+    // buildSetClause - SQL SET fragment from field list
     // =========================================================================
 
     public function testBuildSetClauseBasic()
@@ -229,7 +229,7 @@ class PdoParameterBuilderTests
     }
 
     // =========================================================================
-    // buildInsertPlaceholders — VALUES row-group strings
+    // buildInsertPlaceholders - VALUES row-group strings
     // =========================================================================
 
     public function testBuildInsertPlaceholdersSingleRowMultipleFields()
@@ -271,7 +271,7 @@ class PdoParameterBuilderTests
     }
 
     // =========================================================================
-    // buildInsertParams — flat PDO param map from array of rows
+    // buildInsertParams - flat PDO param map from array of rows
     // =========================================================================
 
     public function testBuildInsertParamsSingleRow()
