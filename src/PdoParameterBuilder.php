@@ -18,11 +18,6 @@
  */
 class PdoParameterBuilder
 {
-    /** Regex that matches a plain SQL identifier: letter/underscore-first, then alphanumeric/underscores. */
-    const IDENTIFIER_PATTERN = '/^[a-zA-Z_][a-zA-Z0-9_]*$/';
-
-    /** Regex that matches a plain or table-qualified SQL identifier (e.g. 'col' or 'alias.col'). */
-    const QUALIFIED_IDENTIFIER_PATTERN = '/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/';
     /**
      * Builds an AND-joined equality SQL fragment and matching PDO params from a column => value map.
      * NULL values produce "col IS NULL" and are omitted from the params array.
@@ -52,7 +47,7 @@ class PdoParameterBuilder
      */
     public static function buildEquality(array $conditions, $prefix = '')
     {
-        if ($prefix !== '' && !preg_match(self::IDENTIFIER_PATTERN, $prefix)) {
+        if ($prefix !== '' && !preg_match(SqlValidator::IDENTIFIER_REGEX, $prefix)) {
             throw new InvalidArgumentException(
                 "Invalid prefix for buildEquality(): must start with a letter or underscore and contain only"
                 . " alphanumeric characters and underscores."
@@ -117,7 +112,7 @@ class PdoParameterBuilder
                 );
             }
 
-            if (!preg_match(self::IDENTIFIER_PATTERN, $prefix)) {
+            if (!preg_match(SqlValidator::IDENTIFIER_REGEX, $prefix)) {
                 throw new InvalidArgumentException(
                     "Invalid prefix for buildValues(): must start with a letter or underscore and contain only"
                     . " alphanumeric characters and underscores."
@@ -160,7 +155,7 @@ class PdoParameterBuilder
      */
     public static function buildNamedParams(array $data, $prefix = '')
     {
-        if ($prefix !== '' && !preg_match(self::IDENTIFIER_PATTERN, $prefix)) {
+        if ($prefix !== '' && !preg_match(SqlValidator::IDENTIFIER_REGEX, $prefix)) {
             throw new InvalidArgumentException(
                 "Invalid prefix for buildNamedParams(): must start with a letter or underscore and contain only"
                 . " alphanumeric characters and underscores."
@@ -327,12 +322,7 @@ class PdoParameterBuilder
      */
     private static function validateIdentifier($name, $context)
     {
-        if (!is_string($name) || !preg_match(self::IDENTIFIER_PATTERN, $name)) {
-            throw new InvalidArgumentException(
-                "Invalid {$context}: must start with a letter or underscore and contain only"
-                . " alphanumeric characters and underscores (unqualified column name, e.g. 'email' or 'created_at')."
-            );
-        }
+        SqlValidator::assertIdentifier($name, $context);
     }
 
     /**
@@ -344,12 +334,7 @@ class PdoParameterBuilder
      */
     private static function validateQualifiedIdentifier($name, $context)
     {
-        if (!is_string($name) || !preg_match(self::QUALIFIED_IDENTIFIER_PATTERN, $name)) {
-            throw new InvalidArgumentException(
-                "Invalid {$context}: expected an unqualified name (e.g. 'email') or a"
-                . " qualified name (e.g. 'u.email'); only letters, digits, underscores and one optional dot are allowed."
-            );
-        }
+        SqlValidator::assertQualifiedIdentifier($name, $context);
     }
 
     /**

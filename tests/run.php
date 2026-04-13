@@ -17,6 +17,7 @@
 
 // Load all library classes (Query, Database, Mysql, Postgres, Sqlite, Sql).
 require_once __DIR__ . '/../DatabaseMethods.php';
+require_once __DIR__ . '/SqlValidatorTests.php';
 require_once __DIR__ . '/QueryTests.php';
 require_once __DIR__ . '/PdoParameterBuilderTests.php';
 require_once __DIR__ . '/DatabaseTest.php';
@@ -205,6 +206,9 @@ function run_suite($suite, $label, $teardown = null)
 // ---------------------------------------------------------------------------
 
 $totalFailed = 0;
+
+// Unit tests - SqlValidator utility
+$totalFailed += run_suite(new SqlValidatorTests(), 'SqlValidator');
 
 // Unit tests - Query class
 $totalFailed += run_suite(new QueryTests(), 'Query');

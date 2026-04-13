@@ -715,24 +715,7 @@ class Query
      */
     public static function validateOrderBy($orderBy)
     {
-        if (!is_string($orderBy)) {
-            throw new InvalidArgumentException("order_by must be a string.");
-        }
-
-        $orderBy = trim($orderBy);
-        $id = self::IDENTIFIER;
-
-        // Each token: optional_table.column_name optional_ASC_DESC, separated by commas
-        $pattern = '/^' . $id . '(\.' . $id . ')?\s*(ASC|DESC)?'
-            . '(\s*,\s*' . $id . '(\.' . $id . ')?\s*(ASC|DESC)?)*$/i';
-
-        if (!preg_match($pattern, $orderBy)) {
-            throw new InvalidArgumentException(
-                "Invalid order_by value. Use column names with optional ASC/DESC, e.g. 'created_at DESC, id ASC'."
-            );
-        }
-
-        return $orderBy;
+        return SqlValidator::assertOrderBy($orderBy);
     }
 
     /**
@@ -745,23 +728,7 @@ class Query
      */
     public static function validateGroupBy($groupBy)
     {
-        if (!is_string($groupBy)) {
-            throw new InvalidArgumentException("group_by must be a string.");
-        }
-
-        $groupBy = trim($groupBy);
-        $id = self::IDENTIFIER;
-
-        // Each token: optional_table.column_name, separated by commas (no ASC/DESC)
-        $pattern = '/^' . $id . '(\.' . $id . ')?(\s*,\s*' . $id . '(\.' . $id . ')?)*$/';
-
-        if (!preg_match($pattern, $groupBy)) {
-            throw new InvalidArgumentException(
-                "Invalid group_by value. Use plain column names, e.g. 'users.id' or 'id, name'."
-            );
-        }
-
-        return $groupBy;
+        return SqlValidator::assertGroupBy($groupBy);
     }
 
     /**
@@ -827,7 +794,7 @@ class Query
         if (!isset($this->data['table'])) {
             throw new InvalidArgumentException("Table is required.");
         }
-        self::validateIdentifier($this->data['table'], 'table name');
+        SqlValidator::assertTable($this->data['table']);
         return $this->data['table'];
     }
 
@@ -931,8 +898,7 @@ class Query
      */
     public static function validateIdentifier($name, $context)
     {
-        $id = self::IDENTIFIER;
-        if (!is_string($name) || !preg_match('/^' . $id . '(\.' . $id . ')?$/', $name)) {
+        if (!is_string($name) || !preg_match(SqlValidator::QUALIFIED_IDENTIFIER_REGEX, $name)) {
             throw new InvalidArgumentException(
                 "Invalid {$context}: only alphanumeric characters and underscores are allowed"
                 . " (optionally schema-qualified, e.g. 'schema.table')."
@@ -953,7 +919,7 @@ class Query
      */
     public static function validateUnqualifiedIdentifier($name, $context)
     {
-        if (!is_string($name) || !preg_match('/^' . self::IDENTIFIER . '$/', $name)) {
+        if (!is_string($name) || !preg_match(SqlValidator::IDENTIFIER_REGEX, $name)) {
             throw new InvalidArgumentException(
                 "Invalid {$context}: must start with a letter or underscore and contain only"
                 . " alphanumeric characters and underscores (unqualified column name, e.g. 'email' or 'created_at')."
