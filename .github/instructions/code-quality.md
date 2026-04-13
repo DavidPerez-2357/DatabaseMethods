@@ -35,7 +35,7 @@ Always consult `README.md` and `CONTRIBUTING.md` and use features compatible wit
 
 ## Security
 
-- **SQL injection prevention (identifiers)**: Any table name or column name interpolated directly into an SQL string **must** pass through `validateIdentifier()` or `validateUnqualifiedIdentifier()` before use.
+- **SQL injection prevention (identifiers)**: Any table name or column name interpolated directly into an SQL string **must** pass through `SqlValidator::assertQualifiedIdentifier()` (for qualified names) or `SqlValidator::assertIdentifier()` (for plain column names) before use.
 - **SQL injection prevention (values)**: Always use parameterised queries (pass values as a `$params` array to PDO); never concatenate user-supplied values directly into SQL strings.
 - **No secrets in source code**: Never commit credentials, passwords, or other sensitive values.
 - **Dependency hygiene**: The library has zero external dependencies by design; do not introduce Composer packages.

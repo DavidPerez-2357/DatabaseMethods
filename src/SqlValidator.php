@@ -91,7 +91,8 @@ class SqlValidator
         if (!is_string($name) || !preg_match(self::QUALIFIED_IDENTIFIER_REGEX, $name)) {
             throw new InvalidArgumentException(
                 "Invalid {$context}: expected an unqualified name (e.g. 'email') or a"
-                . " qualified name (e.g. 'u.email'); only letters, digits, underscores and one optional dot are allowed."
+                . " qualified name (e.g. 'u.email'); each segment must start with a letter or"
+                . " underscore and contain only letters, digits and underscores, with one optional dot separating the segments."
             );
         }
     }
@@ -106,7 +107,8 @@ class SqlValidator
     {
         if (!is_string($table) || !preg_match(self::QUALIFIED_IDENTIFIER_REGEX, $table)) {
             throw new InvalidArgumentException(
-                "Invalid table name: only alphanumeric characters and underscores are allowed"
+                "Invalid table name: each name segment must start with a letter or underscore"
+                . " and contain only alphanumeric characters and underscores"
                 . " (optionally schema-qualified, e.g. 'schema.table')."
             );
         }

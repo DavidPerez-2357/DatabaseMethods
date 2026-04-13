@@ -17,7 +17,7 @@
  *   - buildPDOInsertQuery() - single/multi-row placeholders, error paths
  *   - buildPDOUpdateQuery() - SET clause, JOINs, error paths
  *   - buildDeleteQuery() - WHERE, ORDER BY, LIMIT semantics, error paths
- *   - validateOrderBy() - valid patterns, injection attempts, type errors
+ *   - SqlValidator::assertOrderBy() - valid patterns, injection attempts, type errors
  *
  * Run via: php tests/run.php
  *
@@ -1024,107 +1024,107 @@ class QueryTests
     }
 
     // =========================================================================
-    // validateOrderBy
+    // SqlValidator::assertOrderBy (ORDER BY validation)
     // =========================================================================
 
     public function testValidateOrderBySingleColumn()
     {
-        assert_equals('name', Query::validateOrderBy('name'));
+        assert_equals('name', SqlValidator::assertOrderBy('name'));
     }
 
     public function testValidateOrderBySingleColumnWithAsc()
     {
-        assert_equals('name ASC', Query::validateOrderBy('name ASC'));
+        assert_equals('name ASC', SqlValidator::assertOrderBy('name ASC'));
     }
 
     public function testValidateOrderBySingleColumnWithDesc()
     {
-        assert_equals('created_at DESC', Query::validateOrderBy('created_at DESC'));
+        assert_equals('created_at DESC', SqlValidator::assertOrderBy('created_at DESC'));
     }
 
     public function testValidateOrderByMultipleColumns()
     {
-        assert_equals('name ASC, id DESC', Query::validateOrderBy('name ASC, id DESC'));
+        assert_equals('name ASC, id DESC', SqlValidator::assertOrderBy('name ASC, id DESC'));
     }
 
     public function testValidateOrderByTableQualified()
     {
-        assert_equals('users.name', Query::validateOrderBy('users.name'));
+        assert_equals('users.name', SqlValidator::assertOrderBy('users.name'));
     }
 
     public function testValidateOrderByTableQualifiedWithDirection()
     {
-        assert_equals('users.created_at DESC', Query::validateOrderBy('users.created_at DESC'));
+        assert_equals('users.created_at DESC', SqlValidator::assertOrderBy('users.created_at DESC'));
     }
 
     public function testValidateOrderByUnderscoreInColumnName()
     {
-        assert_equals('created_at', Query::validateOrderBy('created_at'));
+        assert_equals('created_at', SqlValidator::assertOrderBy('created_at'));
     }
 
     public function testValidateOrderByTrimsWhitespace()
     {
-        assert_equals('name ASC', Query::validateOrderBy('  name ASC  '));
+        assert_equals('name ASC', SqlValidator::assertOrderBy('  name ASC  '));
     }
 
     public function testValidateOrderByCaseInsensitiveDirection()
     {
-        assert_equals('name asc', Query::validateOrderBy('name asc'));
+        assert_equals('name asc', SqlValidator::assertOrderBy('name asc'));
     }
 
     public function testValidateOrderByEmptyStringThrows()
     {
         assert_throws('InvalidArgumentException', function () {
-            Query::validateOrderBy('');
+            SqlValidator::assertOrderBy('');
         });
     }
 
     public function testValidateOrderByWhitespaceOnlyThrows()
     {
         assert_throws('InvalidArgumentException', function () {
-            Query::validateOrderBy('   ');
+            SqlValidator::assertOrderBy('   ');
         });
     }
 
     public function testValidateOrderBySqlInjectionSemicolonThrows()
     {
         assert_throws('InvalidArgumentException', function () {
-            Query::validateOrderBy('name; DROP TABLE users');
+            SqlValidator::assertOrderBy('name; DROP TABLE users');
         });
     }
 
     public function testValidateOrderBySqlInjectionUnionThrows()
     {
         assert_throws('InvalidArgumentException', function () {
-            Query::validateOrderBy('name UNION SELECT password FROM users');
+            SqlValidator::assertOrderBy('name UNION SELECT password FROM users');
         });
     }
 
     public function testValidateOrderByStartsWithDigitThrows()
     {
         assert_throws('InvalidArgumentException', function () {
-            Query::validateOrderBy('1name');
+            SqlValidator::assertOrderBy('1name');
         });
     }
 
     public function testValidateOrderByTrailingCommaThrows()
     {
         assert_throws('InvalidArgumentException', function () {
-            Query::validateOrderBy('name,');
+            SqlValidator::assertOrderBy('name,');
         });
     }
 
     public function testValidateOrderByNonStringIntegerThrows()
     {
         assert_throws('InvalidArgumentException', function () {
-            Query::validateOrderBy(123);
+            SqlValidator::assertOrderBy(123);
         });
     }
 
     public function testValidateOrderByNonStringArrayThrows()
     {
         assert_throws('InvalidArgumentException', function () {
-            Query::validateOrderBy(['name']);
+            SqlValidator::assertOrderBy(['name']);
         });
     }
 

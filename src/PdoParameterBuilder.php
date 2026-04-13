@@ -12,7 +12,7 @@
 /**
  * Utility class for generating PDO named-parameter placeholders and SQL fragments.
  * All methods are static and the class maintains no state. Identifier validation
- * is handled internally by this class.
+ * is delegated to SqlValidator.
  *
  * @package DatabaseMethods
  */
@@ -59,7 +59,7 @@ class PdoParameterBuilder
         $seenPlaceholders = array();
 
         foreach ($conditions as $col => $value) {
-            self::validateQualifiedIdentifier($col, 'condition column');
+            SqlValidator::assertQualifiedIdentifier($col, 'condition column');
 
             if ($value === null) {
                 $parts[] = "{$col} IS NULL";
@@ -166,7 +166,7 @@ class PdoParameterBuilder
         $seenPlaceholders = array();
 
         foreach ($data as $col => $value) {
-            self::validateQualifiedIdentifier($col, 'parameter column');
+            SqlValidator::assertQualifiedIdentifier($col, 'parameter column');
 
             $name = $prefix . self::toPlaceholderName($col);
 
@@ -206,7 +206,7 @@ class PdoParameterBuilder
 
         $clauses = array();
         foreach ($fields as $col) {
-            self::validateIdentifier($col, 'SET field');
+            SqlValidator::assertIdentifier($col, 'SET field');
             $clauses[] = "{$col} = :{$col}";
         }
 
@@ -239,7 +239,7 @@ class PdoParameterBuilder
         }
 
         foreach ($fields as $col) {
-            self::validateIdentifier($col, 'INSERT field');
+            SqlValidator::assertIdentifier($col, 'INSERT field');
         }
 
         $groups = array();
@@ -287,7 +287,7 @@ class PdoParameterBuilder
 
         $fields = array_keys($rows[0]);
         foreach ($fields as $col) {
-            self::validateIdentifier($col, 'INSERT field');
+            SqlValidator::assertIdentifier($col, 'INSERT field');
         }
 
         $params = array();
@@ -311,30 +311,6 @@ class PdoParameterBuilder
         }
 
         return $params;
-    }
-
-    /**
-     * Validates that $name is a plain SQL identifier (letter/underscore first, then alphanumeric/underscores).
-     *
-     * @param string $name    The identifier to validate.
-     * @param string $context Human-readable label used in the exception message.
-     * @throws InvalidArgumentException If $name is not a valid unqualified identifier.
-     */
-    private static function validateIdentifier($name, $context)
-    {
-        SqlValidator::assertIdentifier($name, $context);
-    }
-
-    /**
-     * Validates that $name is a plain or qualified SQL identifier (e.g. 'col' or 'alias.col').
-     *
-     * @param string $name    The identifier to validate.
-     * @param string $context Human-readable label used in the exception message.
-     * @throws InvalidArgumentException If $name is not a valid identifier.
-     */
-    private static function validateQualifiedIdentifier($name, $context)
-    {
-        SqlValidator::assertQualifiedIdentifier($name, $context);
     }
 
     /**
