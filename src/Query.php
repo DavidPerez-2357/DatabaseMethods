@@ -658,7 +658,7 @@ class Query
     public function buildPDOInsertQuery()
     {
         $this->assertMethod('INSERT');
-        $table = $this->requireTable();
+        $table = $this->requirePlainTable();
         $fields = $this->requireFields();
 
         $values = isset($this->data['values_to_insert']) ? (int) $this->data['values_to_insert'] : 1;
@@ -753,9 +753,8 @@ class Query
     }
 
     /**
-     * Returns the table expression from data, throwing if it is missing or not a valid
-     * table expression (plain, schema-qualified, or with an optional alias).
-     * Accepted forms: 'users', 'public.users', 'users u', 'users AS u', 'public.users AS u'.
+     * Returns the table expression from data, throwing if it is missing or not valid.
+     * See SqlValidator::assertAlias() for the exact accepted table-expression syntax.
      * @throws InvalidArgumentException
      * @return string
      */
@@ -765,6 +764,23 @@ class Query
             throw new InvalidArgumentException("Table is required.");
         }
         SqlValidator::assertAlias($this->data['table']);
+        return $this->data['table'];
+    }
+
+    /**
+     * Returns the plain table name from data, throwing if it is missing or not a valid
+     * plain identifier (schema-qualified identifiers are allowed; aliases are not).
+     * Used for INSERT, where table aliases are not valid SQL.
+     * See SqlValidator::assertTable() for the exact accepted syntax.
+     * @throws InvalidArgumentException
+     * @return string
+     */
+    private function requirePlainTable()
+    {
+        if (!isset($this->data['table'])) {
+            throw new InvalidArgumentException("Table is required.");
+        }
+        SqlValidator::assertTable($this->data['table']);
         return $this->data['table'];
     }
 

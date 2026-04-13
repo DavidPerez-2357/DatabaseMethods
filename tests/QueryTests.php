@@ -975,6 +975,26 @@ class QueryTests
         });
     }
 
+    public function testInsertWithPlainTableProducesCorrectSql()
+    {
+        $sql = Query::insert('users', ['name', 'email'])->getQuery();
+        assert_equals('INSERT INTO users (name, email) VALUES (:name_0, :email_0)', $sql);
+    }
+
+    public function testInsertWithTableAliasThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::insert('users u', ['name'])->getQuery();
+        });
+    }
+
+    public function testInsertWithAsTableAliasThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::insert('users AS u', ['name'])->getQuery();
+        });
+    }
+
     // =========================================================================
     // buildPDOUpdateQuery - SET clause
     // =========================================================================
