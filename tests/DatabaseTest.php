@@ -951,6 +951,40 @@ class DatabaseTest
     }
 
     // =========================================================================
+    // Tests - query factory / dialect
+    // =========================================================================
+
+    public function testCreateQueryReturnsQueryInstance()
+    {
+        $query = $this->db->createQuery();
+        assert_true($query instanceof Query, 'createQuery() must return a Query instance.');
+    }
+
+    public function testCreateQueryUsesDatabaseDialectForPagination()
+    {
+        $sql = $this->db->createQuery()
+            ->from(self::TABLE)
+            ->orderBy('id ASC')
+            ->limit(10)
+            ->offset(5)
+            ->getQuery();
+
+        if (DB_TEST_DRIVER === 'sql') {
+            assert_contains('OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY', $sql);
+            assert_not_contains(' LIMIT ', $sql);
+            return;
+        }
+
+        assert_contains(' LIMIT 10', $sql);
+        assert_contains(' OFFSET 5', $sql);
+    }
+
+    public function testGetDialectReturnsSqlDialectInstance()
+    {
+        assert_true($this->db->getDialect() instanceof SqlDialect, 'getDialect() must return a SqlDialect instance.');
+    }
+
+    // =========================================================================
     // Tests - getSupportedJoinTypes
     // =========================================================================
 

@@ -37,6 +37,7 @@ Both styles produce identical SQL. Cast a `Query` object to string with `echo` /
 | `->orderBy($expr)` | SELECT, DELETE | Set ORDER BY |
 | `->limit($n)` | SELECT, DELETE | Set LIMIT |
 | `->offset($n)` | SELECT | Set OFFSET |
+| `->setDialect($dialect)` | SELECT | Set SQL dialect for pagination rendering |
 | `->valuesCount($n)` | INSERT | Number of rows to insert (default 1) |
 
 &emsp;
@@ -81,6 +82,22 @@ LIMIT 10
 ```
 
 > See the [JOINs](#joins) section below for all available join methods.
+
+### Dialect-aware pagination
+
+By default, SELECT pagination renders as `LIMIT/OFFSET` (MySQL/PostgreSQL/SQLite style).
+You can switch rendering using `setDialect()`:
+
+```php
+$sql = Query::select(['id'])
+    ->setDialect(new SqlServerDialect())
+    ->from('users')
+    ->orderBy('created_at DESC')
+    ->limit(10)
+    ->offset(5)
+    ->getQuery();
+// SELECT id FROM users ORDER BY created_at DESC OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY
+```
 
 &emsp;
 

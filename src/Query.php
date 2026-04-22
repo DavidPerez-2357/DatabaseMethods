@@ -35,6 +35,7 @@ class Query
 {
     private $data;
     private $query;
+    private $dialect;
 
     /**
      * Creates a Query instance.
@@ -52,6 +53,13 @@ class Query
         if (!is_array($queryData)) {
             throw new InvalidArgumentException('Query constructor expects an array.');
         }
+
+        $this->dialect = new DefaultSqlDialect();
+        if (isset($queryData['dialect']) && $queryData['dialect'] instanceof SqlDialect) {
+            $this->dialect = $queryData['dialect'];
+            unset($queryData['dialect']);
+        }
+
         $this->data = $queryData;
         if (!empty($queryData)) {
             $this->query = $this->buildQuery();
@@ -574,6 +582,19 @@ class Query
         return $this;
     }
 
+    /**
+     * Sets the SQL dialect used to compile driver-specific SQL fragments.
+     *
+     * @param SqlDialect $dialect
+     * @return $this
+     */
+    public function setDialect(SqlDialect $dialect)
+    {
+        $this->dialect = $dialect;
+        $this->query = null;
+        return $this;
+    }
+
     // -------------------------------------------------------------------------
     // Query builders
     // -------------------------------------------------------------------------
@@ -645,18 +666,16 @@ class Query
         }
 
         $limit = $this->getValidatedLimit();
-        if ($limit > 0) {
-            $sql .= " LIMIT " . $limit;
-        }
-
         $offset = filter_var(
             isset($this->data['offset']) ? $this->data['offset'] : null,
             FILTER_VALIDATE_INT,
             array('options' => array('min_range' => 0))
         );
-        if ($offset !== false) {
-            $sql .= " OFFSET " . $offset;
-        }
+
+        $sql .= $this->dialect->compilePagination(
+            $limit > 0 ? $limit : null,
+            $offset !== false ? (int) $offset : null
+        );
 
         return $sql;
     }

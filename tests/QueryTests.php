@@ -702,6 +702,33 @@ class QueryTests
         assert_contains('OFFSET 0', $sql);
     }
 
+    public function testSelectWithSqlServerDialectUsesOffsetFetchPagination()
+    {
+        $sql = Query::select(['id'])
+            ->setDialect(new SqlServerDialect())
+            ->from('users')
+            ->orderBy('created_at DESC')
+            ->limit(10)
+            ->offset(5)
+            ->getQuery();
+
+        assert_contains('ORDER BY created_at DESC', $sql);
+        assert_contains('OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY', $sql);
+        assert_not_contains(' LIMIT ', $sql);
+    }
+
+    public function testSqlServerDialectLimitWithoutOffsetUsesOffsetZero()
+    {
+        $sql = Query::select()
+            ->setDialect(new SqlServerDialect())
+            ->from('users')
+            ->orderBy('id ASC')
+            ->limit(10)
+            ->getQuery();
+
+        assert_contains('OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY', $sql);
+    }
+
     public function testOffsetWithNegativeThrows()
     {
         assert_throws('InvalidArgumentException', function () {

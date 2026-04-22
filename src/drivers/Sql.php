@@ -20,6 +20,7 @@ class Sql extends Database
     public function __construct($ppt)
     {
         parent::__construct($ppt);
+        $this->setDialect(new SqlServerDialect());
         $this->connect($ppt);
     }
 
