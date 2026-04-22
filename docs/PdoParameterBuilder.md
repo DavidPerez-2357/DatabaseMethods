@@ -142,6 +142,21 @@ $sql    = "SELECT * FROM users WHERE id IN ({$keys})";
 
 &emsp;
 
+## normalizeNamedBindings
+
+Normalizes and validates generic PDO named bindings. Keys may be passed either as `name` or `:name`; the result always uses `:name`.
+
+**Signature:**
+```php
+PdoParameterBuilder::normalizeNamedBindings(array $params)
+```
+
+**Returns:** `array` - normalized binding map using `:name` keys.
+
+**Throws:** `InvalidArgumentException` if any key is not a non-empty string, has invalid placeholder syntax, or duplicates another key after normalization.
+
+&emsp;
+
 ## buildSetClause
 
 Builds the SQL `SET` fragment for an UPDATE statement from an array of column names. Column names are validated as plain SQL identifiers.

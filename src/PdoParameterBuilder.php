@@ -19,6 +19,12 @@
 class PdoParameterBuilder
 {
     /**
+     * Regex for PDO named placeholders.
+     * Must start with ":" followed by a letter/underscore, then letters/digits/underscores.
+     */
+    const NAMED_PLACEHOLDER_REGEX = '/^:[A-Za-z_][A-Za-z0-9_]*$/';
+
+    /**
      * Builds an AND-joined equality SQL fragment and matching PDO params from a column => value map.
      * NULL values produce "col IS NULL" and are omitted from the params array.
      * Column names may be plain (e.g. 'email') or table-qualified (e.g. 'u.email').
@@ -182,6 +188,94 @@ class PdoParameterBuilder
         }
 
         return $params;
+    }
+
+    /**
+     * Normalizes and validates PDO named bindings.
+     * Accepts both 'name' and ':name' keys; returns normalized ':name' keys.
+     *
+     * @param array $params Associative array of named bindings.
+     * @throws InvalidArgumentException If any key is invalid or duplicated after normalization.
+     * @return array Normalized bindings keyed by ':name'.
+     */
+    public static function normalizeNamedBindings(array $params)
+    {
+        $normalized = array();
+
+        foreach ($params as $key => $value) {
+            if (!is_string($key)) {
+                throw new InvalidArgumentException('Named parameter keys must be strings.');
+            }
+
+            if ($key === '') {
+                throw new InvalidArgumentException('Named parameter keys must be non-empty strings.');
+            }
+
+            if (strlen($key) > 1 && $key[0] === ':' && $key[1] === ':') {
+                throw new InvalidArgumentException('Named parameter keys may have at most one leading colon.');
+            }
+
+            $paramKey = ($key[0] === ':') ? $key : ':' . $key;
+
+            if (!preg_match(self::NAMED_PLACEHOLDER_REGEX, $paramKey)) {
+                throw new InvalidArgumentException(
+                    'Named parameter keys must match the format :[A-Za-z_][A-Za-z0-9_]*.'
+                );
+            }
+
+            if (array_key_exists($paramKey, $normalized)) {
+                throw new InvalidArgumentException(
+                    'Duplicate named parameter key after normalization: ' . $paramKey . '.'
+                );
+            }
+
+            $normalized[$paramKey] = $value;
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Normalizes and validates named WHERE bindings and checks SET-vs-WHERE conflicts.
+     * Accepts both 'name' and ':name' keys; returns normalized ':name' keys.
+     *
+     * @param array $whereData Associative array of WHERE placeholder names to values.
+     * @param array $existingPlaceholders Optional existing placeholder map for conflict detection.
+     * @throws InvalidArgumentException If a placeholder key is invalid, duplicated, or conflicts.
+     * @return array Normalized bindings keyed by ':name'.
+     */
+    public static function normalizeNamedWhereBindings(array $whereData, array $existingPlaceholders = array())
+    {
+        $normalized = self::normalizeNamedBindings($whereData);
+
+        foreach ($normalized as $paramKey => $value) {
+            if (!empty($existingPlaceholders) && array_key_exists($paramKey, $existingPlaceholders)) {
+                throw new InvalidArgumentException(
+                    "Binding key '{$paramKey}' is used in both \$fieldsToUpdate (SET) and \$whereData (WHERE). " .
+                    'Use distinct placeholder names to avoid conflicts.'
+                );
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Resolves WHERE bindings as named or positional based on array keys.
+     * Any non-integer key is treated as named binding input and normalized.
+     *
+     * @param array $whereData WHERE bindings (named or positional).
+     * @return array Normalized named bindings, or re-indexed positional values.
+     */
+    public static function resolveWhereBindings(array $whereData)
+    {
+        foreach ($whereData as $k => $value) {
+            if (!is_int($k)) {
+                return self::normalizeNamedWhereBindings($whereData);
+            }
+        }
+
+        return array_values($whereData);
     }
 
     /**
