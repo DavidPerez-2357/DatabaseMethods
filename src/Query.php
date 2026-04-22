@@ -55,11 +55,6 @@ class Query
         }
 
         $this->dialect = new DefaultSqlDialect();
-        if (isset($queryData['dialect']) && $queryData['dialect'] instanceof SqlDialect) {
-            $this->dialect = $queryData['dialect'];
-            unset($queryData['dialect']);
-        }
-
         $this->data = $queryData;
         if (!empty($queryData)) {
             $this->query = $this->buildQuery();

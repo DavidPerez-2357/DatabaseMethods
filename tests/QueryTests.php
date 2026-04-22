@@ -729,6 +729,19 @@ class QueryTests
         assert_contains('OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY', $sql);
     }
 
+    public function testSqlServerDialectOffsetWithoutLimitOmitsFetchNext()
+    {
+        $sql = Query::select()
+            ->setDialect(new SqlServerDialect())
+            ->from('users')
+            ->orderBy('id ASC')
+            ->offset(5)
+            ->getQuery();
+
+        assert_contains('OFFSET 5 ROWS', $sql);
+        assert_not_contains('FETCH NEXT', $sql);
+    }
+
     public function testOffsetWithNegativeThrows()
     {
         assert_throws('InvalidArgumentException', function () {

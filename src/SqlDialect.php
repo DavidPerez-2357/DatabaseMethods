@@ -48,8 +48,12 @@ class SqlServerDialect implements SqlDialect
         }
 
         $offset = $offset !== null ? (int) $offset : 0;
-        $limit  = $limit !== null ? (int) $limit : PHP_INT_MAX;
+        $sql = ' OFFSET ' . $offset . ' ROWS';
 
-        return ' OFFSET ' . $offset . ' ROWS FETCH NEXT ' . $limit . ' ROWS ONLY';
+        if ($limit !== null) {
+            $sql .= ' FETCH NEXT ' . (int) $limit . ' ROWS ONLY';
+        }
+
+        return $sql;
     }
 }
