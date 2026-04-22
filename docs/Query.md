@@ -99,6 +99,28 @@ $sql = Query::select(['id'])
 // SELECT id FROM users ORDER BY created_at DESC OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY
 ```
 
+**SQL Server pagination rules:**
+
+| Clause | Generated SQL | ORDER BY required? |
+|---|---|---|
+| `limit` only | `SELECT TOP n …` | No |
+| `offset` only | `… OFFSET n ROWS` | **Yes** — throws `InvalidArgumentException` if absent |
+| `limit` + `offset` | `… OFFSET n ROWS FETCH NEXT m ROWS ONLY` | **Yes** — throws `InvalidArgumentException` if absent |
+
+```php
+// OK — limit only; SELECT TOP n does not require ORDER BY
+$sql = Query::select()->setDialect(new SqlServerDialect())->from('t')->limit(10)->getQuery();
+// SELECT TOP 10 * FROM t
+
+// OK — limit + offset with ORDER BY
+$sql = Query::select()->setDialect(new SqlServerDialect())
+    ->from('t')->orderBy('id ASC')->limit(10)->offset(5)->getQuery();
+// SELECT * FROM t ORDER BY id ASC OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY
+
+// Throws — offset without ORDER BY is invalid SQL Server syntax
+$sql = Query::select()->setDialect(new SqlServerDialect())->from('t')->offset(5)->getQuery();
+```
+
 &emsp;
 
 ## INSERT

@@ -639,8 +639,19 @@ class Query
         $this->assertMethod('SELECT');
         $table = $this->requireTable();
 
+        // Compute pagination values early so the dialect can affect the SELECT prefix.
+        $limit = $this->getValidatedLimit();
+        $limitVal = $limit > 0 ? $limit : null;
+
+        $offsetRaw = filter_var(
+            isset($this->data['offset']) ? $this->data['offset'] : null,
+            FILTER_VALIDATE_INT,
+            array('options' => array('min_range' => 0))
+        );
+        $offsetVal = $offsetRaw !== false ? (int) $offsetRaw : null;
+
         $fields = isset($this->data['fields']) ? implode(", ", $this->data['fields']) : "*";
-        $sql = "SELECT {$fields} FROM {$table}";
+        $sql = "SELECT " . $this->dialect->compileSelectTop($limitVal, $offsetVal) . "{$fields} FROM {$table}";
 
         $this->appendJoinsToSql($sql);
 
@@ -660,17 +671,8 @@ class Query
             $sql .= " ORDER BY " . SqlValidator::assertOrderBy($this->data['order_by']);
         }
 
-        $limit = $this->getValidatedLimit();
-        $offset = filter_var(
-            isset($this->data['offset']) ? $this->data['offset'] : null,
-            FILTER_VALIDATE_INT,
-            array('options' => array('min_range' => 0))
-        );
-
-        $sql .= $this->dialect->compilePagination(
-            $limit > 0 ? $limit : null,
-            $offset !== false ? (int) $offset : null
-        );
+        $hasOrderBy = !empty($this->data['order_by']);
+        $sql .= $this->dialect->compilePagination($limitVal, $offsetVal, $hasOrderBy);
 
         return $sql;
     }
