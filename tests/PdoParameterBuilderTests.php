@@ -10,6 +10,8 @@
  *                                 invalid identifiers, mixed NULL/non-NULL conditions
  *   - buildValues()             - indexed params, prefixed placeholders, empty input, non-sequential keys
  *   - buildNamedParams()        - named parameter array generation
+ *   - normalizeNamedBindings()  - normalize/validate named placeholders
+ *   - normalizeNamedWhereBindings() / resolveWhereBindings() - WHERE binding normalization
  *   - buildSetClause()          - SQL SET clause generation
  *   - buildInsertPlaceholders() - INSERT placeholder generation
  *   - buildInsertParams()       - INSERT parameter array generation
@@ -201,6 +203,66 @@ class PdoParameterBuilderTests
         $params = PdoParameterBuilder::buildNamedParams(array('u.name' => 'Alice', 'u.age' => 30));
 
         assert_equals(array(':u_name' => 'Alice', ':u_age' => 30), $params);
+    }
+
+    // =========================================================================
+    // normalizeNamedBindings - generic named placeholder normalization/validation
+    // =========================================================================
+
+    public function testNormalizeNamedBindingsAcceptsWithAndWithoutColon()
+    {
+        $params = PdoParameterBuilder::normalizeNamedBindings(array('id' => 10, ':name' => 'Alice'));
+
+        assert_equals(array(':id' => 10, ':name' => 'Alice'), $params);
+    }
+
+    public function testNormalizeNamedBindingsRejectsNonStringKey()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::normalizeNamedBindings(array(0 => 'x'));
+        });
+    }
+
+    public function testNormalizeNamedBindingsRejectsDoubleLeadingColon()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::normalizeNamedBindings(array('::id' => 1));
+        });
+    }
+
+    public function testNormalizeNamedBindingsRejectsDuplicateAfterNormalization()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::normalizeNamedBindings(array('id' => 1, ':id' => 2));
+        });
+    }
+
+    // =========================================================================
+    // normalizeNamedWhereBindings / resolveWhereBindings
+    // =========================================================================
+
+    public function testNormalizeNamedWhereBindingsDetectsSetWhereConflict()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::normalizeNamedWhereBindings(
+                array('id' => 10),
+                array(':id' => 20)
+            );
+        });
+    }
+
+    public function testResolveWhereBindingsNamedKeysAreNormalized()
+    {
+        $params = PdoParameterBuilder::resolveWhereBindings(array('id' => 10, ':status' => 'active'));
+
+        assert_equals(array(':id' => 10, ':status' => 'active'), $params);
+    }
+
+    public function testResolveWhereBindingsPositionalKeysAreReindexed()
+    {
+        $params = PdoParameterBuilder::resolveWhereBindings(array(3 => 'a', 9 => 'b'));
+
+        assert_equals(array('a', 'b'), $params);
     }
 
     // =========================================================================

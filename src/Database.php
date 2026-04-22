@@ -494,35 +494,9 @@ class Database
      */
     private function bindNamedParams($stmt, $params)
     {
-        $seen = [];
+        $normalizedParams = PdoParameterBuilder::normalizeNamedBindings($params);
 
-        foreach ($params as $key => $value) {
-            if (!is_string($key)) {
-                throw new InvalidArgumentException('Named parameter keys must be strings.');
-            }
-
-            if ($key === '') {
-                throw new InvalidArgumentException('Named parameter keys must be non-empty strings.');
-            }
-
-            if (strlen($key) > 1 && $key[0] === ':' && $key[1] === ':') {
-                throw new InvalidArgumentException('Named parameter keys may have at most one leading colon.');
-            }
-
-            $normalizedKey = ($key[0] === ':') ? $key : ':' . $key;
-            if (!preg_match('/^:[A-Za-z_][A-Za-z0-9_]*$/', $normalizedKey)) {
-                throw new InvalidArgumentException(
-                    'Named parameter keys must match the format :[A-Za-z_][A-Za-z0-9_]*.'
-                );
-            }
-
-            if (isset($seen[$normalizedKey])) {
-                throw new InvalidArgumentException(
-                    'Duplicate named parameter key after normalization: ' . $normalizedKey . '.'
-                );
-            }
-
-            $seen[$normalizedKey] = true;
+        foreach ($normalizedParams as $normalizedKey => $value) {
             $this->bindOneValue($stmt, $normalizedKey, $value);
         }
     }
@@ -562,43 +536,7 @@ class Database
      */
     private function normalizeNamedWhereBindings($whereData, $existingPlaceholders = [])
     {
-        $result = [];
-
-        foreach ($whereData as $key => $value) {
-            if (!is_string($key) || $key === '') {
-                throw new InvalidArgumentException(
-                    "\$whereData must use non-empty string keys for placeholders; invalid key encountered."
-                );
-            }
-
-            $paramKey = ($key[0] === ':') ? $key : ":{$key}";
-
-            if (!preg_match('/^:[A-Za-z_][A-Za-z0-9_]*$/', $paramKey)) {
-                throw new InvalidArgumentException(
-                    "Invalid placeholder name '{$paramKey}' in \$whereData; " .
-                    "placeholder names must start with a letter or underscore and contain only letters, " .
-                    "digits, and underscores."
-                );
-            }
-
-            if (array_key_exists($paramKey, $result)) {
-                throw new InvalidArgumentException(
-                    "Binding key '{$paramKey}' is duplicated within \$whereData (WHERE); " .
-                    "each placeholder must be unique."
-                );
-            }
-
-            if (!empty($existingPlaceholders) && array_key_exists($paramKey, $existingPlaceholders)) {
-                throw new InvalidArgumentException(
-                    "Binding key '{$paramKey}' is used in both \$fieldsToUpdate (SET) and \$whereData (WHERE). " .
-                    "Use distinct placeholder names to avoid conflicts."
-                );
-            }
-
-            $result[$paramKey] = $value;
-        }
-
-        return $result;
+        return PdoParameterBuilder::normalizeNamedWhereBindings($whereData, $existingPlaceholders);
     }
 
     /**
@@ -622,12 +560,7 @@ class Database
      */
     private function resolveWhereBindings($whereData)
     {
-        foreach ($whereData as $k => $_val) {
-            if (!is_int($k)) {
-                return $this->normalizeNamedWhereBindings($whereData);
-            }
-        }
-        return array_values($whereData);
+        return PdoParameterBuilder::resolveWhereBindings($whereData);
     }
 
     /**
