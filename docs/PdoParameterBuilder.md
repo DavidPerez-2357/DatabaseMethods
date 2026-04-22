@@ -157,37 +157,6 @@ PdoParameterBuilder::normalizeNamedBindings(array $params)
 
 &emsp;
 
-## normalizeNamedWhereBindings
-
-Normalizes and validates named WHERE bindings and detects collisions against existing placeholders (for example, collisions between `SET` and `WHERE` bindings in an UPDATE).
-
-**Signature:**
-```php
-PdoParameterBuilder::normalizeNamedWhereBindings(array $whereData, array $existingPlaceholders = [])
-```
-
-**Returns:** `array` - normalized `:name => value` map.
-
-**Throws:** `InvalidArgumentException` for invalid/duplicate keys or conflicts with `$existingPlaceholders`.
-
-&emsp;
-
-## resolveWhereBindings
-
-Resolves mixed WHERE binding styles:
-
-- If all keys are integers, returns positional bindings as a re-indexed list.
-- If any key is non-integer, treats input as named bindings and normalizes via `normalizeNamedWhereBindings()`.
-
-**Signature:**
-```php
-PdoParameterBuilder::resolveWhereBindings(array $whereData)
-```
-
-**Returns:** `array` - re-indexed positional list or normalized named map.
-
-&emsp;
-
 ## buildSetClause
 
 Builds the SQL `SET` fragment for an UPDATE statement from an array of column names. Column names are validated as plain SQL identifiers.
