@@ -67,7 +67,7 @@ class DefaultSqlDialect implements SqlDialect
 }
 
 /**
- * ANSI-like SQL dialect used by PostgreSQL and SQLite identifier quoting.
+ * ANSI-like SQL dialect used by PostgreSQL, SQLite, and SQL Server identifier quoting.
  */
 class AnsiSqlDialect extends DefaultSqlDialect
 {

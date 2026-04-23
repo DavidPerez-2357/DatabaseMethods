@@ -1024,7 +1024,8 @@ class Query
      */
     private function quoteTableExpression($tableExpression)
     {
-        $parts = preg_split('/\s+/', trim($tableExpression));
+        SqlValidator::assertAlias($tableExpression);
+        $parts = preg_split('/\s+/', trim($tableExpression), -1, PREG_SPLIT_NO_EMPTY);
         $quotedTable = $this->quoteQualifiedIdentifier($parts[0]);
 
         if (count($parts) === 1) {
