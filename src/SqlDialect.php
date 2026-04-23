@@ -6,6 +6,14 @@
 interface SqlDialect
 {
     /**
+     * Quotes a SQL identifier (table/column name) according to the dialect.
+     *
+     * @param string $identifier Identifier segment to quote (no dot/alias parsing here).
+     * @return string
+     */
+    public function quoteIdentifier($identifier);
+
+    /**
      * Returns a SELECT-clause prefix for row-limiting (e.g. 'TOP 10 ' on SQL Server).
      * Called before the field list; returns an empty string when not needed.
      *
@@ -32,6 +40,11 @@ interface SqlDialect
  */
 class DefaultSqlDialect implements SqlDialect
 {
+    public function quoteIdentifier($identifier)
+    {
+        return (string) $identifier;
+    }
+
     public function compileSelectTop($limit, $offset)
     {
         return '';
@@ -54,6 +67,28 @@ class DefaultSqlDialect implements SqlDialect
 }
 
 /**
+ * ANSI-like SQL dialect used by PostgreSQL, SQLite, and SQL Server identifier quoting.
+ */
+class AnsiSqlDialect extends DefaultSqlDialect
+{
+    public function quoteIdentifier($identifier)
+    {
+        return '"' . str_replace('"', '""', (string) $identifier) . '"';
+    }
+}
+
+/**
+ * MySQL SQL dialect.
+ */
+class MysqlSqlDialect extends DefaultSqlDialect
+{
+    public function quoteIdentifier($identifier)
+    {
+        return '`' . str_replace('`', '``', (string) $identifier) . '`';
+    }
+}
+
+/**
  * SQL Server dialect.
  *
  * Pagination strategy:
@@ -62,7 +97,7 @@ class DefaultSqlDialect implements SqlDialect
  *    SQL Server requires ORDER BY for OFFSET/FETCH; an InvalidArgumentException
  *    is thrown when offset is used without an ORDER BY clause.
  */
-class SqlServerDialect implements SqlDialect
+class SqlServerDialect extends AnsiSqlDialect
 {
     /**
      * Returns 'TOP n ' when only a limit is requested (no offset).
