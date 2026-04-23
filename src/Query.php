@@ -35,6 +35,7 @@ class Query
 {
     private $data;
     private $query;
+    private $dialect;
 
     /**
      * Creates a Query instance.
@@ -52,6 +53,8 @@ class Query
         if (!is_array($queryData)) {
             throw new InvalidArgumentException('Query constructor expects an array.');
         }
+
+        $this->dialect = new DefaultSqlDialect();
         $this->data = $queryData;
         if (!empty($queryData)) {
             $this->query = $this->buildQuery();
@@ -574,6 +577,22 @@ class Query
         return $this;
     }
 
+    /**
+     * Sets the SQL dialect used to compile driver-specific SQL fragments.
+     *
+     * @param SqlDialect $dialect
+     * @return $this
+     */
+    public function setDialect(SqlDialect $dialect)
+    {
+        if ($this->dialect === $dialect) {
+            return $this;
+        }
+        $this->dialect = $dialect;
+        $this->query = null;
+        return $this;
+    }
+
     // -------------------------------------------------------------------------
     // Query builders
     // -------------------------------------------------------------------------
@@ -623,8 +642,20 @@ class Query
         $this->assertMethod('SELECT');
         $table = $this->requireTable();
 
-        $fields = isset($this->data['fields']) ? implode(", ", $this->data['fields']) : "*";
-        $sql = "SELECT {$fields} FROM {$table}";
+        // Compute pagination values early so the dialect can affect the SELECT prefix.
+        $limit = $this->getValidatedLimit();
+        $limitVal = $limit > 0 ? $limit : null;
+
+        $offsetRaw = filter_var(
+            isset($this->data['offset']) ? $this->data['offset'] : null,
+            FILTER_VALIDATE_INT,
+            array('options' => array('min_range' => 0))
+        );
+        $offsetVal = $offsetRaw !== false ? (int) $offsetRaw : null;
+
+        $fields    = isset($this->data['fields']) ? implode(", ", $this->data['fields']) : "*";
+        $selectTop = $this->dialect->compileSelectTop($limitVal, $offsetVal);
+        $sql = "SELECT {$selectTop}{$fields} FROM {$table}";
 
         $this->appendJoinsToSql($sql);
 
@@ -644,19 +675,8 @@ class Query
             $sql .= " ORDER BY " . SqlValidator::assertOrderBy($this->data['order_by']);
         }
 
-        $limit = $this->getValidatedLimit();
-        if ($limit > 0) {
-            $sql .= " LIMIT " . $limit;
-        }
-
-        $offset = filter_var(
-            isset($this->data['offset']) ? $this->data['offset'] : null,
-            FILTER_VALIDATE_INT,
-            array('options' => array('min_range' => 0))
-        );
-        if ($offset !== false) {
-            $sql .= " OFFSET " . $offset;
-        }
+        $hasOrderBy = !empty($this->data['order_by']);
+        $sql .= $this->dialect->compilePagination($limitVal, $offsetVal, $hasOrderBy);
 
         return $sql;
     }

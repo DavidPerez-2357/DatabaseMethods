@@ -702,6 +702,84 @@ class QueryTests
         assert_contains('OFFSET 0', $sql);
     }
 
+    public function testSelectWithSqlServerDialectUsesOffsetFetchPagination()
+    {
+        $sql = Query::select(['id'])
+            ->setDialect(new SqlServerDialect())
+            ->from('users')
+            ->orderBy('created_at DESC')
+            ->limit(10)
+            ->offset(5)
+            ->getQuery();
+
+        assert_contains('ORDER BY created_at DESC', $sql);
+        assert_contains('OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY', $sql);
+        assert_not_contains(' LIMIT ', $sql);
+    }
+
+    public function testSqlServerDialectLimitWithoutOffsetUsesSelectTop()
+    {
+        $sql = Query::select()
+            ->setDialect(new SqlServerDialect())
+            ->from('users')
+            ->orderBy('id ASC')
+            ->limit(10)
+            ->getQuery();
+
+        assert_contains('SELECT TOP 10 *', $sql);
+        assert_not_contains('OFFSET', $sql);
+        assert_not_contains('FETCH', $sql);
+    }
+
+    public function testSqlServerDialectLimitWithoutOrderByUsesSelectTop()
+    {
+        // SELECT TOP n is valid without ORDER BY on SQL Server.
+        $sql = Query::select(['id'])
+            ->setDialect(new SqlServerDialect())
+            ->from('users')
+            ->limit(5)
+            ->getQuery();
+
+        assert_contains('SELECT TOP 5 id', $sql);
+        assert_not_contains('OFFSET', $sql);
+    }
+
+    public function testSqlServerDialectOffsetWithoutOrderByThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::select()
+                ->setDialect(new SqlServerDialect())
+                ->from('users')
+                ->offset(5)
+                ->getQuery();
+        });
+    }
+
+    public function testSqlServerDialectOffsetAndLimitWithoutOrderByThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::select()
+                ->setDialect(new SqlServerDialect())
+                ->from('users')
+                ->limit(10)
+                ->offset(5)
+                ->getQuery();
+        });
+    }
+
+    public function testSqlServerDialectOffsetWithoutLimitOmitsFetchNext()
+    {
+        $sql = Query::select()
+            ->setDialect(new SqlServerDialect())
+            ->from('users')
+            ->orderBy('id ASC')
+            ->offset(5)
+            ->getQuery();
+
+        assert_contains('OFFSET 5 ROWS', $sql);
+        assert_not_contains('FETCH NEXT', $sql);
+    }
+
     public function testOffsetWithNegativeThrows()
     {
         assert_throws('InvalidArgumentException', function () {

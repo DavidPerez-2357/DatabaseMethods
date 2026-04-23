@@ -22,6 +22,7 @@ class Database
     private $conn; // connection variable
     private $json_encode = false; // Default value for json_encode
     private $keywordCheckEnabled = true; // Default value for keyword checking
+    private $dialect; // SQL dialect used for Query rendering
 
     /**
      * Associative array of supported JOIN types for this driver.
@@ -44,6 +45,7 @@ class Database
     public function __construct($ppt)
     {
         $this->properties = $ppt;
+        $this->dialect = new DefaultSqlDialect();
     }
 
     public function __call($method, $args)
@@ -156,6 +158,40 @@ class Database
     public function getSupportedJoinTypes()
     {
         return $this->supportedJoins;
+    }
+
+    /**
+     * Creates a SELECT Query instance configured with this database dialect.
+     *
+     * @return Query
+     */
+    public function createQuery()
+    {
+        return Query::select()->setDialect($this->getDialect());
+    }
+
+    /**
+     * Returns the SQL dialect associated with this database driver.
+     *
+     * @return SqlDialect
+     */
+    public function getDialect()
+    {
+        return $this->dialect;
+    }
+
+    /**
+     * Sets the SQL dialect associated with this database driver.
+     * Protected because the dialect is determined by the driver at construction time
+     * and should not be changed through the public API; use {@see getDialect()} to read it.
+     *
+     * @param SqlDialect $dialect
+     * @return $this
+     */
+    protected function setDialect(SqlDialect $dialect)
+    {
+        $this->dialect = $dialect;
+        return $this;
     }
 
     /**
@@ -280,6 +316,7 @@ class Database
         }
 
         if ($query instanceof Query) {
+            $query->setDialect($this->getDialect());
             $query->limit(1);
         }
         $sql = (string) $query;
@@ -310,6 +347,9 @@ class Database
             );
         }
 
+        if ($query instanceof Query) {
+            $query->setDialect($this->getDialect());
+        }
         $sql = (string) $query;
 
         $this->requireConnection();

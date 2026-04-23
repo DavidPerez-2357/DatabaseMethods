@@ -161,6 +161,22 @@ $row  = $database->selectOne('SELECT id, name FROM users WHERE id = :userId LIMI
 
 ---
 
+### `createQuery()` / `getDialect()`
+
+`createQuery()` returns a `Query::select()` instance pre-configured with the active driver dialect, so pagination SQL is rendered correctly per driver.
+
+```php
+$query = $database->createQuery()
+    ->from('users')
+    ->orderBy('created_at DESC')
+    ->limit(10)
+    ->offset(5);
+```
+
+Use `getDialect()` when you need to apply the same dialect manually to an existing `Query` object.
+
+---
+
 ### `insert($table, $dataToInsert)`
 
 Insert one or more records. Auto-detects single (associative array) vs. multiple (array of associative arrays). Returns the last inserted auto-increment ID.

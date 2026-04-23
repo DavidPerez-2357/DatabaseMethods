@@ -37,6 +37,7 @@ Both styles produce identical SQL. Cast a `Query` object to string with `echo` /
 | `->orderBy($expr)` | SELECT, DELETE | Set ORDER BY |
 | `->limit($n)` | SELECT, DELETE | Set LIMIT |
 | `->offset($n)` | SELECT | Set OFFSET |
+| `->setDialect($dialect)` | SELECT | Set SQL dialect for pagination rendering |
 | `->valuesCount($n)` | INSERT | Number of rows to insert (default 1) |
 
 &emsp;
@@ -81,6 +82,44 @@ LIMIT 10
 ```
 
 > See the [JOINs](#joins) section below for all available join methods.
+
+### Dialect-aware pagination
+
+By default, SELECT pagination renders as `LIMIT/OFFSET` (MySQL/PostgreSQL/SQLite style).
+You can switch rendering using `setDialect()`:
+
+```php
+$sql = Query::select(['id'])
+    ->setDialect(new SqlServerDialect())
+    ->from('users')
+    ->orderBy('created_at DESC')
+    ->limit(10)
+    ->offset(5)
+    ->getQuery();
+// SELECT id FROM users ORDER BY created_at DESC OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY
+```
+
+**SQL Server pagination rules:**
+
+| Clause | Generated SQL | ORDER BY required? |
+|---|---|---|
+| `limit` only | `SELECT TOP n …` | No |
+| `offset` only | `… OFFSET n ROWS` | **Yes** - throws `InvalidArgumentException` if absent |
+| `limit` + `offset` | `… OFFSET n ROWS FETCH NEXT m ROWS ONLY` | **Yes** - throws `InvalidArgumentException` if absent |
+
+```php
+// OK - limit only; SELECT TOP n does not require ORDER BY
+$sql = Query::select()->setDialect(new SqlServerDialect())->from('t')->limit(10)->getQuery();
+// SELECT TOP 10 * FROM t
+
+// OK - limit + offset with ORDER BY
+$sql = Query::select()->setDialect(new SqlServerDialect())
+    ->from('t')->orderBy('id ASC')->limit(10)->offset(5)->getQuery();
+// SELECT * FROM t ORDER BY id ASC OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY
+
+// Throws: offset without ORDER BY is invalid SQL Server syntax
+$sql = Query::select()->setDialect(new SqlServerDialect())->from('t')->offset(5)->getQuery();
+```
 
 &emsp;
 
