@@ -182,6 +182,8 @@ class Database
 
     /**
      * Sets the SQL dialect associated with this database driver.
+     * Protected because the dialect is determined by the driver at construction time
+     * and should not be changed through the public API; use {@see getDialect()} to read it.
      *
      * @param SqlDialect $dialect
      * @return $this

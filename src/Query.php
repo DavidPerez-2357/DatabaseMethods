@@ -650,8 +650,9 @@ class Query
         );
         $offsetVal = $offsetRaw !== false ? (int) $offsetRaw : null;
 
-        $fields = isset($this->data['fields']) ? implode(", ", $this->data['fields']) : "*";
-        $sql = "SELECT " . $this->dialect->compileSelectTop($limitVal, $offsetVal) . "{$fields} FROM {$table}";
+        $fields    = isset($this->data['fields']) ? implode(", ", $this->data['fields']) : "*";
+        $selectTop = $this->dialect->compileSelectTop($limitVal, $offsetVal);
+        $sql = "SELECT {$selectTop}{$fields} FROM {$table}";
 
         $this->appendJoinsToSql($sql);
 
