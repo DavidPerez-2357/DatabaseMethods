@@ -254,4 +254,8 @@ The generic `join()` method (raw SQL string) is also available for join types no
 - `ORDER BY` additionally allows `ASC` / `DESC` per column.
 - Function calls, expressions, or subqueries are not accepted.
 
+Validated identifiers rendered by `Query` are dialect-quoted automatically:
+- MySQL: `` `identifier` ``
+- PostgreSQL / SQLite / SQL Server: `"identifier"` (when using those driver dialects)
+
 **WHERE, HAVING, JOIN** - passed through as raw SQL fragments. Use PDO placeholders for any user-supplied values.

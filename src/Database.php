@@ -398,6 +398,7 @@ class Database
             'fields' => array_keys($fieldsToInsert),
             'values_to_insert' => 1
         ]);
+        $query->setDialect($this->getDialect());
 
         $this->prepareAndExecute((string) $query, PdoParameterBuilder::buildInsertParams(array($fieldsToInsert)));
         return (int) $this->conn->lastInsertId();
@@ -443,6 +444,7 @@ class Database
             'fields' => $expectedFields,
             'values_to_insert' => count($rowsToInsert)
         ]);
+        $query->setDialect($this->getDialect());
 
         $this->prepareAndExecute((string) $query, PdoParameterBuilder::buildInsertParams($rowsToInsert));
         return (int) $this->conn->lastInsertId();
@@ -673,6 +675,7 @@ class Database
             'where' => $where,
             'joins' => $joins,
         ]);
+        $query->setDialect($this->getDialect());
 
         $placeholders = PdoParameterBuilder::buildNamedParams($fieldsToUpdate);
 
@@ -718,6 +721,7 @@ class Database
             'order_by' => $orderBy,
             'limit' => $limit
         ]);
+        $query->setDialect($this->getDialect());
 
         $stmt = $this->prepareAndExecute((string) $query, $this->resolveWhereBindings($whereData));
         return (int) $stmt->rowCount();
@@ -745,6 +749,7 @@ class Database
             'order_by' => $orderBy,
             'limit' => $limit
         ]);
+        $query->setDialect($this->getDialect());
 
         $stmt = $this->prepareAndExecute((string) $query, []);
         return (int) $stmt->rowCount();

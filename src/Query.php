@@ -640,7 +640,7 @@ class Query
     public function buildSelectQuery()
     {
         $this->assertMethod('SELECT');
-        $table = $this->requireTable();
+        $table = $this->quoteTableExpression($this->requireTable());
 
         // Compute pagination values early so the dialect can affect the SELECT prefix.
         $limit = $this->getValidatedLimit();
@@ -653,7 +653,7 @@ class Query
         );
         $offsetVal = $offsetRaw !== false ? (int) $offsetRaw : null;
 
-        $fields    = isset($this->data['fields']) ? implode(", ", $this->data['fields']) : "*";
+        $fields    = isset($this->data['fields']) ? $this->renderSelectFields($this->data['fields']) : "*";
         $selectTop = $this->dialect->compileSelectTop($limitVal, $offsetVal);
         $sql = "SELECT {$selectTop}{$fields} FROM {$table}";
 
@@ -664,7 +664,7 @@ class Query
         }
 
         if (!empty($this->data['group_by'])) {
-            $sql .= " GROUP BY " . SqlValidator::assertGroupBy($this->data['group_by']);
+            $sql .= " GROUP BY " . $this->renderGroupBy($this->data['group_by']);
         }
 
         if (!empty($this->data['having'])) {
@@ -672,7 +672,7 @@ class Query
         }
 
         if (!empty($this->data['order_by'])) {
-            $sql .= " ORDER BY " . SqlValidator::assertOrderBy($this->data['order_by']);
+            $sql .= " ORDER BY " . $this->renderOrderBy($this->data['order_by']);
         }
 
         $hasOrderBy = !empty($this->data['order_by']);
@@ -694,7 +694,7 @@ class Query
     public function buildPDOInsertQuery()
     {
         $this->assertMethod('INSERT');
-        $table = $this->requirePlainTable();
+        $table = $this->quoteQualifiedIdentifier($this->requirePlainTable());
         $fields = $this->requireFields();
 
         $values = isset($this->data['values_to_insert']) ? (int) $this->data['values_to_insert'] : 1;
@@ -704,8 +704,9 @@ class Query
 
         // buildInsertPlaceholders() validates each field name and generates the row groups.
         $groups = PdoParameterBuilder::buildInsertPlaceholders($fields, $values);
+        $quotedFields = $this->quoteFieldList($fields);
 
-        return "INSERT INTO {$table} (" . implode(', ', $fields) . ") VALUES " . implode(', ', $groups);
+        return "INSERT INTO {$table} (" . implode(', ', $quotedFields) . ") VALUES " . implode(', ', $groups);
     }
 
     /**
@@ -721,12 +722,12 @@ class Query
     public function buildPDOUpdateQuery()
     {
         $this->assertMethod('UPDATE');
-        $table = $this->requireTable();
+        $table = $this->quoteTableExpression($this->requireTable());
         $fields = $this->requireFields();
 
         $sql = "UPDATE {$table}";
         $this->appendJoinsToSql($sql);
-        $sql .= " SET " . PdoParameterBuilder::buildSetClause($fields);
+        $sql .= " SET " . $this->buildQuotedSetClause($fields);
 
         if (!empty($this->data['where'])) {
             $sql .= " WHERE {$this->data['where']}";
@@ -752,7 +753,7 @@ class Query
     public function buildDeleteQuery()
     {
         $this->assertMethod('DELETE');
-        $table = $this->requireTable();
+        $table = $this->quoteTableExpression($this->requireTable());
 
         $sql = "DELETE FROM {$table}";
 
@@ -761,7 +762,7 @@ class Query
         }
 
         if (!empty($this->data['order_by'])) {
-            $sql .= " ORDER BY " . SqlValidator::assertOrderBy($this->data['order_by']);
+            $sql .= " ORDER BY " . $this->renderOrderBy($this->data['order_by']);
         }
 
         $limit = $this->getValidatedLimit();
@@ -884,6 +885,161 @@ class Query
         $raw = isset($this->data['limit']) ? $this->data['limit'] : null;
         $limit = filter_var($raw, FILTER_VALIDATE_INT, array('options' => array('min_range' => 0)));
         return ($limit !== false && $limit > 0) ? (int) $limit : 0;
+    }
+
+    /**
+     * Renders SELECT fields quoting identifier-like items while preserving raw fragments.
+     *
+     * @param array $fields
+     * @return string
+     */
+    private function renderSelectFields($fields)
+    {
+        $rendered = array();
+        foreach ($fields as $field) {
+            $fieldTrimmed = trim($field);
+            if ($fieldTrimmed === '*') {
+                $rendered[] = '*';
+                continue;
+            }
+
+            if (is_string($fieldTrimmed) && preg_match(SqlValidator::QUALIFIED_IDENTIFIER_REGEX, $fieldTrimmed)) {
+                $rendered[] = $this->quoteQualifiedIdentifier($fieldTrimmed);
+                continue;
+            }
+
+            $rendered[] = $field;
+        }
+
+        return implode(', ', $rendered);
+    }
+
+    /**
+     * Renders a validated GROUP BY expression with quoted identifiers.
+     *
+     * @param string $groupBy
+     * @return string
+     */
+    private function renderGroupBy($groupBy)
+    {
+        $validated = SqlValidator::assertGroupBy($groupBy);
+        $parts = explode(',', $validated);
+        $rendered = array();
+
+        foreach ($parts as $part) {
+            $rendered[] = $this->quoteQualifiedIdentifier(trim($part));
+        }
+
+        return implode(', ', $rendered);
+    }
+
+    /**
+     * Renders a validated ORDER BY expression with quoted identifiers.
+     *
+     * @param string $orderBy
+     * @return string
+     */
+    private function renderOrderBy($orderBy)
+    {
+        $validated = SqlValidator::assertOrderBy($orderBy);
+        $parts = explode(',', $validated);
+        $rendered = array();
+
+        foreach ($parts as $part) {
+            $part = trim($part);
+            if (
+                preg_match(
+                    '/^([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?)(?:\s+(ASC|DESC))?$/i',
+                    $part,
+                    $matches
+                )
+            ) {
+                $item = $this->quoteQualifiedIdentifier($matches[1]);
+                if (isset($matches[2]) && $matches[2] !== '') {
+                    $item .= ' ' . $matches[2];
+                }
+                $rendered[] = $item;
+                continue;
+            }
+
+            $rendered[] = $part;
+        }
+
+        return implode(', ', $rendered);
+    }
+
+    /**
+     * Quotes each unqualified field name using the active dialect.
+     *
+     * @param array $fields
+     * @return array
+     */
+    private function quoteFieldList($fields)
+    {
+        $quoted = array();
+        foreach ($fields as $field) {
+            SqlValidator::assertField($field);
+            $quoted[] = $this->dialect->quoteIdentifier($field);
+        }
+        return $quoted;
+    }
+
+    /**
+     * Builds an UPDATE SET clause with quoted field identifiers.
+     *
+     * @param array $fields
+     * @return string
+     */
+    private function buildQuotedSetClause($fields)
+    {
+        $parts = array();
+        foreach ($fields as $field) {
+            SqlValidator::assertField($field);
+            $parts[] = $this->dialect->quoteIdentifier($field) . ' = :' . $field;
+        }
+        return implode(', ', $parts);
+    }
+
+    /**
+     * Quotes a plain or schema-qualified identifier.
+     *
+     * @param string $identifier
+     * @return string
+     */
+    private function quoteQualifiedIdentifier($identifier)
+    {
+        $segments = explode('.', $identifier);
+        $quoted = array();
+        foreach ($segments as $segment) {
+            $quoted[] = $this->dialect->quoteIdentifier($segment);
+        }
+        return implode('.', $quoted);
+    }
+
+    /**
+     * Quotes the table portion of a validated table expression preserving optional alias.
+     *
+     * @param string $tableExpression
+     * @return string
+     */
+    private function quoteTableExpression($tableExpression)
+    {
+        $parts = preg_split('/\s+/', trim($tableExpression));
+        $quotedTable = $this->quoteQualifiedIdentifier($parts[0]);
+
+        if (count($parts) === 1) {
+            return $quotedTable;
+        }
+
+        if (count($parts) === 2) {
+            return $quotedTable . ' ' . $parts[1];
+        }
+
+        if (count($parts) === 3 && strtoupper($parts[1]) === 'AS') {
+            return $quotedTable . ' AS ' . $parts[2];
+        }
+
+        return $quotedTable . ' ' . implode(' ', array_slice($parts, 1));
     }
 
     /**
