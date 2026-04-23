@@ -984,6 +984,43 @@ class DatabaseTest
         assert_true($this->db->getDialect() instanceof SqlDialect, 'getDialect() must return a SqlDialect instance.');
     }
 
+    public function testSelectAppliesDatabaseDialectToQueryObject()
+    {
+        $query = Query::select(['name'])->from(self::TABLE)->orderBy('id ASC')->limit(3)->offset(1);
+
+        $this->db->select($query);
+
+        // After select(), the database dialect should have been applied to the query.
+        $sql = $query->getQuery();
+
+        if (DB_TEST_DRIVER === 'sql') {
+            assert_contains('OFFSET 1 ROWS FETCH NEXT 3 ROWS ONLY', $sql);
+            assert_not_contains(' LIMIT ', $sql);
+            return;
+        }
+
+        assert_contains(' LIMIT 3', $sql);
+        assert_contains(' OFFSET 1', $sql);
+    }
+
+    public function testSelectOneAppliesDatabaseDialectToQueryObject()
+    {
+        $query = Query::select(['name'])->from(self::TABLE)->orderBy('id ASC');
+
+        $this->db->selectOne($query);
+
+        // After selectOne(), the database dialect should have been applied and limit(1) added.
+        $sql = $query->getQuery();
+
+        if (DB_TEST_DRIVER === 'sql') {
+            assert_contains('TOP 1', $sql);
+            assert_not_contains(' LIMIT ', $sql);
+            return;
+        }
+
+        assert_contains(' LIMIT 1', $sql);
+    }
+
     // =========================================================================
     // Tests - getSupportedJoinTypes
     // =========================================================================

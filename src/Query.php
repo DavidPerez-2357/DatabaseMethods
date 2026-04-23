@@ -585,6 +585,9 @@ class Query
      */
     public function setDialect(SqlDialect $dialect)
     {
+        if ($this->dialect === $dialect) {
+            return $this;
+        }
         $this->dialect = $dialect;
         $this->query = null;
         return $this;
