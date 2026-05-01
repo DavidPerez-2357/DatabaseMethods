@@ -6,6 +6,14 @@
 interface SqlDialect
 {
     /**
+     * Quotes a SQL identifier (table or column name) using the dialect's quoting characters.
+     *
+     * @param string $identifier A single identifier segment (no dot/alias parsing).
+     * @return string
+     */
+    public function quoteIdentifier($identifier);
+
+    /**
      * Returns a SELECT-clause prefix for row-limiting (e.g. 'TOP 10 ' on SQL Server).
      * Called before the field list; returns an empty string when not needed.
      *
@@ -28,10 +36,16 @@ interface SqlDialect
 }
 
 /**
- * Default SQL dialect used by MySQL, PostgreSQL, and SQLite.
+ * Default SQL dialect used by PostgreSQL, SQLite, and SQL Server.
+ * Quotes identifiers with ANSI double-quotes.
  */
 class DefaultSqlDialect implements SqlDialect
 {
+    public function quoteIdentifier($identifier)
+    {
+        return '"' . str_replace('"', '""', (string) $identifier) . '"';
+    }
+
     public function compileSelectTop($limit, $offset)
     {
         return '';
@@ -50,6 +64,18 @@ class DefaultSqlDialect implements SqlDialect
         }
 
         return $sql;
+    }
+}
+
+/**
+ * MySQL SQL dialect.
+ * Quotes identifiers with backticks.
+ */
+class MysqlSqlDialect extends DefaultSqlDialect
+{
+    public function quoteIdentifier($identifier)
+    {
+        return '`' . str_replace('`', '``', (string) $identifier) . '`';
     }
 }
 

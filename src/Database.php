@@ -181,6 +181,36 @@ class Database
     }
 
     /**
+     * Quotes a SQL identifier using this database's dialect.
+     *
+     * Delegates to the driver dialect's quoteIdentifier() method, so the
+     * correct quoting character is used automatically (backticks for MySQL,
+     * double-quotes for PostgreSQL, SQLite, and SQL Server).
+     *
+     * @param string $identifier A single identifier segment (no dots; quote each segment separately).
+     * @return string The quoted identifier.
+     * @throws InvalidArgumentException If $identifier is not a non-empty string.
+     * @example
+     * ```php
+     * // With a MySQL connection
+     * $db->quote('order')   // => '`order`'
+     *
+     * // With a PostgreSQL / SQLite / SQL Server connection
+     * $db->quote('order')   // => '"order"'
+     *
+     * // Schema-qualified: quote each segment individually
+     * $db->quote('public') . '.' . $db->quote('order')
+     * ```
+     */
+    public function quote($identifier)
+    {
+        if (!is_string($identifier) || $identifier === '') {
+            throw new InvalidArgumentException('Database::quote() expects a non-empty string.');
+        }
+        return $this->dialect->quoteIdentifier($identifier);
+    }
+
+    /**
      * Sets the SQL dialect associated with this database driver.
      * Protected because the dialect is determined by the driver at construction time
      * and should not be changed through the public API; use {@see getDialect()} to read it.

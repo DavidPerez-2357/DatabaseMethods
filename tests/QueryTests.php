@@ -385,7 +385,7 @@ class QueryTests
     // Static helper: quote()
     // =========================================================================
 
-    public function testQuotePlainIdentifier()
+    public function testQuotePlainIdentifierDefaultIsAnsi()
     {
         assert_equals('"order"', Query::quote('order'));
     }
@@ -400,10 +400,36 @@ class QueryTests
         assert_equals('"created_at_2"', Query::quote('created_at_2'));
     }
 
+    public function testQuoteWithMysqlDialectUsesBackticks()
+    {
+        assert_equals('`order`', Query::quote('order', new MysqlSqlDialect()));
+    }
+
+    public function testQuoteWithMysqlDialectEscapesInternalBackticks()
+    {
+        assert_equals('`col``name`', Query::quote('col`name', new MysqlSqlDialect()));
+    }
+
+    public function testQuoteWithDefaultSqlDialectUsesAnsi()
+    {
+        assert_equals('"order"', Query::quote('order', new DefaultSqlDialect()));
+    }
+
+    public function testQuoteWithSqlServerDialectUsesAnsi()
+    {
+        assert_equals('"order"', Query::quote('order', new SqlServerDialect()));
+    }
+
     public function testQuoteCanBeUsedInFromClause()
     {
         $sql = Query::select()->from(Query::quote('user'))->getQuery();
         assert_equals('SELECT * FROM "user"', $sql);
+    }
+
+    public function testQuoteMysqlCanBeUsedInFromClause()
+    {
+        $sql = Query::select()->from(Query::quote('order', new MysqlSqlDialect()))->getQuery();
+        assert_equals('SELECT * FROM `order`', $sql);
     }
 
     public function testQuoteCanBeUsedInSelectFields()
@@ -413,6 +439,18 @@ class QueryTests
             ->getQuery();
         assert_contains('"order"', $sql);
         assert_contains('name', $sql);
+    }
+
+    public function testQuoteCanBeUsedInOrderBy()
+    {
+        $sql = Query::select()->from('t')->orderBy(Query::quote('group') . ' ASC')->getQuery();
+        assert_contains('"group" ASC', $sql);
+    }
+
+    public function testQuoteCanBeUsedInGroupBy()
+    {
+        $sql = Query::select()->from('t')->groupBy(Query::quote('order'))->getQuery();
+        assert_contains('GROUP BY "order"', $sql);
     }
 
     public function testQuoteWithEmptyStringThrows()

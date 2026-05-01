@@ -66,6 +66,21 @@ class SqlValidatorTests
         assert_true(true);
     }
 
+    public function testAssertQualifiedIdentifierAcceptsAnsiQuoted()
+    {
+        SqlValidator::assertQualifiedIdentifier('"order"');
+        SqlValidator::assertQualifiedIdentifier('"public"."order"');
+        SqlValidator::assertQualifiedIdentifier('"say ""hi"""');
+        assert_true(true);
+    }
+
+    public function testAssertQualifiedIdentifierAcceptsBacktickQuoted()
+    {
+        SqlValidator::assertQualifiedIdentifier('`order`');
+        SqlValidator::assertQualifiedIdentifier('`public`.`order`');
+        assert_true(true);
+    }
+
     public function testAssertQualifiedIdentifierRejectsInvalid()
     {
         foreach (array('a.b.c', '1name', '', 'name-col', null) as $bad) {
@@ -84,6 +99,20 @@ class SqlValidatorTests
         SqlValidator::assertTable('users');
         SqlValidator::assertTable('public.users');
         SqlValidator::assertTable('dbo.orders');
+        assert_true(true);
+    }
+
+    public function testAssertTableAcceptsAnsiQuoted()
+    {
+        SqlValidator::assertTable('"order"');
+        SqlValidator::assertTable('"public"."order"');
+        assert_true(true);
+    }
+
+    public function testAssertTableAcceptsBacktickQuoted()
+    {
+        SqlValidator::assertTable('`order`');
+        SqlValidator::assertTable('`public`.`order`');
         assert_true(true);
     }
 
@@ -106,6 +135,23 @@ class SqlValidatorTests
         SqlValidator::assertAlias('users u');
         SqlValidator::assertAlias('users AS u');
         SqlValidator::assertAlias('public.orders AS o');
+        assert_true(true);
+    }
+
+    public function testAssertAliasAcceptsAnsiQuotedWithOptionalAlias()
+    {
+        SqlValidator::assertAlias('"order"');
+        SqlValidator::assertAlias('"order" o');
+        SqlValidator::assertAlias('"order" AS o');
+        SqlValidator::assertAlias('"public"."order" AS o');
+        assert_true(true);
+    }
+
+    public function testAssertAliasAcceptsBacktickQuotedWithOptionalAlias()
+    {
+        SqlValidator::assertAlias('`order`');
+        SqlValidator::assertAlias('`order` o');
+        SqlValidator::assertAlias('`order` AS o');
         assert_true(true);
     }
 
@@ -150,6 +196,17 @@ class SqlValidatorTests
         assert_equals('name ASC, id DESC', SqlValidator::assertOrderBy('name ASC, id DESC'));
     }
 
+    public function testAssertOrderByAcceptsAnsiQuoted()
+    {
+        assert_equals('"order" ASC', SqlValidator::assertOrderBy('"order" ASC'));
+        assert_equals('"users"."order" DESC', SqlValidator::assertOrderBy('"users"."order" DESC'));
+    }
+
+    public function testAssertOrderByAcceptsBacktickQuoted()
+    {
+        assert_equals('`order` ASC', SqlValidator::assertOrderBy('`order` ASC'));
+    }
+
     public function testAssertOrderByTrimsWhitespace()
     {
         assert_equals('name ASC', SqlValidator::assertOrderBy('  name ASC  '));
@@ -173,6 +230,17 @@ class SqlValidatorTests
         assert_equals('name', SqlValidator::assertGroupBy('name'));
         assert_equals('users.id', SqlValidator::assertGroupBy('users.id'));
         assert_equals('name, email', SqlValidator::assertGroupBy('name, email'));
+    }
+
+    public function testAssertGroupByAcceptsAnsiQuoted()
+    {
+        assert_equals('"order"', SqlValidator::assertGroupBy('"order"'));
+        assert_equals('"users"."order"', SqlValidator::assertGroupBy('"users"."order"'));
+    }
+
+    public function testAssertGroupByAcceptsBacktickQuoted()
+    {
+        assert_equals('`order`', SqlValidator::assertGroupBy('`order`'));
     }
 
     public function testAssertGroupByTrimsWhitespace()

@@ -235,39 +235,41 @@ class Query
     }
 
     /**
-     * Quotes a SQL identifier using ANSI double-quote escaping.
+     * Quotes a SQL identifier using the given dialect, or ANSI double-quotes by default.
      *
-     * Use this when you need to wrap a table or column name that is a reserved
-     * word or contains special characters. The returned value can be used directly
-     * anywhere an identifier is expected (table name, column name, alias, etc.).
+     * Use this when a table or column name is a reserved word or contains special characters.
+     * Pass the dialect of your driver to get the correct quoting style for your database.
      *
-     * Double-quote quoting is the ANSI SQL standard and is supported by
-     * PostgreSQL, SQLite, SQL Server, and MySQL (in ANSI_QUOTES mode).
-     * For MySQL without ANSI_QUOTES, use backtick quoting directly: `` `column` ``.
-     *
-     * @param string $identifier A single identifier segment (no dots; quote each segment separately).
-     * @return string The quoted identifier, e.g. `"order"`.
+     * @param string          $identifier A single identifier segment (no dots; quote each segment separately).
+     * @param SqlDialect|null $dialect    Dialect to use for quoting; defaults to ANSI double-quotes when null.
+     * @return string The quoted identifier.
      * @throws InvalidArgumentException If $identifier is not a non-empty string.
      * @example
      * ```php
-     * // Quote a reserved-word column name
-     * $col = Query::quote('order');   // => '"order"'
+     * // ANSI double-quotes (default — PostgreSQL, SQLite, SQL Server)
+     * Query::quote('order')                        // => '"order"'
      *
-     * // Use it in a query
-     * $query = Query::select([Query::quote('order'), 'name'])
-     *     ->from(Query::quote('user'))
-     *     ->orderBy(Query::quote('group') . ' ASC');
+     * // MySQL backticks
+     * Query::quote('order', new MysqlSqlDialect()) // => '`order`'
+     *
+     * // Use the dialect of an existing Database connection
+     * Query::quote('order', $db->getDialect())
      *
      * // Schema-qualified: quote each segment individually
-     * $table = Query::quote('public') . '.' . Query::quote('user');
+     * Query::quote('public') . '.' . Query::quote('user')  // => '"public"."user"'
      * ```
      */
-    public static function quote($identifier)
+    public static function quote($identifier, $dialect = null)
     {
         if (!is_string($identifier) || $identifier === '') {
             throw new InvalidArgumentException('Query::quote() expects a non-empty string.');
         }
-        return '"' . str_replace('"', '""', $identifier) . '"';
+
+        if ($dialect === null) {
+            $dialect = new DefaultSqlDialect();
+        }
+
+        return $dialect->quoteIdentifier($identifier);
     }
 
     // -------------------------------------------------------------------------

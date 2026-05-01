@@ -20,7 +20,7 @@ Both styles produce identical SQL. Cast a `Query` object to string with `echo` /
 | `Query::insert($table, [$fields])` | Start an INSERT query |
 | `Query::update($table, [$fields])` | Start an UPDATE query |
 | `Query::delete($table)` | Start a DELETE query |
-| `Query::quote($identifier)` | Quote a single identifier with ANSI double-quotes |
+| `Query::quote($identifier, [$dialect])` | Quote a single identifier with the given dialect (ANSI by default) |
 
 | Chainable setter | Applies to | Description |
 |---|---|---|
@@ -261,28 +261,42 @@ The generic `join()` method (raw SQL string) is also available for join types no
 
 ## Quoting identifiers
 
-Use `Query::quote($identifier)` when a table or column name is a reserved word or contains special characters. It wraps the identifier in ANSI double-quotes with internal double-quotes escaped:
+Use `Query::quote($identifier)` or `$db->quote($identifier)` when a table or column name is a reserved word or contains special characters.
+
+`$db->quote()` automatically uses the correct quoting style for the connected database. `Query::quote()` accepts an optional dialect for the same effect; without a dialect it defaults to ANSI double-quotes.
+
+| Driver | Quote style | Example |
+|---|---|---|
+| MySQL | backtick | `` `order` `` |
+| PostgreSQL / SQLite / SQL Server | double-quote | `"order"` |
 
 ```php
-Query::quote('order')       // => '"order"'
-Query::quote('say "hi"')    // => '"say ""hi"""'
+// Using the database connection (recommended — picks the right style automatically)
+$db->quote('order')                        // MySQL  => '`order`'
+$db->quote('order')                        // Others => '"order"'
+
+// Using the static helper with an explicit dialect
+Query::quote('order', $db->getDialect())   // same as above
+Query::quote('order', new MysqlSqlDialect()) // => '`order`'
+Query::quote('order')                        // => '"order"' (ANSI default)
 ```
 
-Use it wherever an identifier appears:
+Quoted identifiers can be used anywhere an identifier appears — `from()`, select fields, `orderBy()`, `groupBy()`:
 
 ```php
-// Reserved-word column and table
-$sql = Query::select([Query::quote('order'), 'name'])
-    ->from(Query::quote('user'))
-    ->orderBy(Query::quote('group') . ' ASC')
-    ->getQuery();
-// => SELECT "order", name FROM "user" ORDER BY "group" ASC
-
-// Schema-qualified table: quote each segment individually
-$table = Query::quote('public') . '.' . Query::quote('user');
-$sql   = Query::select()->from($table)->getQuery();
-// => SELECT * FROM "public"."user"
+$q = Query::select([$db->quote('order'), 'name'])
+    ->from($db->quote('user'))
+    ->orderBy($db->quote('group') . ' ASC');
+// MySQL  => SELECT `order`, name FROM `user` ORDER BY `group` ASC
+// Others => SELECT "order", name FROM "user" ORDER BY "group" ASC
 ```
 
-> [!NOTE]
-> ANSI double-quote quoting is the SQL standard and is supported by PostgreSQL, SQLite, and SQL Server. MySQL supports it when the `ANSI_QUOTES` SQL mode is enabled; otherwise use backtick quoting directly (`` `column` ``).
+For schema-qualified names, quote each segment individually:
+
+```php
+$table = $db->quote('public') . '.' . $db->quote('order');
+// MySQL  => `public`.`order`
+// Others => "public"."order"
+```
+
+Internal quotes are escaped automatically (`"` → `""`, `` ` `` → ` `` `` ``).
