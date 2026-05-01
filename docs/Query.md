@@ -20,6 +20,7 @@ Both styles produce identical SQL. Cast a `Query` object to string with `echo` /
 | `Query::insert($table, [$fields])` | Start an INSERT query |
 | `Query::update($table, [$fields])` | Start an UPDATE query |
 | `Query::delete($table)` | Start a DELETE query |
+| `Query::quote($identifier)` | Quote a single identifier with ANSI double-quotes |
 
 | Chainable setter | Applies to | Description |
 |---|---|---|
@@ -255,3 +256,33 @@ The generic `join()` method (raw SQL string) is also available for join types no
 - Function calls, expressions, or subqueries are not accepted.
 
 **WHERE, HAVING, JOIN** - passed through as raw SQL fragments. Use PDO placeholders for any user-supplied values.
+
+&emsp;
+
+## Quoting identifiers
+
+Use `Query::quote($identifier)` when a table or column name is a reserved word or contains special characters. It wraps the identifier in ANSI double-quotes with internal double-quotes escaped:
+
+```php
+Query::quote('order')       // => '"order"'
+Query::quote('say "hi"')    // => '"say ""hi"""'
+```
+
+Use it wherever an identifier appears:
+
+```php
+// Reserved-word column and table
+$sql = Query::select([Query::quote('order'), 'name'])
+    ->from(Query::quote('user'))
+    ->orderBy(Query::quote('group') . ' ASC')
+    ->getQuery();
+// => SELECT "order", name FROM "user" ORDER BY "group" ASC
+
+// Schema-qualified table: quote each segment individually
+$table = Query::quote('public') . '.' . Query::quote('user');
+$sql   = Query::select()->from($table)->getQuery();
+// => SELECT * FROM "public"."user"
+```
+
+> [!NOTE]
+> ANSI double-quote quoting is the SQL standard and is supported by PostgreSQL, SQLite, and SQL Server. MySQL supports it when the `ANSI_QUOTES` SQL mode is enabled; otherwise use backtick quoting directly (`` `column` ``).

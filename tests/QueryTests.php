@@ -382,7 +382,52 @@ class QueryTests
     }
 
     // =========================================================================
-    // Fluent setters: from() / table()
+    // Static helper: quote()
+    // =========================================================================
+
+    public function testQuotePlainIdentifier()
+    {
+        assert_equals('"order"', Query::quote('order'));
+    }
+
+    public function testQuoteEscapesInternalDoubleQuotes()
+    {
+        assert_equals('"say ""hello"""', Query::quote('say "hello"'));
+    }
+
+    public function testQuotePreservesUnderscoreAndDigits()
+    {
+        assert_equals('"created_at_2"', Query::quote('created_at_2'));
+    }
+
+    public function testQuoteCanBeUsedInFromClause()
+    {
+        $sql = Query::select()->from(Query::quote('user'))->getQuery();
+        assert_equals('SELECT * FROM "user"', $sql);
+    }
+
+    public function testQuoteCanBeUsedInSelectFields()
+    {
+        $sql = Query::select([Query::quote('order'), 'name'])
+            ->from('t')
+            ->getQuery();
+        assert_contains('"order"', $sql);
+        assert_contains('name', $sql);
+    }
+
+    public function testQuoteWithEmptyStringThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::quote('');
+        });
+    }
+
+    public function testQuoteWithNonStringThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::quote(42);
+        });
+    }
     // =========================================================================
 
     public function testFromSetsTable()

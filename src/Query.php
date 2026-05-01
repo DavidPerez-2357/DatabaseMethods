@@ -234,6 +234,42 @@ class Query
         return $instance;
     }
 
+    /**
+     * Quotes a SQL identifier using ANSI double-quote escaping.
+     *
+     * Use this when you need to wrap a table or column name that is a reserved
+     * word or contains special characters. The returned value can be used directly
+     * anywhere an identifier is expected (table name, column name, alias, etc.).
+     *
+     * Double-quote quoting is the ANSI SQL standard and is supported by
+     * PostgreSQL, SQLite, SQL Server, and MySQL (in ANSI_QUOTES mode).
+     * For MySQL without ANSI_QUOTES, use backtick quoting directly: `` `column` ``.
+     *
+     * @param string $identifier A single identifier segment (no dots; quote each segment separately).
+     * @return string The quoted identifier, e.g. `"order"`.
+     * @throws InvalidArgumentException If $identifier is not a non-empty string.
+     * @example
+     * ```php
+     * // Quote a reserved-word column name
+     * $col = Query::quote('order');   // => '"order"'
+     *
+     * // Use it in a query
+     * $query = Query::select([Query::quote('order'), 'name'])
+     *     ->from(Query::quote('user'))
+     *     ->orderBy(Query::quote('group') . ' ASC');
+     *
+     * // Schema-qualified: quote each segment individually
+     * $table = Query::quote('public') . '.' . Query::quote('user');
+     * ```
+     */
+    public static function quote($identifier)
+    {
+        if (!is_string($identifier) || $identifier === '') {
+            throw new InvalidArgumentException('Query::quote() expects a non-empty string.');
+        }
+        return '"' . str_replace('"', '""', $identifier) . '"';
+    }
+
     // -------------------------------------------------------------------------
     // Fluent setter methods
     // -------------------------------------------------------------------------
