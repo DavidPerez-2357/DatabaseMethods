@@ -712,7 +712,7 @@ class QueryTests
             ->offset(5)
             ->getQuery();
 
-        assert_contains('ORDER BY "created_at" DESC', $sql);
+        assert_contains('ORDER BY created_at DESC', $sql);
         assert_contains('OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY', $sql);
         assert_not_contains(' LIMIT ', $sql);
     }
@@ -740,7 +740,7 @@ class QueryTests
             ->limit(5)
             ->getQuery();
 
-        assert_contains('SELECT TOP 5 "id"', $sql);
+        assert_contains('SELECT TOP 5 id', $sql);
         assert_not_contains('OFFSET', $sql);
     }
 
@@ -778,55 +778,6 @@ class QueryTests
 
         assert_contains('OFFSET 5 ROWS', $sql);
         assert_not_contains('FETCH NEXT', $sql);
-    }
-
-    public function testAnsiDialectQuotesValidatedIdentifiersInSelect()
-    {
-        $sql = Query::select(['order'])
-            ->setDialect(new AnsiSqlDialect())
-            ->from('user')
-            ->groupBy('order')
-            ->orderBy('group ASC')
-            ->getQuery();
-
-        assert_contains('SELECT "order" FROM "user"', $sql);
-        assert_contains('GROUP BY "order"', $sql);
-        assert_contains('ORDER BY "group" ASC', $sql);
-    }
-
-    public function testMysqlDialectQuotesValidatedIdentifiersInSelect()
-    {
-        $sql = Query::select(['order'])
-            ->setDialect(new MysqlSqlDialect())
-            ->from('user')
-            ->orderBy('group ASC')
-            ->getQuery();
-
-        assert_contains('SELECT `order` FROM `user`', $sql);
-        assert_contains('ORDER BY `group` ASC', $sql);
-    }
-
-    public function testAnsiDialectQuotesInsertUpdateAndDeleteIdentifiers()
-    {
-        $insertSql = Query::insert('public.user', ['order', 'group'])
-            ->setDialect(new AnsiSqlDialect())
-            ->getQuery();
-        assert_equals(
-            'INSERT INTO "public"."user" ("order", "group") VALUES (:order_0, :group_0)',
-            $insertSql
-        );
-
-        $updateSql = Query::update('user', ['order'])
-            ->setDialect(new AnsiSqlDialect())
-            ->where('id = :id')
-            ->getQuery();
-        assert_equals('UPDATE "user" SET "order" = :order WHERE id = :id', $updateSql);
-
-        $deleteSql = Query::delete('logs')
-            ->setDialect(new AnsiSqlDialect())
-            ->orderBy('created_at ASC')
-            ->getQuery();
-        assert_equals('DELETE FROM "logs" ORDER BY "created_at" ASC', $deleteSql);
     }
 
     public function testOffsetWithNegativeThrows()

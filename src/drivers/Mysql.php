@@ -31,7 +31,6 @@ class Mysql extends Database
     public function __construct($ppt)
     {
         parent::__construct($ppt);
-        $this->setDialect(new MysqlSqlDialect());
         $this->connect($ppt);
     }
 
