@@ -2,6 +2,12 @@
 
 /**
  * SQL dialect abstraction for driver-specific SQL compilation.
+ *
+ * **Breaking change notice:** If you have custom implementations of this
+ * interface, you must add a `quoteIdentifier(string $identifier): string`
+ * method. Extending `DefaultSqlDialect` instead of implementing this
+ * interface directly is recommended, as it provides an unquoted no-op
+ * default that avoids fatal errors when new methods are added.
  */
 interface SqlDialect
 {

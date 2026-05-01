@@ -895,15 +895,27 @@ class Query
      */
     private function renderSelectFields($fields)
     {
+        if (!is_array($fields)) {
+            throw new InvalidArgumentException('SELECT fields must be provided as an array.');
+        }
+
         $rendered = array();
         foreach ($fields as $field) {
+            if (!is_string($field)) {
+                throw new InvalidArgumentException('Each SELECT field must be a string.');
+            }
+
             $fieldTrimmed = trim($field);
+            if ($fieldTrimmed === '') {
+                throw new InvalidArgumentException('Each SELECT field must be a non-empty string.');
+            }
+
             if ($fieldTrimmed === '*') {
                 $rendered[] = '*';
                 continue;
             }
 
-            if (is_string($fieldTrimmed) && preg_match(SqlValidator::QUALIFIED_IDENTIFIER_REGEX, $fieldTrimmed)) {
+            if (preg_match(SqlValidator::QUALIFIED_IDENTIFIER_REGEX, $fieldTrimmed)) {
                 $rendered[] = $this->quoteQualifiedIdentifier($fieldTrimmed);
                 continue;
             }
@@ -1040,7 +1052,7 @@ class Query
             return $quotedTable . ' AS ' . $parts[2];
         }
 
-        return $quotedTable . ' ' . implode(' ', array_slice($parts, 1));
+        throw new UnexpectedValueException('Validated table expression produced an unexpected token count.');
     }
 
     /**
