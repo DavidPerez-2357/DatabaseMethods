@@ -204,7 +204,7 @@ class Database
      */
     public function quote($identifier)
     {
-        if (!is_string($identifier) || $identifier === '') {
+        if (!is_string($identifier) || trim($identifier) === '') {
             throw new InvalidArgumentException('Database::quote() expects a non-empty string.');
         }
 
