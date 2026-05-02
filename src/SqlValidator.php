@@ -23,11 +23,11 @@ class SqlValidator
      * because PHP 5.4 class constants do not support expression initializers.
      *
      * Plain segment:        [a-zA-Z_][a-zA-Z0-9_]*
-     * ANSI-quoted segment:  "(?:[^"]|"")*"
-     * Backtick segment:     `(?:[^`]|``)*`
+     * ANSI-quoted segment:  "(?:[^"]|"")+"
+     * Backtick segment:     `(?:[^`]|``)+`
      *
      * Combined segment (SEG):
-     *   (?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")*"|`(?:[^`]|``)*`)
+     *   (?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)
      */
 
     /**
