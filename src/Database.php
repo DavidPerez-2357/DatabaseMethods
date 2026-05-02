@@ -181,6 +181,43 @@ class Database
     }
 
     /**
+     * Quotes a SQL identifier using this database's dialect.
+     *
+     * Delegates to the driver dialect's quoteIdentifier() method, so the
+     * correct quoting character is used automatically (backticks for MySQL,
+     * double-quotes for PostgreSQL, SQLite, and SQL Server).
+     *
+     * @param string $identifier A single identifier segment (no dots; quote each segment separately).
+     * @return string The quoted identifier.
+     * @throws InvalidArgumentException If $identifier is not a non-empty string or contains a dot.
+     * @example
+     * ```php
+     * // With a MySQL connection
+     * $db->quote('order')   // => '`order`'
+     *
+     * // With a PostgreSQL / SQLite / SQL Server connection
+     * $db->quote('order')   // => '"order"'
+     *
+     * // Schema-qualified: quote each segment individually
+     * $db->quote('public') . '.' . $db->quote('order')
+     * ```
+     */
+    public function quote($identifier)
+    {
+        if (!is_string($identifier) || trim($identifier) === '') {
+            throw new InvalidArgumentException('Database::quote() expects a non-empty string.');
+        }
+
+        if (strpos($identifier, '.') !== false) {
+            throw new InvalidArgumentException(
+                'Database::quote() expects a single identifier segment with no dots; quote each segment separately.'
+            );
+        }
+
+        return $this->dialect->quoteIdentifier($identifier);
+    }
+
+    /**
      * Sets the SQL dialect associated with this database driver.
      * Protected because the dialect is determined by the driver at construction time
      * and should not be changed through the public API; use {@see getDialect()} to read it.
@@ -398,6 +435,7 @@ class Database
             'fields' => array_keys($fieldsToInsert),
             'values_to_insert' => 1
         ]);
+        $query->setDialect($this->getDialect());
 
         $this->prepareAndExecute((string) $query, PdoParameterBuilder::buildInsertParams(array($fieldsToInsert)));
         return (int) $this->conn->lastInsertId();
@@ -443,6 +481,7 @@ class Database
             'fields' => $expectedFields,
             'values_to_insert' => count($rowsToInsert)
         ]);
+        $query->setDialect($this->getDialect());
 
         $this->prepareAndExecute((string) $query, PdoParameterBuilder::buildInsertParams($rowsToInsert));
         return (int) $this->conn->lastInsertId();
@@ -673,6 +712,7 @@ class Database
             'where' => $where,
             'joins' => $joins,
         ]);
+        $query->setDialect($this->getDialect());
 
         $placeholders = PdoParameterBuilder::buildNamedParams($fieldsToUpdate);
 
@@ -718,6 +758,7 @@ class Database
             'order_by' => $orderBy,
             'limit' => $limit
         ]);
+        $query->setDialect($this->getDialect());
 
         $stmt = $this->prepareAndExecute((string) $query, $this->resolveWhereBindings($whereData));
         return (int) $stmt->rowCount();
@@ -745,6 +786,7 @@ class Database
             'order_by' => $orderBy,
             'limit' => $limit
         ]);
+        $query->setDialect($this->getDialect());
 
         $stmt = $this->prepareAndExecute((string) $query, []);
         return (int) $stmt->rowCount();

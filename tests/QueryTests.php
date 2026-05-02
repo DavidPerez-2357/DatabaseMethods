@@ -382,7 +382,104 @@ class QueryTests
     }
 
     // =========================================================================
-    // Fluent setters: from() / table()
+    // Static helper: quote()
+    // =========================================================================
+
+    public function testQuotePlainIdentifierDefaultIsAnsi()
+    {
+        assert_equals('"order"', Query::quote('order'));
+    }
+
+    public function testQuoteEscapesInternalDoubleQuotes()
+    {
+        assert_equals('"say ""hello"""', Query::quote('say "hello"'));
+    }
+
+    public function testQuotePreservesUnderscoreAndDigits()
+    {
+        assert_equals('"created_at_2"', Query::quote('created_at_2'));
+    }
+
+    public function testQuoteWithMysqlDialectUsesBackticks()
+    {
+        assert_equals('`order`', Query::quote('order', new MysqlSqlDialect()));
+    }
+
+    public function testQuoteWithMysqlDialectEscapesInternalBackticks()
+    {
+        assert_equals('`col``name`', Query::quote('col`name', new MysqlSqlDialect()));
+    }
+
+    public function testQuoteWithDefaultSqlDialectUsesAnsi()
+    {
+        assert_equals('"order"', Query::quote('order', new DefaultSqlDialect()));
+    }
+
+    public function testQuoteWithSqlServerDialectUsesAnsi()
+    {
+        assert_equals('"order"', Query::quote('order', new SqlServerDialect()));
+    }
+
+    public function testQuoteCanBeUsedInFromClause()
+    {
+        $sql = Query::select()->from(Query::quote('user'))->getQuery();
+        assert_equals('SELECT * FROM "user"', $sql);
+    }
+
+    public function testQuoteMysqlCanBeUsedInFromClause()
+    {
+        $sql = Query::select()->from(Query::quote('order', new MysqlSqlDialect()))->getQuery();
+        assert_equals('SELECT * FROM `order`', $sql);
+    }
+
+    public function testQuoteCanBeUsedInSelectFields()
+    {
+        $sql = Query::select([Query::quote('order'), 'name'])
+            ->from('t')
+            ->getQuery();
+        assert_contains('"order"', $sql);
+        assert_contains('name', $sql);
+    }
+
+    public function testQuoteCanBeUsedInOrderBy()
+    {
+        $sql = Query::select()->from('t')->orderBy(Query::quote('group') . ' ASC')->getQuery();
+        assert_contains('"group" ASC', $sql);
+    }
+
+    public function testQuoteCanBeUsedInGroupBy()
+    {
+        $sql = Query::select()->from('t')->groupBy(Query::quote('order'))->getQuery();
+        assert_contains('GROUP BY "order"', $sql);
+    }
+
+    public function testQuoteWithEmptyStringThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::quote('');
+        });
+    }
+
+    public function testQuoteWithNonStringThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::quote(42);
+        });
+    }
+
+    public function testQuoteWithDottedIdentifierThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::quote('public.order');
+        });
+    }
+
+    public function testQuoteWithInvalidDialectTypeThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::quote('id', 'not-a-dialect');
+        });
+    }
     // =========================================================================
 
     public function testFromSetsTable()

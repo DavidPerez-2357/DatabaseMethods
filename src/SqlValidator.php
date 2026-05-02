@@ -22,45 +22,50 @@ class SqlValidator
      * then alphanumeric/underscores.  Repeated literally in every regex below
      * because PHP 5.4 class constants do not support expression initializers.
      *
-     * Segment: [a-zA-Z_][a-zA-Z0-9_]*
+     * Plain segment:        [a-zA-Z_][a-zA-Z0-9_]*
+     * ANSI-quoted segment:  "(?:[^"]|"")+"
+     * Backtick segment:     `(?:[^`]|``)+`
+     *
+     * Combined segment (SEG):
+     *   (?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)
      */
 
     /**
      * Regex that matches a plain SQL identifier.
-     * Base segment: [a-zA-Z_][a-zA-Z0-9_]*
+     * Used for PDO parameter names and INSERT/UPDATE column names that must be unquoted.
      * E.g. 'users', 'created_at'.
      */
     const IDENTIFIER_REGEX = '/^[a-zA-Z_][a-zA-Z0-9_]*$/';
 
     /**
-     * Regex that matches a plain or schema-qualified SQL identifier.
-     * Built from: IDENTIFIER_REGEX ( "." IDENTIFIER_REGEX )?
-     * E.g. 'users', 'public.users', 'dbo.orders'.
+     * Regex that matches a plain, ANSI-quoted, or backtick-quoted SQL identifier,
+     * optionally schema-qualified (two segments separated by a dot).
+     * E.g. 'users', '"order"', '`order`', 'public.users', '"public"."order"'.
      */
-    const QUALIFIED_IDENTIFIER_REGEX = '/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/';
+    const QUALIFIED_IDENTIFIER_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?$/';
 
     /**
-     * Regex that matches a table expression with an optional alias.
-     * Built from: QUALIFIED_IDENTIFIER_REGEX ( \s+ (AS \s+)? IDENTIFIER_REGEX )?
-     * Supports: 'users', 'users u', 'users AS u', 'public.users u', 'public.users AS u'.
-     * Case-insensitive for the AS keyword.
+     * Regex that matches a table expression with an optional plain alias.
+     * Accepts plain, ANSI-quoted, or backtick-quoted table names, optionally
+     * schema-qualified, with an optional plain alias (AS keyword optional).
+     * E.g. 'users', '"order"', '`order` o', '"public"."order" AS o'.
      */
-    const ALIAS_IDENTIFIER_REGEX = '/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?(\s+(?:AS\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?$/i';
+    const ALIAS_IDENTIFIER_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?(?:\s+(?:AS\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?$/i';
 
     /**
      * Regex that matches a comma-separated ORDER BY expression list.
-     * Each item: QUALIFIED_IDENTIFIER_REGEX \s* (ASC|DESC)?
-     * E.g. 'name ASC', 'created_at DESC', 'users.name ASC, email DESC'.
-     * Case-insensitive for ASC/DESC.
+     * Each item is a (qualified) plain, ANSI-quoted, or backtick-quoted identifier
+     * with an optional ASC / DESC direction.
+     * E.g. '"order" ASC', '`name` DESC, id ASC'.
      */
-    const ORDER_BY_REGEX = '/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?\s*(ASC|DESC)?(\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?\s*(ASC|DESC)?)*$/i';
+    const ORDER_BY_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?\s*(ASC|DESC)?(?:\s*,\s*(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?\s*(ASC|DESC)?)*$/i';
 
     /**
      * Regex that matches a comma-separated GROUP BY expression list.
-     * Each item: QUALIFIED_IDENTIFIER_REGEX (no ASC/DESC allowed).
-     * E.g. 'name', 'users.id', 'name, email'.
+     * Each item is a (qualified) plain, ANSI-quoted, or backtick-quoted identifier.
+     * E.g. '"order"', '`name`, id'.
      */
-    const GROUP_BY_REGEX = '/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?(\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?)*$/';
+    const GROUP_BY_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?(?:\s*,\s*(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?)*$/';
 
     /**
      * Asserts that $name is a plain (unqualified) SQL identifier.

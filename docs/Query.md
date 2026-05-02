@@ -20,6 +20,7 @@ Both styles produce identical SQL. Cast a `Query` object to string with `echo` /
 | `Query::insert($table, [$fields])` | Start an INSERT query |
 | `Query::update($table, [$fields])` | Start an UPDATE query |
 | `Query::delete($table)` | Start a DELETE query |
+| `Query::quote($identifier, [$dialect])` | Quote a single identifier with the given dialect (ANSI by default) |
 
 | Chainable setter | Applies to | Description |
 |---|---|---|
@@ -255,3 +256,49 @@ The generic `join()` method (raw SQL string) is also available for join types no
 - Function calls, expressions, or subqueries are not accepted.
 
 **WHERE, HAVING, JOIN** - passed through as raw SQL fragments. Use PDO placeholders for any user-supplied values.
+
+&emsp;
+
+## Quoting identifiers
+
+Use `Query::quote($identifier)` or `$db->quote($identifier)` when a table or column name is a reserved word or contains special characters.
+
+`$db->quote()` automatically uses the correct quoting style for the connected database. `Query::quote()` accepts an optional dialect for the same effect; without a dialect it defaults to ANSI double-quotes.
+
+| Driver | Quote style | Example |
+|---|---|---|
+| MySQL | backtick | `` `order` `` |
+| PostgreSQL / SQLite / SQL Server | double-quote | `"order"` |
+
+```php
+// Using the database connection (recommended — picks the right style automatically)
+$db->quote('order')                        // MySQL  => '`order`'
+$db->quote('order')                        // Others => '"order"'
+
+// Using the static helper with an explicit dialect
+Query::quote('order', $db->getDialect())   // same as above
+Query::quote('order', new MysqlSqlDialect()) // => '`order`'
+Query::quote('order')                        // => '"order"' (ANSI default)
+```
+
+Quoted identifiers can be used wherever a raw string identifier is accepted — `from()`, select fields, `orderBy()`, `groupBy()`:
+
+```php
+$q = Query::select([$db->quote('order'), 'name'])
+    ->from($db->quote('user'))
+    ->orderBy($db->quote('group') . ' ASC');
+// MySQL  => SELECT `order`, name FROM `user` ORDER BY `group` ASC
+// Others => SELECT "order", name FROM "user" ORDER BY "group" ASC
+```
+
+> **Note:** `insert()` and `update()` field lists (`fields()`) only accept plain, unquoted identifiers because they are validated internally against `SqlValidator::assertIdentifier()`. Passing a quoted identifier like `$db->quote('order')` there will throw an `InvalidArgumentException`.
+
+For schema-qualified names, quote each segment individually:
+
+```php
+$table = $db->quote('public') . '.' . $db->quote('order');
+// MySQL  => `public`.`order`
+// Others => "public"."order"
+```
+
+Internal quotes are escaped automatically (`"` → `""`, `` ` `` → ` `` `` ``).
