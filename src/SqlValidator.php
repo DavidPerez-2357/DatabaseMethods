@@ -38,6 +38,16 @@ class SqlValidator
     const IDENTIFIER_REGEX = '/^[a-zA-Z_][a-zA-Z0-9_]*$/';
 
     /**
+     * Regex that matches a single-segment SQL column identifier: either a plain
+     * identifier or a quoted identifier (ANSI double-quotes or backticks) whose
+     * inner content is a plain identifier.  No schema-qualification (dot) allowed.
+     * Used for INSERT/UPDATE column lists where quoted names must still yield a
+     * valid PDO placeholder after the quotes are stripped.
+     * E.g. 'email', '"order"', '`from`'.
+     */
+    const COLUMN_IDENTIFIER_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"[a-zA-Z_][a-zA-Z0-9_]*"|`[a-zA-Z_][a-zA-Z0-9_]*`)$/';
+
+    /**
      * Regex that matches a plain, ANSI-quoted, or backtick-quoted SQL identifier,
      * optionally schema-qualified (two segments separated by a dot).
      * E.g. 'users', '"order"', '`order`', 'public.users', '"public"."order"'.
@@ -80,6 +90,27 @@ class SqlValidator
             throw new InvalidArgumentException(
                 "Invalid {$context}: must start with a letter or underscore and contain only"
                 . " alphanumeric characters and underscores (unqualified column name, e.g. 'email' or 'created_at')."
+            );
+        }
+    }
+
+    /**
+     * Asserts that $name is a plain or single-segment quoted SQL column identifier.
+     * Accepts plain identifiers (e.g. 'email') and ANSI/backtick-quoted identifiers
+     * whose inner content is a plain identifier (e.g. '"order"', '`from`').
+     * Schema-qualified names (e.g. 'public.email') are not accepted.
+     *
+     * @param string $name    The value to validate.
+     * @param string $context Human-readable label used in the exception message.
+     * @throws InvalidArgumentException If $name is not a valid plain or quoted column identifier.
+     */
+    public static function assertColumnIdentifier($name, $context = 'column identifier')
+    {
+        if (!is_string($name) || !preg_match(self::COLUMN_IDENTIFIER_REGEX, $name)) {
+            throw new InvalidArgumentException(
+                "Invalid {$context}: must be a plain identifier (e.g. 'email') or a quoted identifier"
+                . " whose content is a valid name (e.g. '\"order\"' or '`from`')."
+                . " Schema-qualified names are not allowed here."
             );
         }
     }
