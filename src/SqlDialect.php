@@ -36,8 +36,11 @@ interface SqlDialect
 }
 
 /**
- * Default SQL dialect used by PostgreSQL, SQLite, and SQL Server.
+ * Default SQL dialect for ANSI-style compilation used by PostgreSQL and SQLite.
  * Quotes identifiers with ANSI double-quotes.
+ *
+ * SQL Server uses its own dialect class (SqlServerDialect) for pagination behavior,
+ * even though it shares ANSI double-quote identifier quoting here.
  */
 class DefaultSqlDialect implements SqlDialect
 {

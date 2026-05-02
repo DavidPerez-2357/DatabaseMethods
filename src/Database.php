@@ -189,7 +189,7 @@ class Database
      *
      * @param string $identifier A single identifier segment (no dots; quote each segment separately).
      * @return string The quoted identifier.
-     * @throws InvalidArgumentException If $identifier is not a non-empty string.
+     * @throws InvalidArgumentException If $identifier is not a non-empty string or contains a dot.
      * @example
      * ```php
      * // With a MySQL connection
@@ -207,6 +207,13 @@ class Database
         if (!is_string($identifier) || $identifier === '') {
             throw new InvalidArgumentException('Database::quote() expects a non-empty string.');
         }
+
+        if (strpos($identifier, '.') !== false) {
+            throw new InvalidArgumentException(
+                'Database::quote() expects a single identifier segment with no dots; quote each segment separately.'
+            );
+        }
+
         return $this->dialect->quoteIdentifier($identifier);
     }
 

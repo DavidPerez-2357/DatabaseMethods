@@ -243,7 +243,8 @@ class Query
      * @param string          $identifier A single identifier segment (no dots; quote each segment separately).
      * @param SqlDialect|null $dialect    Dialect to use for quoting; defaults to ANSI double-quotes when null.
      * @return string The quoted identifier.
-     * @throws InvalidArgumentException If $identifier is not a non-empty string.
+     * @throws InvalidArgumentException If $identifier is not a non-empty string, contains a dot,
+     *                                  or if $dialect is not a SqlDialect instance (when non-null).
      * @example
      * ```php
      * // ANSI double-quotes (default — PostgreSQL, SQLite, SQL Server)
@@ -263,6 +264,18 @@ class Query
     {
         if (!is_string($identifier) || $identifier === '') {
             throw new InvalidArgumentException('Query::quote() expects a non-empty string.');
+        }
+
+        if (strpos($identifier, '.') !== false) {
+            throw new InvalidArgumentException(
+                'Query::quote() expects a single identifier segment with no dots; quote each segment separately.'
+            );
+        }
+
+        if ($dialect !== null && !($dialect instanceof SqlDialect)) {
+            throw new InvalidArgumentException(
+                'Query::quote() expects $dialect to be an instance of SqlDialect or null.'
+            );
         }
 
         if ($dialect === null) {
@@ -982,12 +995,7 @@ class Query
      */
     private function buildSetClause($fields)
     {
-        $parts = array();
-        foreach ($fields as $field) {
-            SqlValidator::assertField($field);
-            $parts[] = $field . ' = :' . $field;
-        }
-        return implode(', ', $parts);
+        return PdoParameterBuilder::buildSetClause($fields);
     }
 
     /**
