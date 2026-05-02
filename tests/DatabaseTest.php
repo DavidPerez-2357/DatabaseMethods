@@ -1009,6 +1009,13 @@ class DatabaseTest
         });
     }
 
+    public function testQuoteWithDottedIdentifierThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            $this->db->quote('public.order');
+        });
+    }
+
     public function testSelectAppliesDatabaseDialectToQueryObject()
     {
         $query = Query::select(['name'])->from(self::TABLE)->orderBy('id ASC')->limit(3)->offset(1);

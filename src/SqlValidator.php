@@ -42,7 +42,7 @@ class SqlValidator
      * optionally schema-qualified (two segments separated by a dot).
      * E.g. 'users', '"order"', '`order`', 'public.users', '"public"."order"'.
      */
-    const QUALIFIED_IDENTIFIER_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")*"|`(?:[^`]|``)*`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")*"|`(?:[^`]|``)*`))?$/';
+    const QUALIFIED_IDENTIFIER_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?$/';
 
     /**
      * Regex that matches a table expression with an optional plain alias.
@@ -50,7 +50,7 @@ class SqlValidator
      * schema-qualified, with an optional plain alias (AS keyword optional).
      * E.g. 'users', '"order"', '`order` o', '"public"."order" AS o'.
      */
-    const ALIAS_IDENTIFIER_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")*"|`(?:[^`]|``)*`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")*"|`(?:[^`]|``)*`))?(?:\s+(?:AS\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?$/i';
+    const ALIAS_IDENTIFIER_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?(?:\s+(?:AS\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?$/i';
 
     /**
      * Regex that matches a comma-separated ORDER BY expression list.
@@ -58,14 +58,14 @@ class SqlValidator
      * with an optional ASC / DESC direction.
      * E.g. '"order" ASC', '`name` DESC, id ASC'.
      */
-    const ORDER_BY_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")*"|`(?:[^`]|``)*`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")*"|`(?:[^`]|``)*`))?\s*(ASC|DESC)?(?:\s*,\s*(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")*"|`(?:[^`]|``)*`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")*"|`(?:[^`]|``)*`))?\s*(ASC|DESC)?)*$/i';
+    const ORDER_BY_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?\s*(ASC|DESC)?(?:\s*,\s*(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?\s*(ASC|DESC)?)*$/i';
 
     /**
      * Regex that matches a comma-separated GROUP BY expression list.
      * Each item is a (qualified) plain, ANSI-quoted, or backtick-quoted identifier.
      * E.g. '"order"', '`name`, id'.
      */
-    const GROUP_BY_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")*"|`(?:[^`]|``)*`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")*"|`(?:[^`]|``)*`))?(?:\s*,\s*(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")*"|`(?:[^`]|``)*`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")*"|`(?:[^`]|``)*`))?)*$/';
+    const GROUP_BY_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?(?:\s*,\s*(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?)*$/';
 
     /**
      * Asserts that $name is a plain (unqualified) SQL identifier.

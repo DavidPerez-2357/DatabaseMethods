@@ -466,6 +466,20 @@ class QueryTests
             Query::quote(42);
         });
     }
+
+    public function testQuoteWithDottedIdentifierThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::quote('public.order');
+        });
+    }
+
+    public function testQuoteWithInvalidDialectTypeThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::quote('id', 'not-a-dialect');
+        });
+    }
     // =========================================================================
 
     public function testFromSetsTable()
