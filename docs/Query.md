@@ -281,7 +281,7 @@ Query::quote('order', new MysqlSqlDialect()) // => '`order`'
 Query::quote('order')                        // => '"order"' (ANSI default)
 ```
 
-Quoted identifiers can be used anywhere an identifier appears — `from()`, select fields, `orderBy()`, `groupBy()`:
+Quoted identifiers can be used wherever a raw string identifier is accepted — `from()`, select fields, `orderBy()`, `groupBy()`:
 
 ```php
 $q = Query::select([$db->quote('order'), 'name'])
@@ -290,6 +290,8 @@ $q = Query::select([$db->quote('order'), 'name'])
 // MySQL  => SELECT `order`, name FROM `user` ORDER BY `group` ASC
 // Others => SELECT "order", name FROM "user" ORDER BY "group" ASC
 ```
+
+> **Note:** `insert()` and `update()` field lists (`fields()`) only accept plain, unquoted identifiers because they are validated internally against `SqlValidator::assertIdentifier()`. Passing a quoted identifier like `$db->quote('order')` there will throw an `InvalidArgumentException`.
 
 For schema-qualified names, quote each segment individually:
 
