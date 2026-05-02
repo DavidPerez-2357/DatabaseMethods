@@ -262,7 +262,7 @@ class Query
      */
     public static function quote($identifier, $dialect = null)
     {
-        if (!is_string($identifier) || $identifier === '') {
+        if (!is_string($identifier) || trim($identifier) === '') {
             throw new InvalidArgumentException('Query::quote() expects a non-empty string.');
         }
 
