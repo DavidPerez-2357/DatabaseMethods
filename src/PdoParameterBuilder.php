@@ -428,9 +428,14 @@ class PdoParameterBuilder
     }
 
     /**
-     * Converts a column name to a safe PDO placeholder name by replacing '.' with '_'
-     * and stripping any ANSI double-quote or backtick delimiters from each segment.
-     * E.g. 'u.email' becomes 'u_email', '"order"' becomes 'order', '`from`' becomes 'from'.
+     * Converts a column name to a safe PDO placeholder name by first stripping any
+     * ANSI double-quote or backtick delimiters and then replacing dots with underscores.
+     *
+     * Processing order matters: quotes are removed before dots are replaced, so a
+     * schema-qualified quoted name like '"public"."order"' correctly becomes 'public_order'
+     * (strip quotes → 'public.order', replace dot → 'public_order').
+     *
+     * E.g. 'u.email' → 'u_email', '"order"' → 'order', '`from`' → 'from'.
      *
      * @param string $col Column name (unqualified, qualified, or quoted).
      * @return string Safe placeholder name.
@@ -446,7 +451,12 @@ class PdoParameterBuilder
      * Returns the inner name unchanged for plain (unquoted) identifiers.
      * E.g. '"order"' => 'order', '`from`' => 'from', 'email' => 'email'.
      *
-     * @param string $col A validated column identifier (plain or quoted).
+     * This method must only be called after SqlValidator::assertColumnIdentifier() has
+     * validated the input, which guarantees that opening and closing delimiters match
+     * (either both '"' or both '`'). Mismatched delimiters are rejected by the validator
+     * before this function is ever reached.
+     *
+     * @param string $col A validated single-segment column identifier (plain or quoted).
      * @return string The unquoted identifier name.
      */
     private static function unquoteIdentifier($col)
