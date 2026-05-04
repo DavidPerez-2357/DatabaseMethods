@@ -304,6 +304,14 @@ class PdoParameterBuilderTests
         });
     }
 
+    public function testBuildSetClauseDuplicatePlaceholderThrows()
+    {
+        // 'order' and '"order"' both resolve to placeholder :order
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildSetClause(array('order', '"order"'));
+        });
+    }
+
     // =========================================================================
     // buildInsertPlaceholders - VALUES row-group strings
     // =========================================================================
@@ -364,6 +372,14 @@ class PdoParameterBuilderTests
     {
         assert_throws('InvalidArgumentException', function () {
             PdoParameterBuilder::buildInsertPlaceholders(array('public.col'), 1);
+        });
+    }
+
+    public function testBuildInsertPlaceholdersDuplicatePlaceholderThrows()
+    {
+        // 'from' and '`from`' both resolve to placeholder :from
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertPlaceholders(array('from', '`from`'), 1);
         });
     }
 
@@ -478,6 +494,14 @@ class PdoParameterBuilderTests
     {
         assert_throws('InvalidArgumentException', function () {
             PdoParameterBuilder::buildInsertParams(array(array('public.col' => 1)));
+        });
+    }
+
+    public function testBuildInsertParamsDuplicatePlaceholderThrows()
+    {
+        // 'order' and '"order"' both resolve to placeholder :order
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertParams(array(array('order' => 1, '"order"' => 2)));
         });
     }
 }

@@ -308,9 +308,17 @@ class PdoParameterBuilder
         }
 
         $clauses = array();
+        $seen    = array();
         foreach ($fields as $col) {
             SqlValidator::assertColumnIdentifier($col, 'SET field');
             $placeholder = self::unquoteIdentifier($col);
+            if (isset($seen[$placeholder])) {
+                throw new InvalidArgumentException(
+                    "buildSetClause() would produce a duplicate PDO placeholder ':{$placeholder}';"
+                    . " check for mixed plain and quoted column names (e.g. 'order' and '\"order\"')."
+                );
+            }
+            $seen[$placeholder] = true;
             $clauses[] = "{$col} = :{$placeholder}";
         }
 
@@ -346,8 +354,17 @@ class PdoParameterBuilder
             throw new InvalidArgumentException('buildInsertPlaceholders() requires $rowCount to be a positive integer.');
         }
 
+        $seen = array();
         foreach ($fields as $col) {
             SqlValidator::assertColumnIdentifier($col, 'INSERT field');
+            $placeholder = self::unquoteIdentifier($col);
+            if (isset($seen[$placeholder])) {
+                throw new InvalidArgumentException(
+                    "buildInsertPlaceholders() would produce a duplicate PDO placeholder ':{$placeholder}';"
+                    . " check for mixed plain and quoted column names (e.g. 'order' and '\"order\"')."
+                );
+            }
+            $seen[$placeholder] = true;
         }
 
         $groups = array();
@@ -399,8 +416,17 @@ class PdoParameterBuilder
         }
 
         $fields = array_keys($rows[0]);
+        $seen   = array();
         foreach ($fields as $col) {
             SqlValidator::assertColumnIdentifier($col, 'INSERT field');
+            $placeholder = self::unquoteIdentifier($col);
+            if (isset($seen[$placeholder])) {
+                throw new InvalidArgumentException(
+                    "buildInsertParams() would produce a duplicate PDO placeholder ':{$placeholder}';"
+                    . " check for mixed plain and quoted column names (e.g. 'order' and '\"order\"')."
+                );
+            }
+            $seen[$placeholder] = true;
         }
 
         $params = array();

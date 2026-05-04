@@ -291,16 +291,19 @@ $q = Query::select([$db->quote('order'), 'name'])
 // Others => SELECT "order", name FROM "user" ORDER BY "group" ASC
 ```
 
-Quoted field names work in `insert()` and `update()` too. The library strips the delimiters when building the PDO placeholder, so the column name appears quoted in the SQL but the binding key is plain:
+Quoted field names work in `insert()` and `update()` too. Use `$db->quote()` to get the dialect-correct quoting — the library strips the delimiters when building the PDO placeholder, so the column name appears quoted in the SQL but the binding key is plain:
 
 ```php
 // INSERT using a reserved-word column name
-$db->insert('orders', ['"order"' => 5, 'name' => 'Alice']);
-// => INSERT INTO orders ("order", name) VALUES (:order_0, :name_0)
+$orderCol = $db->quote('order');   // MySQL => '`order`', others => '"order"'
+$db->insert('orders', [$orderCol => 5, 'name' => 'Alice']);
+// MySQL  => INSERT INTO orders (`order`, name) VALUES (:order_0, :name_0)
+// Others => INSERT INTO orders ("order", name) VALUES (:order_0, :name_0)
 
 // UPDATE using a reserved-word column name
-$db->update('orders', ['"order"' => 6], 'id = :id', [':id' => 1]);
-// => UPDATE orders SET "order" = :order WHERE id = :id
+$db->update('orders', [$orderCol => 6], 'id = :id', [':id' => 1]);
+// MySQL  => UPDATE orders SET `order` = :order WHERE id = :id
+// Others => UPDATE orders SET "order" = :order WHERE id = :id
 ```
 
 For schema-qualified names, quote each segment individually:

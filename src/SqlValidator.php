@@ -51,6 +51,11 @@ class SqlValidator
      * Regex that matches a plain, ANSI-quoted, or backtick-quoted SQL identifier,
      * optionally schema-qualified (two segments separated by a dot).
      * E.g. 'users', '"order"', '`order`', 'public.users', '"public"."order"'.
+     *
+     * Both ANSI double-quotes and MySQL backticks are accepted because this
+     * validator is dialect-agnostic; it cannot know which quote style is valid
+     * for the active database.  Always use `$db->quote()` / `Query::quote()`
+     * to produce the dialect-correct quoted form, which will then pass this check.
      */
     const QUALIFIED_IDENTIFIER_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?$/';
 
@@ -59,6 +64,10 @@ class SqlValidator
      * Accepts plain, ANSI-quoted, or backtick-quoted table names, optionally
      * schema-qualified, with an optional plain alias (AS keyword optional).
      * E.g. 'users', '"order"', '`order` o', '"public"."order" AS o'.
+     *
+     * Both ANSI double-quotes and MySQL backticks are accepted because this
+     * validator is dialect-agnostic.  Use `$db->quote()` to produce the
+     * dialect-correct quoted form.
      */
     const ALIAS_IDENTIFIER_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?(?:\s+(?:AS\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?$/i';
 
@@ -67,6 +76,10 @@ class SqlValidator
      * Each item is a (qualified) plain, ANSI-quoted, or backtick-quoted identifier
      * with an optional ASC / DESC direction.
      * E.g. '"order" ASC', '`name` DESC, id ASC'.
+     *
+     * Both ANSI double-quotes and MySQL backticks are accepted because this
+     * validator is dialect-agnostic.  Use `$db->quote()` to produce the
+     * dialect-correct quoted form.
      */
     const ORDER_BY_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?\s*(ASC|DESC)?(?:\s*,\s*(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?\s*(ASC|DESC)?)*$/i';
 
@@ -74,6 +87,10 @@ class SqlValidator
      * Regex that matches a comma-separated GROUP BY expression list.
      * Each item is a (qualified) plain, ANSI-quoted, or backtick-quoted identifier.
      * E.g. '"order"', '`name`, id'.
+     *
+     * Both ANSI double-quotes and MySQL backticks are accepted because this
+     * validator is dialect-agnostic.  Use `$db->quote()` to produce the
+     * dialect-correct quoted form.
      */
     const GROUP_BY_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?(?:\s*,\s*(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?)*$/';
 

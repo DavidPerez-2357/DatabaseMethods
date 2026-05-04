@@ -471,6 +471,47 @@ class DatabaseTest
         assert_equals(0, $affected);
     }
 
+    public function testInsertWithQuotedColumnNamePersistsRow()
+    {
+        // Use the database's own quoting to get the dialect-correct form.
+        // SQLite and other ANSI dialects use "name"; MySQL uses `name`.
+        $this->resetTable();
+        $nameCol  = $this->db->quote('name');
+        $emailCol = $this->db->quote('email');
+        $id = $this->db->insert(self::TABLE, [$nameCol => 'Quoted', $emailCol => 'q@example.com']);
+        assert_true($id > 0 || DB_TEST_DRIVER === 'postgres', 'insert() must return a positive id.');
+
+        $rows = $this->db->select(
+            'SELECT name, email FROM ' . self::TABLE . ' WHERE email = :email',
+            ['email' => 'q@example.com']
+        );
+        assert_true(!empty($rows), 'Row inserted with quoted column names must be retrievable.');
+        assert_equals('Quoted', $rows[0]['name']);
+    }
+
+    public function testUpdateWithQuotedColumnNameModifiesRow()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Before', 'email' => 'before@example.com']);
+
+        $rows = $this->db->select(
+            'SELECT id FROM ' . self::TABLE . ' WHERE email = :email',
+            ['email' => 'before@example.com']
+        );
+        assert_true(!empty($rows), 'Inserted row must be retrievable by email.');
+        $id = (int)$rows[0]['id'];
+
+        $nameCol = $this->db->quote('name');
+        $affected = $this->db->update(self::TABLE, [$nameCol => 'After'], 'id = :id', ['id' => $id]);
+        assert_equals(1, $affected);
+
+        $row = $this->db->selectOne(
+            Query::select()->from(self::TABLE)->where('id = :id'),
+            ['id' => $id]
+        );
+        assert_equals('After', $row['name']);
+    }
+
     // =========================================================================
     // Tests - delete
     // =========================================================================
