@@ -283,10 +283,24 @@ class PdoParameterBuilderTests
         });
     }
 
-    public function testBuildSetClauseInvalidFieldThrows()
+    public function testBuildSetClauseAnsiQuotedField()
+    {
+        $sql = PdoParameterBuilder::buildSetClause(array('"order"', 'name'));
+
+        assert_equals('"order" = :order, name = :name', $sql);
+    }
+
+    public function testBuildSetClauseBacktickQuotedField()
+    {
+        $sql = PdoParameterBuilder::buildSetClause(array('`from`', 'email'));
+
+        assert_equals('`from` = :from, email = :email', $sql);
+    }
+
+    public function testBuildSetClauseSchemaQualifiedFieldThrows()
     {
         assert_throws('InvalidArgumentException', function () {
-            PdoParameterBuilder::buildSetClause(array('bad.col'));
+            PdoParameterBuilder::buildSetClause(array('public.col'));
         });
     }
 
@@ -329,6 +343,27 @@ class PdoParameterBuilderTests
     {
         assert_throws('InvalidArgumentException', function () {
             PdoParameterBuilder::buildInsertPlaceholders(array('bad.col'), 1);
+        });
+    }
+
+    public function testBuildInsertPlaceholdersAnsiQuotedField()
+    {
+        $groups = PdoParameterBuilder::buildInsertPlaceholders(array('"order"', 'name'), 1);
+
+        assert_equals(array('(:order_0, :name_0)'), $groups);
+    }
+
+    public function testBuildInsertPlaceholdersBacktickQuotedField()
+    {
+        $groups = PdoParameterBuilder::buildInsertPlaceholders(array('`from`', 'id'), 2);
+
+        assert_equals(array('(:from_0, :id_0)', '(:from_1, :id_1)'), $groups);
+    }
+
+    public function testBuildInsertPlaceholdersSchemaQualifiedFieldThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertPlaceholders(array('public.col'), 1);
         });
     }
 
@@ -419,5 +454,30 @@ class PdoParameterBuilderTests
             ':name_1' => 'Bob',
             ':age_1'  => 25,
         ), $params);
+    }
+
+    public function testBuildInsertParamsAnsiQuotedColumn()
+    {
+        $params = PdoParameterBuilder::buildInsertParams(array(
+            array('"order"' => 1, 'name' => 'Alice'),
+        ));
+
+        assert_equals(array(':order_0' => 1, ':name_0' => 'Alice'), $params);
+    }
+
+    public function testBuildInsertParamsBacktickQuotedColumn()
+    {
+        $params = PdoParameterBuilder::buildInsertParams(array(
+            array('`from`' => 'x'),
+        ));
+
+        assert_equals(array(':from_0' => 'x'), $params);
+    }
+
+    public function testBuildInsertParamsSchemaQualifiedColumnThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertParams(array(array('public.col' => 1)));
+        });
     }
 }

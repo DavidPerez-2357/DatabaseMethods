@@ -247,8 +247,8 @@ The generic `join()` method (raw SQL string) is also available for join types no
 - Quoting, whitespace, aliases, and arbitrary SQL are rejected.
 
 **INSERT / UPDATE column names** (`->fields()`, `Query::insert($table, $fields)`, etc.):
-- Plain **unqualified** identifiers only (no dots), e.g. `email`, `created_at`.
-- Qualified names like `users.email` are rejected because the column name is used to build PDO placeholder tokens.
+- Plain **unqualified** identifiers (e.g. `email`, `created_at`) and quoted identifiers (e.g. `"order"`, `` `from` ``) are accepted.
+- Schema-qualified names like `users.email` are rejected because the column name is used to build PDO placeholder tokens.
 
 **GROUP BY / ORDER BY**:
 - One or more plain identifiers (optionally table-qualified), comma-separated.
@@ -281,7 +281,7 @@ Query::quote('order', new MysqlSqlDialect()) // => '`order`'
 Query::quote('order')                        // => '"order"' (ANSI default)
 ```
 
-Quoted identifiers can be used wherever a raw string identifier is accepted — `from()`, select fields, `orderBy()`, `groupBy()`:
+Quoted identifiers can be used wherever a raw string identifier is accepted — `from()`, select fields, `orderBy()`, `groupBy()`, and also in `insert()`/`update()` field lists:
 
 ```php
 $q = Query::select([$db->quote('order'), 'name'])
@@ -291,7 +291,17 @@ $q = Query::select([$db->quote('order'), 'name'])
 // Others => SELECT "order", name FROM "user" ORDER BY "group" ASC
 ```
 
-> **Note:** `insert()` and `update()` field lists (`fields()`) only accept plain, unquoted identifiers because they are validated internally against `SqlValidator::assertIdentifier()`. Passing a quoted identifier like `$db->quote('order')` there will throw an `InvalidArgumentException`.
+Quoted field names work in `insert()` and `update()` too. The library strips the delimiters when building the PDO placeholder, so the column name appears quoted in the SQL but the binding key is plain:
+
+```php
+// INSERT using a reserved-word column name
+$db->insert('orders', ['"order"' => 5, 'name' => 'Alice']);
+// => INSERT INTO orders ("order", name) VALUES (:order_0, :name_0)
+
+// UPDATE using a reserved-word column name
+$db->update('orders', ['"order"' => 6], 'id = :id', [':id' => 1]);
+// => UPDATE orders SET "order" = :order WHERE id = :id
+```
 
 For schema-qualified names, quote each segment individually:
 
