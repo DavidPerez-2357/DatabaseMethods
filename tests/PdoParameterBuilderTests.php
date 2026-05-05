@@ -96,6 +96,15 @@ class PdoParameterBuilderTests
         });
     }
 
+    public function testBuildEqualityWithQuotedSpaceIdentifierThrows()
+    {
+        // '"first name"' passes assertQualifiedIdentifier but strips to 'first name',
+        // which is not a valid PDO placeholder name.
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildEquality(array('"first name"' => 'Alice'));
+        });
+    }
+
     public function testBuildEqualityQualifiedColumn()
     {
         list($sql, $params) = PdoParameterBuilder::buildEquality(array('u.id' => 5, 'u.deleted_at' => null));
@@ -195,6 +204,15 @@ class PdoParameterBuilderTests
         // 'a.b' → 'a_b' and 'a_b' → 'a_b': same placeholder name
         assert_throws('InvalidArgumentException', function () {
             PdoParameterBuilder::buildNamedParams(array('a.b' => 1, 'a_b' => 2));
+        });
+    }
+
+    public function testBuildNamedParamsWithQuotedSpaceIdentifierThrows()
+    {
+        // '"first name"' passes assertQualifiedIdentifier but strips to 'first name',
+        // which is not a valid PDO placeholder name.
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildNamedParams(array('"first name"' => 1));
         });
     }
 

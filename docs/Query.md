@@ -261,7 +261,7 @@ The generic `join()` method (raw SQL string) is also available for join types no
 
 ## Quoting identifiers
 
-Use `Query::quote($identifier)` or `$db->quote($identifier)` when a table or column name is a reserved word or contains special characters.
+Use `Query::quote($identifier)` or `$db->quote($identifier)` when a table or column name is a reserved word (e.g. `order`, `from`, `group`) or otherwise conflicts with SQL syntax.
 
 `$db->quote()` automatically uses the correct quoting style for the connected database. `Query::quote()` accepts an optional dialect for the same effect; without a dialect it defaults to ANSI double-quotes.
 
@@ -291,7 +291,7 @@ $q = Query::select([$db->quote('order'), 'name'])
 // Others => SELECT "order", name FROM "user" ORDER BY "group" ASC
 ```
 
-Quoted field names work in `insert()` and `update()` too. Use `$db->quote()` to get the dialect-correct quoting — the library strips the delimiters when building the PDO placeholder, so the column name appears quoted in the SQL but the binding key is plain:
+Quoted field names work in `insert()` and `update()` too. The name inside the quote delimiters must be a plain identifier (letters, digits, and underscores only) — identifiers with spaces or dashes such as `"first name"` or `` `user-name` `` are **not** supported in field lists because they cannot be mapped to valid PDO placeholder names. Use `$db->quote()` to get the dialect-correct quoting — the library strips the delimiters when building the PDO placeholder, so the column name appears quoted in the SQL but the binding key is plain:
 
 ```php
 // INSERT using a reserved-word column name
