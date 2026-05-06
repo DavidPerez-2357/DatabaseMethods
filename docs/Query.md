@@ -244,14 +244,16 @@ The generic `join()` method (raw SQL string) is also available for join types no
 **Table names** (`->from()`, `->table()`, `Query::delete()`, etc.):
 - Plain identifier: letters, digits, underscores, starting with a letter or underscore (e.g. `users`, `order_items`).
 - Optionally schema-qualified: `schema.table` (e.g. `myschema.orders`).
-- Quoting, whitespace, aliases, and arbitrary SQL are rejected.
+- Quoted identifiers (e.g. `"order"`, `` `from` ``) are accepted; use `$db->quote()` to get the dialect-correct form.
+- Aliases and arbitrary SQL expressions are rejected.
 
 **INSERT / UPDATE column names** (`->fields()`, `Query::insert($table, $fields)`, etc.):
 - Plain **unqualified** identifiers (e.g. `email`, `created_at`) and quoted identifiers (e.g. `"order"`, `` `from` ``) are accepted.
-- Schema-qualified names like `users.email` are rejected because the column name is used to build PDO placeholder tokens.
+- The name inside the delimiters must itself be a plain identifier — names with spaces or dashes (e.g. `"first name"`) are not supported because they cannot be mapped to a PDO placeholder.
+- Schema-qualified names like `users.email` are rejected.
 
 **GROUP BY / ORDER BY**:
-- One or more plain identifiers (optionally table-qualified), comma-separated.
+- One or more plain or quoted identifiers (optionally table-qualified), comma-separated.
 - `ORDER BY` additionally allows `ASC` / `DESC` per column.
 - Function calls, expressions, or subqueries are not accepted.
 
@@ -261,54 +263,29 @@ The generic `join()` method (raw SQL string) is also available for join types no
 
 ## Quoting identifiers
 
-Use `Query::quote($identifier)` or `$db->quote($identifier)` when a table or column name is a reserved word (e.g. `order`, `from`, `group`) or otherwise conflicts with SQL syntax.
+Use `$db->quote($identifier)` or `Query::quote($identifier)` when a name is a reserved word (e.g. `order`, `from`, `group`) or conflicts with SQL syntax.
 
-`$db->quote()` automatically uses the correct quoting style for the connected database. `Query::quote()` accepts an optional dialect for the same effect; without a dialect it defaults to ANSI double-quotes.
+`$db->quote()` automatically uses the correct style for the connected driver. `Query::quote()` defaults to ANSI double-quotes; pass a dialect to override.
 
-| Driver | Quote style | Example |
+| Driver | Style | Example |
 |---|---|---|
 | MySQL | backtick | `` `order` `` |
 | PostgreSQL / SQLite / SQL Server | double-quote | `"order"` |
 
 ```php
-// Using the database connection (recommended — picks the right style automatically)
-$db->quote('order')                        // MySQL  => '`order`'
-$db->quote('order')                        // Others => '"order"'
+$quoted = $db->quote('order');  // MySQL => '`order`', others => '"order"'
 
-// Using the static helper with an explicit dialect
-Query::quote('order', $db->getDialect())   // same as above
-Query::quote('order', new MysqlSqlDialect()) // => '`order`'
-Query::quote('order')                        // => '"order"' (ANSI default)
-```
-
-Quoted identifiers can be used wherever a raw string identifier is accepted — `from()`, select fields, `orderBy()`, `groupBy()`, and also in `insert()`/`update()` field lists:
-
-```php
+// Works in from(), select fields, orderBy(), groupBy(), and INSERT/UPDATE field lists:
 $q = Query::select([$db->quote('order'), 'name'])
     ->from($db->quote('user'))
     ->orderBy($db->quote('group') . ' ASC');
-// MySQL  => SELECT `order`, name FROM `user` ORDER BY `group` ASC
-// Others => SELECT "order", name FROM "user" ORDER BY "group" ASC
-```
 
-Quoted field names work in `insert()` and `update()` too. The name inside the quote delimiters must be a plain identifier (letters, digits, and underscores only) — identifiers with spaces or dashes such as `"first name"` or `` `user-name` `` are **not** supported in field lists because they cannot be mapped to valid PDO placeholder names. Use `$db->quote()` to get the dialect-correct quoting — the library strips the delimiters when building the PDO placeholder, so the column name appears quoted in the SQL but the binding key is plain:
-
-```php
-// INSERT using a reserved-word column name
-$orderCol = $db->quote('order');   // MySQL => '`order`', others => '"order"'
-$db->insert('orders', [$orderCol => 5, 'name' => 'Alice']);
+// INSERT/UPDATE: inner name must be a plain identifier (no spaces or dashes)
+$db->insert('orders', [$db->quote('order') => 5, 'name' => 'Alice']);
 // MySQL  => INSERT INTO orders (`order`, name) VALUES (:order_0, :name_0)
 // Others => INSERT INTO orders ("order", name) VALUES (:order_0, :name_0)
 
-// UPDATE using a reserved-word column name
-$db->update('orders', [$orderCol => 6], 'id = :id', [':id' => 1]);
-// MySQL  => UPDATE orders SET `order` = :order WHERE id = :id
-// Others => UPDATE orders SET "order" = :order WHERE id = :id
-```
-
-For schema-qualified names, quote each segment individually:
-
-```php
+// Schema-qualified names: quote each segment separately
 $table = $db->quote('public') . '.' . $db->quote('order');
 // MySQL  => `public`.`order`
 // Others => "public"."order"

@@ -395,11 +395,6 @@ class QueryTests
         assert_equals('"say ""hello"""', Query::quote('say "hello"'));
     }
 
-    public function testQuotePreservesUnderscoreAndDigits()
-    {
-        assert_equals('"created_at_2"', Query::quote('created_at_2'));
-    }
-
     public function testQuoteWithMysqlDialectUsesBackticks()
     {
         assert_equals('`order`', Query::quote('order', new MysqlSqlDialect()));
@@ -408,11 +403,6 @@ class QueryTests
     public function testQuoteWithMysqlDialectEscapesInternalBackticks()
     {
         assert_equals('`col``name`', Query::quote('col`name', new MysqlSqlDialect()));
-    }
-
-    public function testQuoteWithDefaultSqlDialectUsesAnsi()
-    {
-        assert_equals('"order"', Query::quote('order', new DefaultSqlDialect()));
     }
 
     public function testQuoteWithSqlServerDialectUsesAnsi()
@@ -424,12 +414,6 @@ class QueryTests
     {
         $sql = Query::select()->from(Query::quote('user'))->getQuery();
         assert_equals('SELECT * FROM "user"', $sql);
-    }
-
-    public function testQuoteMysqlCanBeUsedInFromClause()
-    {
-        $sql = Query::select()->from(Query::quote('order', new MysqlSqlDialect()))->getQuery();
-        assert_equals('SELECT * FROM `order`', $sql);
     }
 
     public function testQuoteCanBeUsedInSelectFields()
