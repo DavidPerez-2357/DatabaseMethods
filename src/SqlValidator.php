@@ -32,7 +32,10 @@ class SqlValidator
 
     /**
      * Regex that matches a plain SQL identifier.
-     * Used for PDO parameter names and INSERT/UPDATE column names that must be unquoted.
+     * Used for contexts that require an unquoted simple name, such as PDO parameter
+     * names, prefixes, aliases, and other plain identifier inputs.
+     * INSERT/UPDATE column lists that may contain quoted identifiers are validated
+     * separately by COLUMN_IDENTIFIER_REGEX / assertColumnIdentifier().
      * E.g. 'users', 'created_at'.
      */
     const IDENTIFIER_REGEX = '/^[a-zA-Z_][a-zA-Z0-9_]*$/';
