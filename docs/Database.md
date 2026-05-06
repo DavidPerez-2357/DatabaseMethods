@@ -163,14 +163,15 @@ $row  = $database->selectOne('SELECT id, name FROM users WHERE id = :userId LIMI
 
 ### `createQuery()` / `getDialect()`
 
-`createQuery()` returns a `Query::select()` instance pre-configured with the active driver dialect, so pagination SQL is rendered correctly per driver.
+`createQuery()` returns a blank `Query` linked to this connection and pre-configured with the driver dialect. Call the method type, chain setters, then call `run()` to execute, or pass the object to `select()` / `selectOne()`.
 
 ```php
-$query = $database->createQuery()
+$rows = $database->createQuery()
+    ->select(['id', 'name'])
     ->from('users')
     ->orderBy('created_at DESC')
     ->limit(10)
-    ->offset(5);
+    ->run();
 ```
 
 Use `getDialect()` when you need to apply the same dialect manually to an existing `Query` object.

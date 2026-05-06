@@ -55,9 +55,9 @@ class Query
             throw new InvalidArgumentException('Query constructor expects an array.');
         }
 
-        $this->dialect  = new DefaultSqlDialect();
+        $this->dialect = new DefaultSqlDialect();
         $this->database = null;
-        $this->data     = $queryData;
+        $this->data = $queryData;
         if (!empty($queryData)) {
             $this->query = $this->buildQuery();
         }
@@ -213,8 +213,8 @@ class Query
     private function _insert($table, $fields = array())
     {
         $this->data['method'] = 'INSERT';
-        $this->data['table']  = $table;
-        $this->query          = null;
+        $this->data['table'] = $table;
+        $this->query = null;
         if (!empty($fields)) {
             $this->data['fields'] = self::normalizeOptionalFields($fields, 'insert()');
         }
@@ -239,8 +239,8 @@ class Query
     private function _update($table, $fields = array())
     {
         $this->data['method'] = 'UPDATE';
-        $this->data['table']  = $table;
-        $this->query          = null;
+        $this->data['table'] = $table;
+        $this->query = null;
         if (!empty($fields)) {
             $this->data['fields'] = self::normalizeOptionalFields($fields, 'update()');
         }
@@ -259,8 +259,8 @@ class Query
     private function _delete($table)
     {
         $this->data['method'] = 'DELETE';
-        $this->data['table']  = $table;
-        $this->query          = null;
+        $this->data['table'] = $table;
+        $this->query = null;
         return $this;
     }
 
@@ -1193,9 +1193,9 @@ class Query
             $fields = isset($this->data['fields']) && !empty($this->data['fields'])
                 ? $this->data['fields']
                 : array_keys($rows[0]);
-            $this->data['fields']           = $fields;
+            $this->data['fields'] = $fields;
             $this->data['values_to_insert'] = count($rows);
-            $this->query                    = null;
+            $this->query = null;
 
             $params = PdoParameterBuilder::buildInsertParams($rows);
             $this->database->runPlainQuery((string) $this, $params);
@@ -1206,9 +1206,9 @@ class Query
         $fields = isset($this->data['fields']) && !empty($this->data['fields'])
             ? $this->data['fields']
             : array_keys($data);
-        $this->data['fields']           = $fields;
+        $this->data['fields'] = $fields;
         $this->data['values_to_insert'] = 1;
-        $this->query                    = null;
+        $this->query = null;
 
         $params = PdoParameterBuilder::buildInsertParams(array($data));
         $this->database->runPlainQuery((string) $this, $params);
@@ -1238,7 +1238,7 @@ class Query
         }
 
         $fieldsToUpdate = array_intersect_key($data, array_flip($fieldKeys));
-        $whereData      = array_diff_key($data, array_flip($fieldKeys));
+        $whereData = array_diff_key($data, array_flip($fieldKeys));
 
         // Build the SET placeholder map.
         $placeholders = PdoParameterBuilder::buildNamedParams($fieldsToUpdate);

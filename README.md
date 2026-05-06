@@ -38,40 +38,6 @@ $query = Query::select(['id', 'name'])
 
 ---
 
-### Fluent query execution
-
-Obtain a `Query` from `Database::createQuery()` and call `run()` to execute it directly through the connection — no need to pass it back to `$db`:
-
-```php
-// SELECT – returns an array of rows
-$rows = $db->createQuery()
-    ->select(['id', 'name'])
-    ->from('users')
-    ->where('active = 1')
-    ->run();
-
-// INSERT – returns the last-insert ID
-$id = $db->createQuery()
-    ->insert('users', ['name', 'email'])
-    ->run(['name' => 'Alice', 'email' => 'alice@example.com']);
-
-// UPDATE – returns affected-row count
-$n = $db->createQuery()
-    ->update('users', ['name'])
-    ->where('id = :id')
-    ->run(['name' => 'Bob', 'id' => 1]);
-
-// DELETE – returns affected-row count
-$n = $db->createQuery()
-    ->delete('users')
-    ->where('id = :id')
-    ->run([':id' => 5]);
-```
-
-[Full integration documentation →](docs/query-database-integration.md)
-
----
-
 ### [`Database`](docs/Database.md) - PDO wrapper
 
 Connect once, then select, insert, update, delete, count, and run transactions with no boilerplate:
@@ -79,9 +45,9 @@ Connect once, then select, insert, update, delete, count, and run transactions w
 ```php
 $db = new Mysql(['serverName' => 'localhost', 'username' => 'root', 'password' => '', 'DB' => 'mydb']);
 
-$users  = $db->select($query, ['active' => 1]);
+$users = $db->select($query, ['active' => 1]);
 $lastId = $db->insert('users', ['name' => 'Alice', 'email' => 'alice@example.com']);
-$rows   = $db->update('users', ['name' => 'Bob'], 'id = :id', ['id' => $lastId]);
+$rows = $db->update('users', ['name' => 'Bob'], 'id = :id', ['id' => $lastId]);
 
 $db->executeTransaction(function($db) {
     $db->delete('orders', 'user_id = :id', ['id' => 5]);
@@ -90,6 +56,21 @@ $db->executeTransaction(function($db) {
 ```
 
 [Full Database documentation →](docs/Database.md)
+
+---
+
+### Fluent query execution
+
+`Database::createQuery()` returns a linked `Query`. Call the method type, chain setters, then call `run()`:
+
+```php
+$rows = $db->createQuery()->select(['id', 'name'])->from('users')->where('active = 1')->run();
+$id = $db->createQuery()->insert('users', ['name', 'email'])->run(['name' => 'Alice', 'email' => 'a@b.com']);
+$n = $db->createQuery()->update('users', ['name'])->where('id = :id')->run(['name' => 'Bob', 'id' => 1]);
+$n = $db->createQuery()->delete('users')->where('id = :id')->run([':id' => 5]);
+```
+
+[Full documentation →](docs/query-database-integration.md)
 
 ---
 
