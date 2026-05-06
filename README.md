@@ -38,6 +38,40 @@ $query = Query::select(['id', 'name'])
 
 ---
 
+### Fluent query execution
+
+Obtain a `Query` from `Database::createQuery()` and call `run()` to execute it directly through the connection — no need to pass it back to `$db`:
+
+```php
+// SELECT – returns an array of rows
+$rows = $db->createQuery()
+    ->select(['id', 'name'])
+    ->from('users')
+    ->where('active = 1')
+    ->run();
+
+// INSERT – returns the last-insert ID
+$id = $db->createQuery()
+    ->insert('users', ['name', 'email'])
+    ->run(['name' => 'Alice', 'email' => 'alice@example.com']);
+
+// UPDATE – returns affected-row count
+$n = $db->createQuery()
+    ->update('users', ['name'])
+    ->where('id = :id')
+    ->run(['name' => 'Bob', 'id' => 1]);
+
+// DELETE – returns affected-row count
+$n = $db->createQuery()
+    ->delete('users')
+    ->where('id = :id')
+    ->run([':id' => 5]);
+```
+
+[Full integration documentation →](docs/query-database-integration.md)
+
+---
+
 ### [`Database`](docs/Database.md) - PDO wrapper
 
 Connect once, then select, insert, update, delete, count, and run transactions with no boilerplate:

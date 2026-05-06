@@ -102,8 +102,35 @@ class Query
     }
 
     // -------------------------------------------------------------------------
-    // Factory methods (instance — also callable as Query::select() via __callStatic)
+    // Factory methods — callable both as Query::select() (static) and $query->select() (instance)
     // -------------------------------------------------------------------------
+
+    /**
+     * Dispatches instance calls to `select()`, `insert()`, `update()`, or `delete()`.
+     *
+     * This magic method allows the factory methods to be called on an existing Query
+     * instance (e.g. one returned by `Database::createQuery()`) so that the database
+     * link and dialect are preserved:
+     *
+     * ```php
+     * $rows = $db->createQuery()->select(['id', 'name'])->from('users')->run();
+     * ```
+     *
+     * @param string $name Method name ('select', 'insert', 'update', or 'delete').
+     * @param array  $args Arguments forwarded to the private implementation.
+     * @return $this
+     * @throws BadMethodCallException If $name is not one of the four supported methods.
+     */
+    public function __call($name, $args)
+    {
+        static $supported = array('select', 'insert', 'update', 'delete');
+        if (in_array($name, $supported, true)) {
+            return call_user_func_array(array($this, '_' . $name), $args);
+        }
+        throw new BadMethodCallException(
+            "Method '{$name}' does not exist in " . get_class($this) . '.'
+        );
+    }
 
     /**
      * Forwards static calls (`Query::select()`, `Query::insert()`, etc.) to a fresh
@@ -119,7 +146,7 @@ class Query
         static $supported = array('select', 'insert', 'update', 'delete');
         if (in_array($name, $supported, true)) {
             $instance = new static();
-            return call_user_func_array(array($instance, $name), $args);
+            return call_user_func_array(array($instance, '_' . $name), $args);
         }
         throw new BadMethodCallException(
             "Static method '{$name}' does not exist in " . get_called_class() . '.'
@@ -129,8 +156,8 @@ class Query
     /**
      * Sets this query to SELECT and (optionally) specifies the column list.
      *
-     * When called on a blank query returned by `Database::createQuery()`, the database
-     * link is preserved and `run()` can be used to execute the query directly.
+     * Called via `Query::select()` (static) or `$query->select()` (instance) through
+     * the `__callStatic` / `__call` magic methods.
      *
      * @param array|string|null $fields Column list. When omitted, null, or an empty array,
      *                                  defaults to ['*']. A string is normalized to a
@@ -139,16 +166,8 @@ class Query
      * @return $this
      * @throws InvalidArgumentException If $fields is an empty/whitespace-only string, or
      *                                  not an array, string, or null.
-     * @example
-     * ```php
-     * // Fluent static factory (classic pattern):
-     * $query = Query::select(['id', 'name'])->from('users')->where('active = 1');
-     *
-     * // With Database link (new pattern):
-     * $rows = $db->createQuery()->select(['id', 'name'])->from('users')->run();
-     * ```
      */
-    public function select($fields = array())
+    private function _select($fields = array())
     {
         $this->data['method'] = 'SELECT';
         $this->query           = null;
@@ -190,16 +209,8 @@ class Query
      *                             A string is normalized to a single-element array.
      * @return $this
      * @throws InvalidArgumentException If $fields is not an array or string.
-     * @example
-     * ```php
-     * // Classic pattern:
-     * $query = Query::insert('users', ['name', 'email'])->valuesCount(3);
-     *
-     * // With Database link (new pattern):
-     * $lastId = $db->createQuery()->insert('users', ['name', 'email'])->run(['name' => 'Alice', 'email' => 'a@b.com']);
-     * ```
      */
-    public function insert($table, $fields = array())
+    private function _insert($table, $fields = array())
     {
         $this->data['method'] = 'INSERT';
         $this->data['table']  = $table;
@@ -224,16 +235,8 @@ class Query
      *                             A string is normalized to a single-element array.
      * @return $this
      * @throws InvalidArgumentException If $fields is not an array or string.
-     * @example
-     * ```php
-     * // Classic pattern:
-     * $query = Query::update('users', ['name', 'email'])->where('id = :id');
-     *
-     * // With Database link (new pattern):
-     * $affected = $db->createQuery()->update('users', ['name'])->where('id = :id')->run(['name' => 'Bob', 'id' => 1]);
-     * ```
      */
-    public function update($table, $fields = array())
+    private function _update($table, $fields = array())
     {
         $this->data['method'] = 'UPDATE';
         $this->data['table']  = $table;
@@ -252,16 +255,8 @@ class Query
      *
      * @param string $table Target table expression (plain, schema-qualified, or with alias).
      * @return $this
-     * @example
-     * ```php
-     * // Classic pattern:
-     * $query = Query::delete('users')->where('id = :id')->limit(10);
-     *
-     * // With Database link (new pattern):
-     * $affected = $db->createQuery()->delete('users')->where('id = :id')->run(['id' => 5]);
-     * ```
      */
-    public function delete($table)
+    private function _delete($table)
     {
         $this->data['method'] = 'DELETE';
         $this->data['table']  = $table;
@@ -679,6 +674,102 @@ class Query
         return $this;
     }
 
+    /**
+     * Links this query to a Database instance so that `run()` can execute it directly.
+     *
+     * `Database::createQuery()` calls this automatically. You only need to call it
+     * manually when constructing a Query outside of a Database context and you want
+     * to execute it later with `run()`.
+     *
+     * @param Database $database The database instance to use for execution.
+     * @return $this
+     */
+    public function setDatabase(Database $database)
+    {
+        $this->database = $database;
+        $this->setDialect($database->getDialect());
+        return $this;
+    }
+
+    /**
+     * Executes this query against the linked Database and returns the result.
+     *
+     * The Query must have been linked to a Database via `setDatabase()` or by
+     * being obtained from `Database::createQuery()`.
+     *
+     * Return values by query type:
+     *  - SELECT  → array of rows (associative arrays), or JSON string in json_encode mode.
+     *  - INSERT  → int — the last inserted row ID (single row) or 0 for multi-row batches.
+     *  - UPDATE  → int — number of affected rows.
+     *  - DELETE  → int — number of affected rows.
+     *
+     * For UPDATE, `$data` must contain both the column values to SET and the WHERE
+     * bindings in one flat array. The Query's field list determines which keys belong
+     * to the SET clause; all remaining keys are treated as WHERE bindings. Field names
+     * that were quoted (e.g. `"order"`) must be passed as their unquoted form (e.g.
+     * `'order'`) in `$data`.
+     *
+     * For INSERT with multiple rows, pass an array of associative arrays:
+     * `[['name' => 'Alice'], ['name' => 'Bob']]`. The field list set on the Query (if
+     * any) is used to build the SQL; field names are derived from the first row's keys
+     * when not pre-set.
+     *
+     * @param array $data Bindings / row data for the query (optional for SELECT/DELETE).
+     * @return array|string|int Result rows for SELECT; last-insert-ID for INSERT;
+     *                          affected-row count for UPDATE/DELETE.
+     * @throws RuntimeException If the Query is not linked to a Database.
+     * @throws InvalidArgumentException If the query method is not set or unsupported.
+     * @example
+     * ```php
+     * // SELECT
+     * $rows = $db->createQuery()->select(['id', 'name'])->from('users')->run();
+     * $row  = $db->createQuery()->select(['id'])->from('users')->where('id = :id')->run([':id' => 1]);
+     *
+     * // INSERT
+     * $id = $db->createQuery()->insert('users', ['name', 'email'])->run(['name' => 'Alice', 'email' => 'a@b.com']);
+     *
+     * // UPDATE
+     * $n = $db->createQuery()->update('users', ['name'])->where('id = :id')->run(['name' => 'Bob', 'id' => 1]);
+     *
+     * // DELETE
+     * $n = $db->createQuery()->delete('users')->where('id = :id')->run(['id' => 5]);
+     * ```
+     */
+    public function run(array $data = array())
+    {
+        if ($this->database === null) {
+            throw new RuntimeException(
+                'Query::run() requires a linked Database. '
+                . 'Obtain this Query via Database::createQuery() or call setDatabase() first.'
+            );
+        }
+
+        if (empty($this->data['method'])) {
+            throw new InvalidArgumentException('Query method is required before calling run().');
+        }
+
+        $method = strtoupper($this->data['method']);
+
+        switch ($method) {
+            case 'SELECT':
+                return $this->runSelect($data);
+
+            case 'INSERT':
+                return $this->runInsert($data);
+
+            case 'UPDATE':
+                return $this->runUpdate($data);
+
+            case 'DELETE':
+                return $this->runDelete($data);
+
+            default:
+                throw new InvalidArgumentException(
+                    "run() does not support query method '{$this->data['method']}'."
+                );
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Query builders
     // -------------------------------------------------------------------------
@@ -1050,5 +1141,127 @@ class Query
             return $fields;
         }
         throw new InvalidArgumentException("{$context} expects \$fields to be an array or string.");
+    }
+
+    /**
+     * Executes a SELECT query and returns all result rows.
+     * @param array $data Named or positional parameter bindings.
+     * @return array|string
+     */
+    private function runSelect(array $data)
+    {
+        return $this->database->plainSelect((string) $this, $data);
+    }
+
+    /**
+     * Executes an INSERT query and returns the last insert ID (single row)
+     * or 0 for multi-row batches.
+     *
+     * When `$data` is a sequential list of associative arrays, a multi-row insert
+     * is performed. Otherwise $data is treated as a single row.
+     *
+     * If a field list was already set on the Query via `->fields()` or the second
+     * argument of `->insert()`, the query SQL is built from those fields and $data
+     * values are mapped to the generated placeholders. When no field list is pre-set,
+     * the fields are inferred from the keys of $data (single row) or the first row
+     * (multi-row).
+     *
+     * @param array $data Row data (single associative array or list of associative arrays).
+     * @return int Last insert ID for single rows; 0 for multi-row batches.
+     */
+    private function runInsert(array $data)
+    {
+        $table = isset($this->data['table']) ? $this->data['table'] : null;
+        if (empty($table)) {
+            throw new InvalidArgumentException('INSERT query requires a table.');
+        }
+
+        // Detect multi-row: sequential numeric-keyed array whose every element is an array.
+        $isList = !empty($data) && (array_keys($data) === range(0, count($data) - 1));
+        $allArrays = true;
+        foreach ($data as $item) {
+            if (!is_array($item)) {
+                $allArrays = false;
+                break;
+            }
+        }
+        $isMultiRow = $isList && $allArrays;
+
+        if ($isMultiRow) {
+            // Multi-row: use the field list from first row when not pre-set.
+            $rows = $data;
+            $fields = isset($this->data['fields']) && !empty($this->data['fields'])
+                ? $this->data['fields']
+                : array_keys($rows[0]);
+            $this->data['fields']           = $fields;
+            $this->data['values_to_insert'] = count($rows);
+            $this->query                    = null;
+
+            $params = PdoParameterBuilder::buildInsertParams($rows);
+            $this->database->runPlainQuery((string) $this, $params);
+            return 0;
+        }
+
+        // Single row
+        $fields = isset($this->data['fields']) && !empty($this->data['fields'])
+            ? $this->data['fields']
+            : array_keys($data);
+        $this->data['fields']           = $fields;
+        $this->data['values_to_insert'] = 1;
+        $this->query                    = null;
+
+        $params = PdoParameterBuilder::buildInsertParams(array($data));
+        $this->database->runPlainQuery((string) $this, $params);
+        return $this->database->getLastInsertId();
+    }
+
+    /**
+     * Executes an UPDATE query and returns the number of affected rows.
+     *
+     * `$data` must be a flat associative array that contains both the SET values
+     * (keys matching the Query's field list) and the WHERE bindings (all other keys).
+     * Quoted field names (e.g. `"order"`) must be supplied as their unquoted form
+     * (e.g. `'order'`) in `$data`.
+     *
+     * @param array $data Combined SET + WHERE bindings.
+     * @return int Number of affected rows.
+     */
+    private function runUpdate(array $data)
+    {
+        $fields = isset($this->data['fields']) ? $this->data['fields'] : array();
+
+        // Derive the un-quoted key for each field so we can split $data correctly.
+        $fieldKeys = array();
+        foreach ($fields as $field) {
+            // Strip leading/trailing quote characters (", ', `)
+            $fieldKeys[] = preg_replace('/^["\'\`](.*)["\'\`]$/', '$1', $field);
+        }
+
+        $fieldsToUpdate = array_intersect_key($data, array_flip($fieldKeys));
+        $whereData      = array_diff_key($data, array_flip($fieldKeys));
+
+        // Build the SET placeholder map.
+        $placeholders = PdoParameterBuilder::buildNamedParams($fieldsToUpdate);
+
+        // Normalize and merge WHERE bindings, checking for key collisions.
+        $placeholders = array_merge(
+            $placeholders,
+            PdoParameterBuilder::normalizeNamedWhereBindings($whereData, $placeholders)
+        );
+
+        $stmt = $this->database->runPlainQuery((string) $this, $placeholders);
+        // runPlainQuery returns the rowCount; cast to int defensively.
+        return (int) $stmt;
+    }
+
+    /**
+     * Executes a DELETE query and returns the number of affected rows.
+     *
+     * @param array $data WHERE clause bindings (named or positional).
+     * @return int Number of affected rows.
+     */
+    private function runDelete(array $data)
+    {
+        return (int) $this->database->runPlainQuery((string) $this, $data);
     }
 }
