@@ -22,45 +22,80 @@ class SqlValidator
      * then alphanumeric/underscores.  Repeated literally in every regex below
      * because PHP 5.4 class constants do not support expression initializers.
      *
-     * Segment: [a-zA-Z_][a-zA-Z0-9_]*
+     * Plain segment:        [a-zA-Z_][a-zA-Z0-9_]*
+     * ANSI-quoted segment:  "(?:[^"]|"")+"
+     * Backtick segment:     `(?:[^`]|``)+`
+     *
+     * Combined segment (SEG):
+     *   (?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)
      */
 
     /**
      * Regex that matches a plain SQL identifier.
-     * Base segment: [a-zA-Z_][a-zA-Z0-9_]*
+     * Used for contexts that require an unquoted simple name, such as PDO parameter
+     * names, prefixes, aliases, and other plain identifier inputs.
+     * INSERT/UPDATE column lists that may contain quoted identifiers are validated
+     * separately by COLUMN_IDENTIFIER_REGEX / assertColumnIdentifier().
      * E.g. 'users', 'created_at'.
      */
     const IDENTIFIER_REGEX = '/^[a-zA-Z_][a-zA-Z0-9_]*$/';
 
     /**
-     * Regex that matches a plain or schema-qualified SQL identifier.
-     * Built from: IDENTIFIER_REGEX ( "." IDENTIFIER_REGEX )?
-     * E.g. 'users', 'public.users', 'dbo.orders'.
+     * Regex that matches a single-segment SQL column identifier: either a plain
+     * identifier or a quoted identifier (ANSI double-quotes or backticks) whose
+     * inner content is a plain identifier.  No schema-qualification (dot) allowed.
+     * Used for INSERT/UPDATE column lists where quoted names must still yield a
+     * valid PDO placeholder after the quotes are stripped.
+     * E.g. 'email', '"order"', '`from`'.
      */
-    const QUALIFIED_IDENTIFIER_REGEX = '/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?$/';
+    const COLUMN_IDENTIFIER_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"[a-zA-Z_][a-zA-Z0-9_]*"|`[a-zA-Z_][a-zA-Z0-9_]*`)$/';
 
     /**
-     * Regex that matches a table expression with an optional alias.
-     * Built from: QUALIFIED_IDENTIFIER_REGEX ( \s+ (AS \s+)? IDENTIFIER_REGEX )?
-     * Supports: 'users', 'users u', 'users AS u', 'public.users u', 'public.users AS u'.
-     * Case-insensitive for the AS keyword.
+     * Regex that matches a plain, ANSI-quoted, or backtick-quoted SQL identifier,
+     * optionally schema-qualified (two segments separated by a dot).
+     * E.g. 'users', '"order"', '`order`', 'public.users', '"public"."order"'.
+     *
+     * Both ANSI double-quotes and MySQL backticks are accepted because this
+     * validator is dialect-agnostic; it cannot know which quote style is valid
+     * for the active database.  Always use `$db->quote()` / `Query::quote()`
+     * to produce the dialect-correct quoted form, which will then pass this check.
      */
-    const ALIAS_IDENTIFIER_REGEX = '/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?(\s+(?:AS\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?$/i';
+    const QUALIFIED_IDENTIFIER_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?$/';
+
+    /**
+     * Regex that matches a table expression with an optional plain alias.
+     * Accepts plain, ANSI-quoted, or backtick-quoted table names, optionally
+     * schema-qualified, with an optional plain alias (AS keyword optional).
+     * E.g. 'users', '"order"', '`order` o', '"public"."order" AS o'.
+     *
+     * Both ANSI double-quotes and MySQL backticks are accepted because this
+     * validator is dialect-agnostic.  Use `$db->quote()` to produce the
+     * dialect-correct quoted form.
+     */
+    const ALIAS_IDENTIFIER_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?(?:\s+(?:AS\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?$/i';
 
     /**
      * Regex that matches a comma-separated ORDER BY expression list.
-     * Each item: QUALIFIED_IDENTIFIER_REGEX \s* (ASC|DESC)?
-     * E.g. 'name ASC', 'created_at DESC', 'users.name ASC, email DESC'.
-     * Case-insensitive for ASC/DESC.
+     * Each item is a (qualified) plain, ANSI-quoted, or backtick-quoted identifier
+     * with an optional ASC / DESC direction.
+     * E.g. '"order" ASC', '`name` DESC, id ASC'.
+     *
+     * Both ANSI double-quotes and MySQL backticks are accepted because this
+     * validator is dialect-agnostic.  Use `$db->quote()` to produce the
+     * dialect-correct quoted form.
      */
-    const ORDER_BY_REGEX = '/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?\s*(ASC|DESC)?(\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?\s*(ASC|DESC)?)*$/i';
+    const ORDER_BY_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?\s*(ASC|DESC)?(?:\s*,\s*(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?\s*(ASC|DESC)?)*$/i';
 
     /**
      * Regex that matches a comma-separated GROUP BY expression list.
-     * Each item: QUALIFIED_IDENTIFIER_REGEX (no ASC/DESC allowed).
-     * E.g. 'name', 'users.id', 'name, email'.
+     * Each item is a (qualified) plain, ANSI-quoted, or backtick-quoted identifier.
+     * E.g. '"order"', '`name`, id'.
+     *
+     * Both ANSI double-quotes and MySQL backticks are accepted because this
+     * validator is dialect-agnostic.  Use `$db->quote()` to produce the
+     * dialect-correct quoted form.
      */
-    const GROUP_BY_REGEX = '/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?(\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)?)*$/';
+    const GROUP_BY_REGEX = '/^(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?(?:\s*,\s*(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`)(?:\.(?:[a-zA-Z_][a-zA-Z0-9_]*|"(?:[^"]|"")+"|`(?:[^`]|``)+`))?)*$/';
 
     /**
      * Asserts that $name is a plain (unqualified) SQL identifier.
@@ -75,6 +110,27 @@ class SqlValidator
             throw new InvalidArgumentException(
                 "Invalid {$context}: must start with a letter or underscore and contain only"
                 . " alphanumeric characters and underscores (unqualified column name, e.g. 'email' or 'created_at')."
+            );
+        }
+    }
+
+    /**
+     * Asserts that $name is a plain or single-segment quoted SQL column identifier.
+     * Accepts plain identifiers (e.g. 'email') and ANSI/backtick-quoted identifiers
+     * whose inner content is a plain identifier (e.g. '"order"', '`from`').
+     * Schema-qualified names (e.g. 'public.email') are not accepted.
+     *
+     * @param string $name    The value to validate.
+     * @param string $context Human-readable label used in the exception message.
+     * @throws InvalidArgumentException If $name is not a valid plain or quoted column identifier.
+     */
+    public static function assertColumnIdentifier($name, $context = 'column identifier')
+    {
+        if (!is_string($name) || !preg_match(self::COLUMN_IDENTIFIER_REGEX, $name)) {
+            throw new InvalidArgumentException(
+                "Invalid {$context}: must be a plain identifier (e.g. 'email') or a quoted identifier"
+                . " whose content is a valid name (e.g. '\"order\"' or '`from`')."
+                . " Schema-qualified names are not allowed here."
             );
         }
     }

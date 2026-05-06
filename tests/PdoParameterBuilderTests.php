@@ -96,6 +96,15 @@ class PdoParameterBuilderTests
         });
     }
 
+    public function testBuildEqualityWithQuotedSpaceIdentifierThrows()
+    {
+        // '"first name"' passes assertQualifiedIdentifier but strips to 'first name',
+        // which is not a valid PDO placeholder name.
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildEquality(array('"first name"' => 'Alice'));
+        });
+    }
+
     public function testBuildEqualityQualifiedColumn()
     {
         list($sql, $params) = PdoParameterBuilder::buildEquality(array('u.id' => 5, 'u.deleted_at' => null));
@@ -198,6 +207,15 @@ class PdoParameterBuilderTests
         });
     }
 
+    public function testBuildNamedParamsWithQuotedSpaceIdentifierThrows()
+    {
+        // '"first name"' passes assertQualifiedIdentifier but strips to 'first name',
+        // which is not a valid PDO placeholder name.
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildNamedParams(array('"first name"' => 1));
+        });
+    }
+
     public function testBuildNamedParamsQualifiedColumn()
     {
         $params = PdoParameterBuilder::buildNamedParams(array('u.name' => 'Alice', 'u.age' => 30));
@@ -283,10 +301,32 @@ class PdoParameterBuilderTests
         });
     }
 
-    public function testBuildSetClauseInvalidFieldThrows()
+    public function testBuildSetClauseAnsiQuotedField()
+    {
+        $sql = PdoParameterBuilder::buildSetClause(array('"order"', 'name'));
+
+        assert_equals('"order" = :order, name = :name', $sql);
+    }
+
+    public function testBuildSetClauseBacktickQuotedField()
+    {
+        $sql = PdoParameterBuilder::buildSetClause(array('`from`', 'email'));
+
+        assert_equals('`from` = :from, email = :email', $sql);
+    }
+
+    public function testBuildSetClauseSchemaQualifiedFieldThrows()
     {
         assert_throws('InvalidArgumentException', function () {
-            PdoParameterBuilder::buildSetClause(array('bad.col'));
+            PdoParameterBuilder::buildSetClause(array('public.col'));
+        });
+    }
+
+    public function testBuildSetClauseDuplicatePlaceholderThrows()
+    {
+        // 'order' and '"order"' both resolve to placeholder :order
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildSetClause(array('order', '"order"'));
         });
     }
 
@@ -329,6 +369,35 @@ class PdoParameterBuilderTests
     {
         assert_throws('InvalidArgumentException', function () {
             PdoParameterBuilder::buildInsertPlaceholders(array('bad.col'), 1);
+        });
+    }
+
+    public function testBuildInsertPlaceholdersAnsiQuotedField()
+    {
+        $groups = PdoParameterBuilder::buildInsertPlaceholders(array('"order"', 'name'), 1);
+
+        assert_equals(array('(:order_0, :name_0)'), $groups);
+    }
+
+    public function testBuildInsertPlaceholdersBacktickQuotedField()
+    {
+        $groups = PdoParameterBuilder::buildInsertPlaceholders(array('`from`', 'id'), 2);
+
+        assert_equals(array('(:from_0, :id_0)', '(:from_1, :id_1)'), $groups);
+    }
+
+    public function testBuildInsertPlaceholdersSchemaQualifiedFieldThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertPlaceholders(array('public.col'), 1);
+        });
+    }
+
+    public function testBuildInsertPlaceholdersDuplicatePlaceholderThrows()
+    {
+        // 'from' and '`from`' both resolve to placeholder :from
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertPlaceholders(array('from', '`from`'), 1);
         });
     }
 
@@ -419,5 +488,38 @@ class PdoParameterBuilderTests
             ':name_1' => 'Bob',
             ':age_1'  => 25,
         ), $params);
+    }
+
+    public function testBuildInsertParamsAnsiQuotedColumn()
+    {
+        $params = PdoParameterBuilder::buildInsertParams(array(
+            array('"order"' => 1, 'name' => 'Alice'),
+        ));
+
+        assert_equals(array(':order_0' => 1, ':name_0' => 'Alice'), $params);
+    }
+
+    public function testBuildInsertParamsBacktickQuotedColumn()
+    {
+        $params = PdoParameterBuilder::buildInsertParams(array(
+            array('`from`' => 'x'),
+        ));
+
+        assert_equals(array(':from_0' => 'x'), $params);
+    }
+
+    public function testBuildInsertParamsSchemaQualifiedColumnThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertParams(array(array('public.col' => 1)));
+        });
+    }
+
+    public function testBuildInsertParamsDuplicatePlaceholderThrows()
+    {
+        // 'order' and '"order"' both resolve to placeholder :order
+        assert_throws('InvalidArgumentException', function () {
+            PdoParameterBuilder::buildInsertParams(array(array('order' => 1, '"order"' => 2)));
+        });
     }
 }

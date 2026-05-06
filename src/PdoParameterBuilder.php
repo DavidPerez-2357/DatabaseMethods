@@ -30,6 +30,9 @@ class PdoParameterBuilder
      * Column names may be plain (e.g. 'email') or table-qualified (e.g. 'u.email').
      * Dots in qualified names are replaced with underscores in the placeholder (e.g. 'u.email' → ':u_email').
      * If two column names produce the same placeholder after substitution, an exception is thrown.
+     * Quoted identifiers are accepted only if the inner name is a plain identifier; names with spaces
+     * or other special characters (e.g. '"first name"') are rejected because they cannot be converted
+     * to valid PDO placeholder names.
      *
      * @param array  $conditions Associative array of column => value pairs.
      * @param string $prefix     Optional prefix for placeholder names (e.g. 'w_' → ':w_col').
@@ -71,6 +74,8 @@ class PdoParameterBuilder
                 $parts[] = "{$col} IS NULL";
             } else {
                 $name = $prefix . self::toPlaceholderName($col);
+
+                self::assertValidPlaceholderName($col, $name);
 
                 if (isset($seenPlaceholders[$name])) {
                     throw new InvalidArgumentException(
@@ -138,8 +143,13 @@ class PdoParameterBuilder
     /**
      * Builds a PDO named-parameter array from a column => value map.
      * NULL values are included as-is.
-     * Column names may be plain (e.g. 'email') or table-qualified (e.g. 'u.email').
+     * Column names may be plain (e.g. 'email'), table-qualified (e.g. 'u.email'),
+     * or quoted (e.g. '"order"', '`from`').
      * Dots in qualified names are replaced with underscores in the placeholder (e.g. 'u.email' → ':u_email').
+     * Quote delimiters are stripped from the placeholder name (e.g. '"order"' → ':order').
+     * Quoted identifiers are accepted only if the inner name is a plain identifier; names with spaces
+     * or other special characters (e.g. '"first name"') are rejected because they cannot be converted
+     * to valid PDO placeholder names.
      * If two column names produce the same placeholder after substitution, an exception is thrown.
      *
      * @param array  $data   Associative array of column => value pairs.
@@ -157,6 +167,9 @@ class PdoParameterBuilder
      *
      * // buildNamedParams(['u.name' => 'Alice', 'u.age' => 30])
      * // => [':u_name' => 'Alice', ':u_age' => 30]
+     *
+     * // buildNamedParams(['"order"' => 1])
+     * // => [':order' => 1]
      * ```
      */
     public static function buildNamedParams(array $data, $prefix = '')
@@ -175,6 +188,8 @@ class PdoParameterBuilder
             SqlValidator::assertQualifiedIdentifier($col, 'parameter column');
 
             $name = $prefix . self::toPlaceholderName($col);
+
+            self::assertValidPlaceholderName($col, $name);
 
             if (isset($seenPlaceholders[$name])) {
                 throw new InvalidArgumentException(
@@ -280,7 +295,8 @@ class PdoParameterBuilder
 
     /**
      * Builds the SQL SET fragment for an UPDATE statement from an array of column names.
-     * Column names are validated as plain SQL identifiers.
+     * Column names may be plain (e.g. 'name') or quoted (e.g. '"order"', '`from`').
+     * The PDO placeholder is derived from the unquoted inner name.
      *
      * @param array $fields Non-empty array of column names.
      * @throws InvalidArgumentException If $fields is empty or any name fails identifier validation.
@@ -290,6 +306,9 @@ class PdoParameterBuilder
      * ```php
      * // buildSetClause(['name', 'email'])
      * // => 'name = :name, email = :email'
+     *
+     * // buildSetClause(['"order"', 'name'])
+     * // => '"order" = :order, name = :name'
      * ```
      */
     public static function buildSetClause(array $fields)
@@ -299,9 +318,18 @@ class PdoParameterBuilder
         }
 
         $clauses = array();
+        $seen    = array();
         foreach ($fields as $col) {
-            SqlValidator::assertIdentifier($col, 'SET field');
-            $clauses[] = "{$col} = :{$col}";
+            SqlValidator::assertColumnIdentifier($col, 'SET field');
+            $placeholder = self::unquoteIdentifier($col);
+            if (isset($seen[$placeholder])) {
+                throw new InvalidArgumentException(
+                    "buildSetClause() would produce a duplicate PDO placeholder ':{$placeholder}';"
+                    . " check for mixed plain and quoted column names (e.g. 'order' and '\"order\"')."
+                );
+            }
+            $seen[$placeholder] = true;
+            $clauses[] = "{$col} = :{$placeholder}";
         }
 
         return implode(', ', $clauses);
@@ -309,7 +337,8 @@ class PdoParameterBuilder
 
     /**
      * Builds the per-row placeholder groups for a multi-row INSERT VALUES clause.
-     * Column names are validated as plain SQL identifiers.
+     * Column names may be plain (e.g. 'name') or quoted (e.g. '"order"', '`from`').
+     * The PDO placeholder is derived from the unquoted inner name.
      *
      * @param array $fields   Non-empty array of column names.
      * @param int   $rowCount Number of rows (must be >= 1).
@@ -320,6 +349,9 @@ class PdoParameterBuilder
      * ```php
      * // buildInsertPlaceholders(['name', 'email'], 2)
      * // => ['(:name_0, :email_0)', '(:name_1, :email_1)']
+     *
+     * // buildInsertPlaceholders(['"order"', 'name'], 1)
+     * // => ['(:order_0, :name_0)']
      * ```
      */
     public static function buildInsertPlaceholders(array $fields, $rowCount)
@@ -332,15 +364,25 @@ class PdoParameterBuilder
             throw new InvalidArgumentException('buildInsertPlaceholders() requires $rowCount to be a positive integer.');
         }
 
+        $seen = array();
         foreach ($fields as $col) {
-            SqlValidator::assertIdentifier($col, 'INSERT field');
+            SqlValidator::assertColumnIdentifier($col, 'INSERT field');
+            $placeholder = self::unquoteIdentifier($col);
+            if (isset($seen[$placeholder])) {
+                throw new InvalidArgumentException(
+                    "buildInsertPlaceholders() would produce a duplicate PDO placeholder ':{$placeholder}';"
+                    . " check for mixed plain and quoted column names (e.g. 'order' and '\"order\"')."
+                );
+            }
+            $seen[$placeholder] = true;
         }
 
         $groups = array();
         for ($i = 0; $i < $rowCount; $i++) {
             $row = array();
             foreach ($fields as $col) {
-                $row[] = ":{$col}_{$i}";
+                $placeholder = self::unquoteIdentifier($col);
+                $row[] = ":{$placeholder}_{$i}";
             }
             $groups[] = '(' . implode(', ', $row) . ')';
         }
@@ -351,7 +393,8 @@ class PdoParameterBuilder
     /**
      * Builds the flat PDO named-parameter map for a multi-row INSERT from an array of row arrays.
      * Each key uses the form ':col_N' (N = zero-based row index).
-     * Column names are validated as plain SQL identifiers.
+     * Column names may be plain (e.g. 'name') or quoted (e.g. '"order"', '`from`').
+     * The PDO placeholder key is derived from the unquoted inner name.
      *
      * @param array $rows Non-empty array of associative arrays (each row must have the same key set as the first row; key order may differ).
      * @throws InvalidArgumentException If $rows is empty, if any row's key set does not match the first row, or if any column name fails identifier validation.
@@ -361,6 +404,9 @@ class PdoParameterBuilder
      * ```php
      * // buildInsertParams([['name' => 'Alice', 'age' => 30], ['name' => 'Bob', 'age' => 25]])
      * // => [':name_0' => 'Alice', ':age_0' => 30, ':name_1' => 'Bob', ':age_1' => 25]
+     *
+     * // buildInsertParams([['"order"' => 1]])
+     * // => [':order_0' => 1]
      * ```
      */
     public static function buildInsertParams(array $rows)
@@ -380,8 +426,17 @@ class PdoParameterBuilder
         }
 
         $fields = array_keys($rows[0]);
+        $seen   = array();
         foreach ($fields as $col) {
-            SqlValidator::assertIdentifier($col, 'INSERT field');
+            SqlValidator::assertColumnIdentifier($col, 'INSERT field');
+            $placeholder = self::unquoteIdentifier($col);
+            if (isset($seen[$placeholder])) {
+                throw new InvalidArgumentException(
+                    "buildInsertParams() would produce a duplicate PDO placeholder ':{$placeholder}';"
+                    . " check for mixed plain and quoted column names (e.g. 'order' and '\"order\"')."
+                );
+            }
+            $seen[$placeholder] = true;
         }
 
         $params = array();
@@ -400,7 +455,8 @@ class PdoParameterBuilder
             }
 
             foreach ($fields as $col) {
-                $params[":{$col}_{$i}"] = $row[$col];
+                $placeholder = self::unquoteIdentifier($col);
+                $params[":{$placeholder}_{$i}"] = $row[$col];
             }
         }
 
@@ -408,14 +464,64 @@ class PdoParameterBuilder
     }
 
     /**
-     * Converts a column name to a safe PDO placeholder name by replacing '.' with '_'.
-     * E.g. 'u.email' becomes 'u_email'.
+     * Converts a column name to a safe PDO placeholder name by first stripping any
+     * ANSI double-quote or backtick delimiters and then replacing dots with underscores.
      *
-     * @param string $col Column name (unqualified or qualified).
+     * Processing order matters: quotes are removed before dots are replaced, so a
+     * schema-qualified quoted name like '"public"."order"' correctly becomes 'public_order'
+     * (strip quotes → 'public.order', replace dot → 'public_order').
+     *
+     * E.g. 'u.email' → 'u_email', '"order"' → 'order', '`from`' → 'from'.
+     *
+     * @param string $col Column name (unqualified, qualified, or quoted).
      * @return string Safe placeholder name.
      */
     private static function toPlaceholderName($col)
     {
-        return str_replace('.', '_', $col);
+        $stripped = str_replace(array('"', '`'), '', $col);
+        return str_replace('.', '_', $stripped);
+    }
+
+    /**
+     * Asserts that the given placeholder name (already processed by toPlaceholderName)
+     * is a valid PDO named parameter identifier (letters, digits, underscores only).
+     * Throws if the original column name produced a name with spaces or other
+     * characters that PDO cannot accept.
+     *
+     * @param string $col  Original column name (used only for the error message).
+     * @param string $name Derived placeholder name to validate.
+     * @throws InvalidArgumentException If $name is not a valid PDO placeholder identifier.
+     */
+    private static function assertValidPlaceholderName($col, $name)
+    {
+        if (!preg_match(SqlValidator::IDENTIFIER_REGEX, $name)) {
+            throw new InvalidArgumentException(
+                "Column '{$col}' produces an invalid PDO placeholder name '{$name}' after unquoting."
+                . " Quoted identifiers used in named parameter bindings must contain only letters,"
+                . " digits, and underscores inside the quote delimiters (e.g. '\"order\"', not '\"first name\"')."
+            );
+        }
+    }
+
+    /**
+     * Strips ANSI double-quote or backtick delimiters from a single-segment column identifier.
+     * Returns the inner name unchanged for plain (unquoted) identifiers.
+     * E.g. '"order"' => 'order', '`from`' => 'from', 'email' => 'email'.
+     *
+     * This method must only be called after SqlValidator::assertColumnIdentifier() has
+     * validated the input, which guarantees that opening and closing delimiters match
+     * (either both '"' or both '`'). Mismatched delimiters are rejected by the validator
+     * before this function is ever reached.
+     *
+     * @param string $col A validated single-segment column identifier (plain or quoted).
+     * @return string The unquoted identifier name.
+     */
+    private static function unquoteIdentifier($col)
+    {
+        if (strlen($col) >= 2 && ($col[0] === '"' || $col[0] === '`')) {
+            return substr($col, 1, strlen($col) - 2);
+        }
+
+        return $col;
     }
 }

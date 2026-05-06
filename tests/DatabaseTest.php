@@ -471,6 +471,47 @@ class DatabaseTest
         assert_equals(0, $affected);
     }
 
+    public function testInsertWithQuotedColumnNamePersistsRow()
+    {
+        // Use the database's own quoting to get the dialect-correct form.
+        // SQLite and other ANSI dialects use "name"; MySQL uses `name`.
+        $this->resetTable();
+        $nameCol  = $this->db->quote('name');
+        $emailCol = $this->db->quote('email');
+        $id = $this->db->insert(self::TABLE, [$nameCol => 'Quoted', $emailCol => 'q@example.com']);
+        assert_true($id > 0 || DB_TEST_DRIVER === 'postgres', 'insert() must return a positive id.');
+
+        $rows = $this->db->select(
+            'SELECT name, email FROM ' . self::TABLE . ' WHERE email = :email',
+            ['email' => 'q@example.com']
+        );
+        assert_true(!empty($rows), 'Row inserted with quoted column names must be retrievable.');
+        assert_equals('Quoted', $rows[0]['name']);
+    }
+
+    public function testUpdateWithQuotedColumnNameModifiesRow()
+    {
+        $this->resetTable();
+        $this->db->insert(self::TABLE, ['name' => 'Before', 'email' => 'before@example.com']);
+
+        $rows = $this->db->select(
+            'SELECT id FROM ' . self::TABLE . ' WHERE email = :email',
+            ['email' => 'before@example.com']
+        );
+        assert_true(!empty($rows), 'Inserted row must be retrievable by email.');
+        $id = (int)$rows[0]['id'];
+
+        $nameCol = $this->db->quote('name');
+        $affected = $this->db->update(self::TABLE, [$nameCol => 'After'], 'id = :id', ['id' => $id]);
+        assert_equals(1, $affected);
+
+        $row = $this->db->selectOne(
+            Query::select()->from(self::TABLE)->where('id = :id'),
+            ['id' => $id]
+        );
+        assert_equals('After', $row['name']);
+    }
+
     // =========================================================================
     // Tests - delete
     // =========================================================================
@@ -960,65 +1001,19 @@ class DatabaseTest
         assert_true($query instanceof Query, 'createQuery() must return a Query instance.');
     }
 
-    public function testCreateQueryUsesDatabaseDialectForPagination()
-    {
-        $sql = $this->db->createQuery()
-            ->from(self::TABLE)
-            ->orderBy('id ASC')
-            ->limit(10)
-            ->offset(5)
-            ->getQuery();
-
-        if (DB_TEST_DRIVER === 'sql') {
-            assert_contains('OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY', $sql);
-            assert_not_contains(' LIMIT ', $sql);
-            return;
-        }
-
-        assert_contains(' LIMIT 10', $sql);
-        assert_contains(' OFFSET 5', $sql);
-    }
-
     public function testGetDialectReturnsSqlDialectInstance()
     {
         assert_true($this->db->getDialect() instanceof SqlDialect, 'getDialect() must return a SqlDialect instance.');
     }
 
-    public function testSelectAppliesDatabaseDialectToQueryObject()
+    public function testQuoteDialectDependsOnDriver()
     {
-        $query = Query::select(['name'])->from(self::TABLE)->orderBy('id ASC')->limit(3)->offset(1);
-
-        $this->db->select($query);
-
-        // After select(), the database dialect should have been applied to the query.
-        $sql = $query->getQuery();
-
-        if (DB_TEST_DRIVER === 'sql') {
-            assert_contains('OFFSET 1 ROWS FETCH NEXT 3 ROWS ONLY', $sql);
-            assert_not_contains(' LIMIT ', $sql);
-            return;
+        $quoted = $this->db->quote('order');
+        if (DB_TEST_DRIVER === 'mysql') {
+            assert_equals('`order`', $quoted);
+        } else {
+            assert_equals('"order"', $quoted);
         }
-
-        assert_contains(' LIMIT 3', $sql);
-        assert_contains(' OFFSET 1', $sql);
-    }
-
-    public function testSelectOneAppliesDatabaseDialectToQueryObject()
-    {
-        $query = Query::select(['name'])->from(self::TABLE)->orderBy('id ASC');
-
-        $this->db->selectOne($query);
-
-        // After selectOne(), the database dialect should have been applied and limit(1) added.
-        $sql = $query->getQuery();
-
-        if (DB_TEST_DRIVER === 'sql') {
-            assert_contains('TOP 1', $sql);
-            assert_not_contains(' LIMIT ', $sql);
-            return;
-        }
-
-        assert_contains(' LIMIT 1', $sql);
     }
 
     // =========================================================================

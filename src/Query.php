@@ -234,6 +234,57 @@ class Query
         return $instance;
     }
 
+    /**
+     * Quotes a SQL identifier using the given dialect, or ANSI double-quotes by default.
+     *
+     * Use this when a table or column name is a reserved word or contains special characters.
+     * Pass the dialect of your driver to get the correct quoting style for your database.
+     *
+     * @param string          $identifier A single identifier segment (no dots; quote each segment separately).
+     * @param SqlDialect|null $dialect    Dialect to use for quoting; defaults to ANSI double-quotes when null.
+     * @return string The quoted identifier.
+     * @throws InvalidArgumentException If $identifier is not a non-empty string, contains a dot,
+     *                                  or if $dialect is not a SqlDialect instance (when non-null).
+     * @example
+     * ```php
+     * // ANSI double-quotes (default — PostgreSQL, SQLite, SQL Server)
+     * Query::quote('order')                        // => '"order"'
+     *
+     * // MySQL backticks
+     * Query::quote('order', new MysqlSqlDialect()) // => '`order`'
+     *
+     * // Use the dialect of an existing Database connection
+     * Query::quote('order', $db->getDialect())
+     *
+     * // Schema-qualified: quote each segment individually
+     * Query::quote('public') . '.' . Query::quote('user')  // => '"public"."user"'
+     * ```
+     */
+    public static function quote($identifier, $dialect = null)
+    {
+        if (!is_string($identifier) || trim($identifier) === '') {
+            throw new InvalidArgumentException('Query::quote() expects a non-empty string.');
+        }
+
+        if (strpos($identifier, '.') !== false) {
+            throw new InvalidArgumentException(
+                'Query::quote() expects a single identifier segment with no dots; quote each segment separately.'
+            );
+        }
+
+        if ($dialect !== null && !($dialect instanceof SqlDialect)) {
+            throw new InvalidArgumentException(
+                'Query::quote() expects $dialect to be an instance of SqlDialect or null.'
+            );
+        }
+
+        if ($dialect === null) {
+            $dialect = new DefaultSqlDialect();
+        }
+
+        return $dialect->quoteIdentifier($identifier);
+    }
+
     // -------------------------------------------------------------------------
     // Fluent setter methods
     // -------------------------------------------------------------------------
@@ -653,7 +704,7 @@ class Query
         );
         $offsetVal = $offsetRaw !== false ? (int) $offsetRaw : null;
 
-        $fields    = isset($this->data['fields']) ? implode(", ", $this->data['fields']) : "*";
+        $fields    = isset($this->data['fields']) ? $this->renderSelectFields($this->data['fields']) : "*";
         $selectTop = $this->dialect->compileSelectTop($limitVal, $offsetVal);
         $sql = "SELECT {$selectTop}{$fields} FROM {$table}";
 
@@ -664,7 +715,7 @@ class Query
         }
 
         if (!empty($this->data['group_by'])) {
-            $sql .= " GROUP BY " . SqlValidator::assertGroupBy($this->data['group_by']);
+            $sql .= " GROUP BY " . $this->renderGroupBy($this->data['group_by']);
         }
 
         if (!empty($this->data['having'])) {
@@ -672,7 +723,7 @@ class Query
         }
 
         if (!empty($this->data['order_by'])) {
-            $sql .= " ORDER BY " . SqlValidator::assertOrderBy($this->data['order_by']);
+            $sql .= " ORDER BY " . $this->renderOrderBy($this->data['order_by']);
         }
 
         $hasOrderBy = !empty($this->data['order_by']);
@@ -726,7 +777,7 @@ class Query
 
         $sql = "UPDATE {$table}";
         $this->appendJoinsToSql($sql);
-        $sql .= " SET " . PdoParameterBuilder::buildSetClause($fields);
+        $sql .= " SET " . $this->buildSetClause($fields);
 
         if (!empty($this->data['where'])) {
             $sql .= " WHERE {$this->data['where']}";
@@ -761,7 +812,7 @@ class Query
         }
 
         if (!empty($this->data['order_by'])) {
-            $sql .= " ORDER BY " . SqlValidator::assertOrderBy($this->data['order_by']);
+            $sql .= " ORDER BY " . $this->renderOrderBy($this->data['order_by']);
         }
 
         $limit = $this->getValidatedLimit();
@@ -884,6 +935,67 @@ class Query
         $raw = isset($this->data['limit']) ? $this->data['limit'] : null;
         $limit = filter_var($raw, FILTER_VALIDATE_INT, array('options' => array('min_range' => 0)));
         return ($limit !== false && $limit > 0) ? (int) $limit : 0;
+    }
+
+    /**
+     * Renders SELECT fields, validating that each element is a non-empty string.
+     *
+     * @param array $fields
+     * @return string
+     */
+    private function renderSelectFields($fields)
+    {
+        if (!is_array($fields)) {
+            throw new InvalidArgumentException('SELECT fields must be provided as an array.');
+        }
+
+        $rendered = array();
+        foreach ($fields as $field) {
+            if (!is_string($field)) {
+                throw new InvalidArgumentException('Each SELECT field must be a string.');
+            }
+
+            if (trim($field) === '') {
+                throw new InvalidArgumentException('Each SELECT field must be a non-empty string.');
+            }
+
+            $rendered[] = $field;
+        }
+
+        return implode(', ', $rendered);
+    }
+
+    /**
+     * Validates and returns a GROUP BY expression.
+     *
+     * @param string $groupBy
+     * @return string
+     */
+    private function renderGroupBy($groupBy)
+    {
+        return SqlValidator::assertGroupBy($groupBy);
+    }
+
+    /**
+     * Validates and returns an ORDER BY expression.
+     *
+     * @param string $orderBy
+     * @return string
+     */
+    private function renderOrderBy($orderBy)
+    {
+        return SqlValidator::assertOrderBy($orderBy);
+    }
+
+    /**
+     * Builds an UPDATE SET clause.
+     *
+     * @param array $fields
+     * @return string
+     */
+    private function buildSetClause($fields)
+    {
+        return PdoParameterBuilder::buildSetClause($fields);
     }
 
     /**

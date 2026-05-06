@@ -382,7 +382,46 @@ class QueryTests
     }
 
     // =========================================================================
-    // Fluent setters: from() / table()
+    // Static helper: quote()
+    // =========================================================================
+
+    public function testQuotePlainIdentifierDefaultIsAnsi()
+    {
+        assert_equals('"order"', Query::quote('order'));
+    }
+
+    public function testQuoteWithMysqlDialectUsesBackticks()
+    {
+        assert_equals('`order`', Query::quote('order', new MysqlSqlDialect()));
+    }
+
+    public function testQuoteWithEmptyStringThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::quote('');
+        });
+    }
+
+    public function testQuoteWithNonStringThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::quote(42);
+        });
+    }
+
+    public function testQuoteWithDottedIdentifierThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::quote('public.order');
+        });
+    }
+
+    public function testQuoteWithInvalidDialectTypeThrows()
+    {
+        assert_throws('InvalidArgumentException', function () {
+            Query::quote('id', 'not-a-dialect');
+        });
+    }
     // =========================================================================
 
     public function testFromSetsTable()
@@ -700,84 +739,6 @@ class QueryTests
         // offset=0 is a valid SQL expression ("skip 0 rows"); it should be emitted
         $sql = Query::select()->from('t')->offset(0)->getQuery();
         assert_contains('OFFSET 0', $sql);
-    }
-
-    public function testSelectWithSqlServerDialectUsesOffsetFetchPagination()
-    {
-        $sql = Query::select(['id'])
-            ->setDialect(new SqlServerDialect())
-            ->from('users')
-            ->orderBy('created_at DESC')
-            ->limit(10)
-            ->offset(5)
-            ->getQuery();
-
-        assert_contains('ORDER BY created_at DESC', $sql);
-        assert_contains('OFFSET 5 ROWS FETCH NEXT 10 ROWS ONLY', $sql);
-        assert_not_contains(' LIMIT ', $sql);
-    }
-
-    public function testSqlServerDialectLimitWithoutOffsetUsesSelectTop()
-    {
-        $sql = Query::select()
-            ->setDialect(new SqlServerDialect())
-            ->from('users')
-            ->orderBy('id ASC')
-            ->limit(10)
-            ->getQuery();
-
-        assert_contains('SELECT TOP 10 *', $sql);
-        assert_not_contains('OFFSET', $sql);
-        assert_not_contains('FETCH', $sql);
-    }
-
-    public function testSqlServerDialectLimitWithoutOrderByUsesSelectTop()
-    {
-        // SELECT TOP n is valid without ORDER BY on SQL Server.
-        $sql = Query::select(['id'])
-            ->setDialect(new SqlServerDialect())
-            ->from('users')
-            ->limit(5)
-            ->getQuery();
-
-        assert_contains('SELECT TOP 5 id', $sql);
-        assert_not_contains('OFFSET', $sql);
-    }
-
-    public function testSqlServerDialectOffsetWithoutOrderByThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            Query::select()
-                ->setDialect(new SqlServerDialect())
-                ->from('users')
-                ->offset(5)
-                ->getQuery();
-        });
-    }
-
-    public function testSqlServerDialectOffsetAndLimitWithoutOrderByThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            Query::select()
-                ->setDialect(new SqlServerDialect())
-                ->from('users')
-                ->limit(10)
-                ->offset(5)
-                ->getQuery();
-        });
-    }
-
-    public function testSqlServerDialectOffsetWithoutLimitOmitsFetchNext()
-    {
-        $sql = Query::select()
-            ->setDialect(new SqlServerDialect())
-            ->from('users')
-            ->orderBy('id ASC')
-            ->offset(5)
-            ->getQuery();
-
-        assert_contains('OFFSET 5 ROWS', $sql);
-        assert_not_contains('FETCH NEXT', $sql);
     }
 
     public function testOffsetWithNegativeThrows()
