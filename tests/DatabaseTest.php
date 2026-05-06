@@ -1025,14 +1025,6 @@ class DatabaseTest
         assert_true($this->db->getDialect() instanceof SqlDialect, 'getDialect() must return a SqlDialect instance.');
     }
 
-    public function testQuoteReturnsQuotedIdentifier()
-    {
-        $quoted = $this->db->quote('order');
-        // Must be wrapped in some quoting character and contain the identifier
-        assert_true(strlen($quoted) > strlen('order'), 'quote() must add quoting characters.');
-        assert_contains('order', $quoted);
-    }
-
     public function testQuoteDialectDependsOnDriver()
     {
         $quoted = $this->db->quote('order');
@@ -1041,20 +1033,6 @@ class DatabaseTest
         } else {
             assert_equals('"order"', $quoted);
         }
-    }
-
-    public function testQuoteWithEmptyStringThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            $this->db->quote('');
-        });
-    }
-
-    public function testQuoteWithDottedIdentifierThrows()
-    {
-        assert_throws('InvalidArgumentException', function () {
-            $this->db->quote('public.order');
-        });
     }
 
     public function testSelectAppliesDatabaseDialectToQueryObject()

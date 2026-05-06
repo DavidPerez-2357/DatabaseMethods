@@ -263,32 +263,13 @@ The generic `join()` method (raw SQL string) is also available for join types no
 
 ## Quoting identifiers
 
-Use `$db->quote($identifier)` or `Query::quote($identifier)` when a name is a reserved word (e.g. `order`, `from`, `group`) or conflicts with SQL syntax.
-
-`$db->quote()` automatically uses the correct style for the connected driver. `Query::quote()` defaults to ANSI double-quotes; pass a dialect to override.
-
-| Driver | Style | Example |
-|---|---|---|
-| MySQL | backtick | `` `order` `` |
-| PostgreSQL / SQLite / SQL Server | double-quote | `"order"` |
+Use `$db->quote($identifier)` to wrap a reserved word (e.g. `order`, `from`) in dialect-correct quotes — backticks for MySQL, ANSI double-quotes for all other drivers. `Query::quote($id, $dialect)` provides the same without a connection. Internal quotes are escaped automatically.
 
 ```php
-$quoted = $db->quote('order');  // MySQL => '`order`', others => '"order"'
-
 // Works in from(), select fields, orderBy(), groupBy(), and INSERT/UPDATE field lists:
-$q = Query::select([$db->quote('order'), 'name'])
-    ->from($db->quote('user'))
-    ->orderBy($db->quote('group') . ' ASC');
-
-// INSERT/UPDATE: inner name must be a plain identifier (no spaces or dashes)
 $db->insert('orders', [$db->quote('order') => 5, 'name' => 'Alice']);
 // MySQL  => INSERT INTO orders (`order`, name) VALUES (:order_0, :name_0)
 // Others => INSERT INTO orders ("order", name) VALUES (:order_0, :name_0)
-
-// Schema-qualified names: quote each segment separately
-$table = $db->quote('public') . '.' . $db->quote('order');
-// MySQL  => `public`.`order`
-// Others => "public"."order"
 ```
 
-Internal quotes are escaped automatically (`"` → `""`, `` ` `` → ` `` `` ``).
+For schema-qualified names, quote each segment separately: `$db->quote('public') . '.' . $db->quote('order')`. In INSERT/UPDATE field lists the inner name must be a plain identifier — `"first name"` is not supported.
