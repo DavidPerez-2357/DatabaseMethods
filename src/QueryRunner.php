@@ -104,7 +104,7 @@ class QueryRunner
         $fieldsToUpdate = array_intersect_key($data, array_flip($fieldKeys));
         if (empty($fieldsToUpdate)) {
             throw new InvalidArgumentException(
-                'UPDATE operation requires at least one data binding matching the specified fields.'
+                'UPDATE operation: no data bindings match the specified fields.'
             );
         }
         $whereData = array_diff_key($data, array_flip($fieldKeys));

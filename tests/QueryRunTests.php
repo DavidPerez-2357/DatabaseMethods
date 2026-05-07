@@ -106,6 +106,12 @@ class QueryRunTests
                 $this->db->createQuery()->insert(self::TABLE, array('name'))->run();
             }
         );
+        assert_throws(
+            'InvalidArgumentException',
+            function () {
+                $this->db->createQuery()->insert(self::TABLE, array('name'))->run(array());
+            }
+        );
 
         assert_throws(
             'InvalidArgumentException',
