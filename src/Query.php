@@ -171,7 +171,7 @@ class Query
     private function _select($fields = array())
     {
         $this->data['method'] = 'SELECT';
-        $this->query           = null;
+        $this->query = null;
 
         if ($fields === array() || $fields === null) {
             $this->data['fields'] = array('*');
