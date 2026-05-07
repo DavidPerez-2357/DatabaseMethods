@@ -33,6 +33,8 @@
  */
 class Query
 {
+    const SUPPORTED_FACTORY_METHODS = array('select', 'insert', 'update', 'delete');
+
     private $data;
     private $query;
     private $dialect;
@@ -127,9 +129,8 @@ class Query
      */
     public function __call($name, $args)
     {
-        static $supported = array('select', 'insert', 'update', 'delete');
         $method = strtolower($name);
-        if (in_array($method, $supported, true)) {
+        if (in_array($method, self::SUPPORTED_FACTORY_METHODS, true)) {
             return call_user_func_array(array($this, '_' . $method), $args);
         }
         throw new BadMethodCallException(
@@ -148,9 +149,8 @@ class Query
      */
     public static function __callStatic($name, $args)
     {
-        static $supported = array('select', 'insert', 'update', 'delete');
         $method = strtolower($name);
-        if (in_array($method, $supported, true)) {
+        if (in_array($method, self::SUPPORTED_FACTORY_METHODS, true)) {
             $instance = new static();
             return call_user_func_array(array($instance, '_' . $method), $args);
         }

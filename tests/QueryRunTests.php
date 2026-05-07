@@ -101,6 +101,33 @@ class QueryRunTests
         assert_equals(2, count($batchRows));
 
         assert_throws(
+            'InvalidArgumentException',
+            function () {
+                $this->db->createQuery()->insert(self::TABLE, array('name'))->run();
+            }
+        );
+
+        assert_throws(
+            'InvalidArgumentException',
+            function () {
+                $this->db->createQuery()
+                    ->update(self::TABLE)
+                    ->where('id = :id')
+                    ->run(array('id' => 1));
+            }
+        );
+
+        assert_throws(
+            'InvalidArgumentException',
+            function () {
+                $this->db->createQuery()
+                    ->update(self::TABLE, array('name'))
+                    ->where('id = :id')
+                    ->run(array('id' => 1));
+            }
+        );
+
+        assert_throws(
             'RuntimeException',
             function () {
                 Query::select(array('id'))->from(self::TABLE)->run();

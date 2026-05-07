@@ -71,6 +71,9 @@ class QueryRunner
         }
 
         // Single row
+        if (empty($data)) {
+            throw new InvalidArgumentException('INSERT run() requires non-empty row data.');
+        }
         $existingFields = $query->getFields();
         $fields = !empty($existingFields) ? $existingFields : array_keys($data);
         $query->fields($fields)->valuesCount(1);
@@ -88,6 +91,9 @@ class QueryRunner
     public function runUpdate(Query $query, array $data = array())
     {
         $fields = $query->getFields();
+        if (empty($fields)) {
+            throw new InvalidArgumentException('UPDATE query requires at least one field.');
+        }
 
         // Derive the un-quoted key for each field so we can split $data correctly.
         $fieldKeys = array();
@@ -96,6 +102,9 @@ class QueryRunner
         }
 
         $fieldsToUpdate = array_intersect_key($data, array_flip($fieldKeys));
+        if (empty($fieldsToUpdate)) {
+            throw new InvalidArgumentException('UPDATE run() requires at least one SET binding matching query fields.');
+        }
         $whereData = array_diff_key($data, array_flip($fieldKeys));
 
         $placeholders = PdoParameterBuilder::buildNamedParams($fieldsToUpdate);
