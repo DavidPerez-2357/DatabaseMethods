@@ -72,7 +72,7 @@ class QueryRunner
 
         // Single row
         if (empty($data)) {
-            throw new InvalidArgumentException('INSERT run() requires non-empty row data.');
+            throw new InvalidArgumentException('INSERT operation requires non-empty row data.');
         }
         $existingFields = $query->getFields();
         $fields = !empty($existingFields) ? $existingFields : array_keys($data);
@@ -103,7 +103,9 @@ class QueryRunner
 
         $fieldsToUpdate = array_intersect_key($data, array_flip($fieldKeys));
         if (empty($fieldsToUpdate)) {
-            throw new InvalidArgumentException('UPDATE run() requires at least one SET binding matching query fields.');
+            throw new InvalidArgumentException(
+                'UPDATE operation requires at least one data binding matching the specified fields.'
+            );
         }
         $whereData = array_diff_key($data, array_flip($fieldKeys));
 
