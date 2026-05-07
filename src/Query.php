@@ -102,7 +102,7 @@ class Query
     }
 
     // -------------------------------------------------------------------------
-    // Factory methods — callable both as Query::select() (static) and $query->select() (instance)
+    // Factory methods - callable both as Query::select() (static) and $query->select() (instance)
     // -------------------------------------------------------------------------
 
     /**
@@ -277,7 +277,7 @@ class Query
      *                                  or if $dialect is not a SqlDialect instance (when non-null).
      * @example
      * ```php
-     * // ANSI double-quotes (default — PostgreSQL, SQLite, SQL Server)
+     * // ANSI double-quotes (default - PostgreSQL, SQLite, SQL Server)
      * Query::quote('order')                        // => '"order"'
      *
      * // MySQL backticks
@@ -699,9 +699,9 @@ class Query
      *
      * Return values by query type:
      *  - SELECT  → array of rows (associative arrays), or JSON string in json_encode mode.
-     *  - INSERT  → int — the last inserted row ID (single row) or 0 for multi-row batches.
-     *  - UPDATE  → int — number of affected rows.
-     *  - DELETE  → int — number of affected rows.
+     *  - INSERT  → int - the last inserted row ID (single row) or 0 for multi-row batches.
+     *  - UPDATE  → int - number of affected rows.
+     *  - DELETE  → int - number of affected rows.
      *
      * For UPDATE, `$data` must contain both the column values to SET and the WHERE
      * bindings in one flat array. The Query's field list determines which keys belong
