@@ -1234,7 +1234,7 @@ class Query
         $fieldKeys = array();
         foreach ($fields as $field) {
             // Strip leading/trailing quote characters (", ', `)
-            $fieldKeys[] = preg_replace('/^["\'`](.*)["\'`]$/', '$1', $field);
+            $fieldKeys[] = preg_replace('/^(["\'`])(.*)\1$/', '$2', $field);
         }
 
         $fieldsToUpdate = array_intersect_key($data, array_flip($fieldKeys));
