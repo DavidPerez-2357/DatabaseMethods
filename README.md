@@ -67,7 +67,7 @@ $db->executeTransaction(function($db) {
 $rows = $db->createQuery()->select(['id', 'name'])->from('users')->where('active = 1')->run();
 $id = $db->createQuery()->insert('users', ['name', 'email'])->run(['name' => 'Alice', 'email' => 'a@b.com']);
 $n = $db->createQuery()->update('users', ['name'])->where('id = :id')->run(['name' => 'Bob', 'id' => 1]);
-$n = $db->createQuery()->delete('users')->where('id = :id')->run([':id' => 5]);
+$n = $db->createQuery()->delete('users')->where('id = :id')->run(['id' => 5]);
 ```
 
 [Full documentation →](docs/query-database-integration.md)
