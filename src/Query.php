@@ -770,19 +770,20 @@ class Query
         }
 
         $method = strtoupper($this->data['method']);
+        $runner = new QueryRunner($this->database);
 
         switch ($method) {
             case 'SELECT':
-                return $this->database->runSelect($this, $data);
+                return $runner->runSelect($this, $data);
 
             case 'INSERT':
-                return $this->database->runInsert($this, $data);
+                return $runner->runInsert($this, $data);
 
             case 'UPDATE':
-                return $this->database->runUpdate($this, $data);
+                return $runner->runUpdate($this, $data);
 
             case 'DELETE':
-                return $this->database->runDelete($this, $data);
+                return $runner->runDelete($this, $data);
 
             default:
                 throw new InvalidArgumentException(
