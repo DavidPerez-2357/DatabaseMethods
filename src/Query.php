@@ -38,6 +38,8 @@ class Query
     private $dialect;
     /** @var Database|null */
     private $database;
+    /** @var QueryRunner|null */
+    private $queryRunner;
 
     /**
      * Creates a Query instance.
@@ -58,6 +60,7 @@ class Query
 
         $this->dialect = new DefaultSqlDialect();
         $this->database = null;
+        $this->queryRunner = null;
         $this->data = $queryData;
         if (!empty($queryData)) {
             $this->query = $this->buildQuery();
@@ -125,8 +128,9 @@ class Query
     public function __call($name, $args)
     {
         static $supported = array('select', 'insert', 'update', 'delete');
-        if (in_array($name, $supported, true)) {
-            return call_user_func_array(array($this, '_' . $name), $args);
+        $method = strtolower($name);
+        if (in_array($method, $supported, true)) {
+            return call_user_func_array(array($this, '_' . $method), $args);
         }
         throw new BadMethodCallException(
             "Method '{$name}' does not exist in " . get_class($this) . '.'
@@ -145,9 +149,10 @@ class Query
     public static function __callStatic($name, $args)
     {
         static $supported = array('select', 'insert', 'update', 'delete');
-        if (in_array($name, $supported, true)) {
+        $method = strtolower($name);
+        if (in_array($method, $supported, true)) {
             $instance = new static();
-            return call_user_func_array(array($instance, '_' . $name), $args);
+            return call_user_func_array(array($instance, '_' . $method), $args);
         }
         throw new BadMethodCallException(
             "Static method '{$name}' does not exist in " . get_called_class() . '.'
@@ -688,6 +693,7 @@ class Query
     public function setDatabase(Database $database)
     {
         $this->database = $database;
+        $this->queryRunner = null;
         $this->setDialect($database->getDialect());
         return $this;
     }
@@ -770,20 +776,22 @@ class Query
         }
 
         $method = strtoupper($this->data['method']);
-        $runner = new QueryRunner($this->database);
+        if ($this->queryRunner === null) {
+            $this->queryRunner = new QueryRunner($this->database);
+        }
 
         switch ($method) {
             case 'SELECT':
-                return $runner->runSelect($this, $data);
+                return $this->queryRunner->runSelect($this, $data);
 
             case 'INSERT':
-                return $runner->runInsert($this, $data);
+                return $this->queryRunner->runInsert($this, $data);
 
             case 'UPDATE':
-                return $runner->runUpdate($this, $data);
+                return $this->queryRunner->runUpdate($this, $data);
 
             case 'DELETE':
-                return $runner->runDelete($this, $data);
+                return $this->queryRunner->runDelete($this, $data);
 
             default:
                 throw new InvalidArgumentException(

@@ -68,4 +68,6 @@ Multi-row inserts return `0` (last-insert ID is undefined for batch operations a
 
 - `run()` throws `RuntimeException` when the query has no linked database.
 - `run()` throws `InvalidArgumentException` when no method is set.
+- `run()` executes through `plainSelect()` / `runPlainQuery()`, so Database keyword replacement
+  (e.g. `@currentDate`, `@randomInt`) is not applied in this path.
 - All PDO and validation errors propagate unchanged.

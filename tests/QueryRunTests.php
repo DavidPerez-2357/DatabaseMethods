@@ -87,6 +87,14 @@ class QueryRunTests
             ->run(array('id' => $id));
         assert_equals(1, $deleted);
 
+        $batch = $this->db->createQuery()
+            ->insert(self::TABLE, array('name', 'email'))
+            ->run(array(
+                array('name' => 'Alice 1', 'email' => 'alice1@example.com'),
+                array('name' => 'Alice 2', 'email' => 'alice2@example.com'),
+            ));
+        assert_equals(0, $batch);
+
         assert_throws(
             'RuntimeException',
             function () {
@@ -94,11 +102,11 @@ class QueryRunTests
             }
         );
 
-        $blank = $this->db->createQuery();
+        $emptyQuery = $this->db->createQuery();
         assert_throws(
             'InvalidArgumentException',
-            function () use ($blank) {
-                $blank->run();
+            function () use ($emptyQuery) {
+                $emptyQuery->run();
             }
         );
     }
