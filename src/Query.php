@@ -36,6 +36,7 @@ class Query
     private $data;
     private $query;
     private $dialect;
+    /** @var Database|null */
     private $database;
 
     /**
@@ -178,7 +179,7 @@ class Query
             if (trim($fields) === '') {
                 throw new InvalidArgumentException(
                     'select() expects $fields to be a non-empty string, '
-                    . "an array (empty defaults to ['*']), or omitted."
+                    . 'an array (empty defaults to ["*"]), or omitted.'
                 );
             }
             $this->data['fields'] = array($fields);

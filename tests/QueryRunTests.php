@@ -45,7 +45,9 @@ class QueryRunTests
         $this->db = null;
         if (file_exists($this->dbFile)) {
             if (!unlink($this->dbFile)) {
-                throw new RuntimeException('Failed to remove temporary QueryRunTests database file.');
+                throw new RuntimeException(
+                    'Failed to remove temporary QueryRunTests database file: ' . $this->dbFile
+                );
             }
         }
     }
