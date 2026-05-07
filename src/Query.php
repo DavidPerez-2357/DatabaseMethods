@@ -693,6 +693,7 @@ class Query
     public function setDatabase(Database $database)
     {
         $this->database = $database;
+        // QueryRunner holds the Database instance in its constructor; clear cache when relinking.
         $this->queryRunner = null;
         $this->setDialect($database->getDialect());
         return $this;

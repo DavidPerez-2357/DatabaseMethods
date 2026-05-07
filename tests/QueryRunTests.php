@@ -87,13 +87,18 @@ class QueryRunTests
             ->run(array('id' => $id));
         assert_equals(1, $deleted);
 
-        $batch = $this->db->createQuery()
+        $batchInsertResult = $this->db->createQuery()
             ->insert(self::TABLE, array('name', 'email'))
             ->run(array(
                 array('name' => 'Alice 1', 'email' => 'alice1@example.com'),
                 array('name' => 'Alice 2', 'email' => 'alice2@example.com'),
             ));
-        assert_equals(0, $batch);
+        assert_equals(0, $batchInsertResult);
+        $batchRows = $this->db->plainSelect(
+            'SELECT id FROM ' . self::TABLE . ' WHERE name IN (:a, :b)',
+            array('a' => 'Alice 1', 'b' => 'Alice 2')
+        );
+        assert_equals(2, count($batchRows));
 
         assert_throws(
             'RuntimeException',
