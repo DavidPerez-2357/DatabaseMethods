@@ -2,8 +2,6 @@
 
 `Database::createQuery()` returns a blank `Query` linked to the active connection. Call one of the four method types, chain setters, then call `run()` to execute directly.
 
-&emsp;
-
 ## `Database::createQuery()`
 
 Returns a blank `Query` linked to this connection and pre-configured with the driver dialect.
@@ -65,8 +63,6 @@ $db->createQuery()
 ```
 
 Multi-row inserts return `0` (last-insert ID is undefined for batch operations across all drivers).
-
-&emsp;
 
 ## Error handling
 
