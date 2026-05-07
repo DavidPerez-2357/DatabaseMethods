@@ -693,6 +693,26 @@ class Query
     }
 
     /**
+     * Returns the target table name set on this query, or null when not set.
+     *
+     * @return string|null
+     */
+    public function getTable()
+    {
+        return isset($this->data['table']) ? $this->data['table'] : null;
+    }
+
+    /**
+     * Returns the column list set on this query, or an empty array when not set.
+     *
+     * @return array
+     */
+    public function getFields()
+    {
+        return isset($this->data['fields']) ? $this->data['fields'] : array();
+    }
+
+    /**
      * Executes this query against the linked Database and returns the result.
      *
      * The Query must have been linked to a Database via `setDatabase()` or by
@@ -753,16 +773,16 @@ class Query
 
         switch ($method) {
             case 'SELECT':
-                return $this->runSelect($data);
+                return $this->database->runSelect($this, $data);
 
             case 'INSERT':
-                return $this->runInsert($data);
+                return $this->database->runInsert($this, $data);
 
             case 'UPDATE':
-                return $this->runUpdate($data);
+                return $this->database->runUpdate($this, $data);
 
             case 'DELETE':
-                return $this->runDelete($data);
+                return $this->database->runDelete($this, $data);
 
             default:
                 throw new InvalidArgumentException(
@@ -1142,127 +1162,5 @@ class Query
             return $fields;
         }
         throw new InvalidArgumentException("{$context} expects \$fields to be an array or string.");
-    }
-
-    /**
-     * Executes a SELECT query and returns all result rows.
-     * @param array $data Named or positional parameter bindings.
-     * @return array|string
-     */
-    private function runSelect(array $data)
-    {
-        return $this->database->plainSelect((string) $this, $data);
-    }
-
-    /**
-     * Executes an INSERT query and returns the last insert ID (single row)
-     * or 0 for multi-row batches.
-     *
-     * When `$data` is a sequential list of associative arrays, a multi-row insert
-     * is performed. Otherwise $data is treated as a single row.
-     *
-     * If a field list was already set on the Query via `->fields()` or the second
-     * argument of `->insert()`, the query SQL is built from those fields and $data
-     * values are mapped to the generated placeholders. When no field list is pre-set,
-     * the fields are inferred from the keys of $data (single row) or the first row
-     * (multi-row).
-     *
-     * @param array $data Row data (single associative array or list of associative arrays).
-     * @return int Last insert ID for single rows; 0 for multi-row batches.
-     */
-    private function runInsert(array $data)
-    {
-        $table = isset($this->data['table']) ? $this->data['table'] : null;
-        if (empty($table)) {
-            throw new InvalidArgumentException('INSERT query requires a table.');
-        }
-
-        // Detect multi-row: sequential numeric-keyed array whose every element is an array.
-        $isList = !empty($data) && (array_keys($data) === range(0, count($data) - 1));
-        $allArrays = true;
-        foreach ($data as $item) {
-            if (!is_array($item)) {
-                $allArrays = false;
-                break;
-            }
-        }
-        $isMultiRow = $isList && $allArrays;
-
-        if ($isMultiRow) {
-            // Multi-row: use the field list from first row when not pre-set.
-            $rows = $data;
-            $fields = isset($this->data['fields']) && !empty($this->data['fields'])
-                ? $this->data['fields']
-                : array_keys($rows[0]);
-            $this->data['fields'] = $fields;
-            $this->data['values_to_insert'] = count($rows);
-            $this->query = null;
-
-            $params = PdoParameterBuilder::buildInsertParams($rows);
-            $this->database->runPlainQuery((string) $this, $params);
-            return 0;
-        }
-
-        // Single row
-        $fields = isset($this->data['fields']) && !empty($this->data['fields'])
-            ? $this->data['fields']
-            : array_keys($data);
-        $this->data['fields'] = $fields;
-        $this->data['values_to_insert'] = 1;
-        $this->query = null;
-
-        $params = PdoParameterBuilder::buildInsertParams(array($data));
-        $this->database->runPlainQuery((string) $this, $params);
-        return $this->database->getLastInsertId();
-    }
-
-    /**
-     * Executes an UPDATE query and returns the number of affected rows.
-     *
-     * `$data` must be a flat associative array that contains both the SET values
-     * (keys matching the Query's field list) and the WHERE bindings (all other keys).
-     * Quoted field names (e.g. `"order"`) must be supplied as their unquoted form
-     * (e.g. `'order'`) in `$data`.
-     *
-     * @param array $data Combined SET + WHERE bindings.
-     * @return int Number of affected rows.
-     */
-    private function runUpdate(array $data)
-    {
-        $fields = isset($this->data['fields']) ? $this->data['fields'] : array();
-
-        // Derive the un-quoted key for each field so we can split $data correctly.
-        $fieldKeys = array();
-        foreach ($fields as $field) {
-            // Strip leading/trailing quote characters (", ', `)
-            $fieldKeys[] = preg_replace('/^(["\'`])(.*)\1$/', '$2', $field);
-        }
-
-        $fieldsToUpdate = array_intersect_key($data, array_flip($fieldKeys));
-        $whereData = array_diff_key($data, array_flip($fieldKeys));
-
-        // Build the SET placeholder map.
-        $placeholders = PdoParameterBuilder::buildNamedParams($fieldsToUpdate);
-
-        // Normalize and merge WHERE bindings, checking for key collisions.
-        $placeholders = array_merge(
-            $placeholders,
-            PdoParameterBuilder::normalizeNamedWhereBindings($whereData, $placeholders)
-        );
-
-        $stmt = $this->database->runPlainQuery((string) $this, $placeholders);
-        // runPlainQuery returns the rowCount; cast to int defensively.
-        return (int) $stmt;
-    }
-
-    /**
-     * Executes a DELETE query and returns the number of affected rows.
-     *
-     * @param array $data WHERE clause bindings (named or positional).
-     * @return int Number of affected rows.
-     */
-    private function runDelete(array $data)
-    {
-        return (int) $this->database->runPlainQuery((string) $this, $data);
     }
 }

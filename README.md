@@ -61,13 +61,24 @@ $db->executeTransaction(function($db) {
 
 ### Fluent query execution
 
-`Database::createQuery()` returns a linked `Query`. Call the method type, chain setters, then call `run()`:
+`Database::createQuery()` returns a linked `Query`. Chain the query type, setters, and call `run()` to execute:
 
 ```php
-$rows = $db->createQuery()->select(['id', 'name'])->from('users')->where('active = 1')->run();
-$id = $db->createQuery()->insert('users', ['name', 'email'])->run(['name' => 'Alice', 'email' => 'a@b.com']);
-$n = $db->createQuery()->update('users', ['name'])->where('id = :id')->run(['name' => 'Bob', 'id' => 1]);
-$n = $db->createQuery()->delete('users')->where('id = :id')->run(['id' => 5]);
+// Retrieve rows
+$rows = $db->createQuery()
+    ->select(['id', 'name'])
+    ->from('users')
+    ->where('active = :active')
+    ->run(['active' => 1]);
+```
+
+Use the same pattern to write data — `run()` returns the last-insert ID for single-row inserts:
+
+```php
+// Insert a row
+$id = $db->createQuery()
+    ->insert('users', ['name', 'email'])
+    ->run(['name' => 'Alice', 'email' => 'alice@example.com']);
 ```
 
 [Full documentation →](docs/query-database-integration.md)
