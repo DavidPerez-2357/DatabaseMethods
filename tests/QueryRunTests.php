@@ -103,6 +103,7 @@ class QueryRunTests
         $quotedBatchInsertResult = $this->db->createQuery()
             ->insert(self::TABLE, array('"name"', 'email'))
             ->run(array(
+                // Intentionally mix quoted/unquoted keys across rows; runner should normalize them.
                 array('"name"' => 'Quoted 1', 'email' => 'quoted1@example.com'),
                 array('name' => 'Quoted 2', 'email' => 'quoted2@example.com'),
             ));
@@ -151,8 +152,19 @@ class QueryRunTests
                 $this->db->createQuery()
                     ->insert(self::TABLE, array('"name"', 'email'))
                     ->run(array(
-                        array('"name"' => 'Dup 1', 'name' => 'Dup 1', 'email' => 'dup1@example.com'),
+                        array('"name"' => 'Dup 1A', 'name' => 'Dup 1B', 'email' => 'dup1@example.com'),
                         array('name' => 'Dup 2', 'email' => 'dup2@example.com'),
+                    ));
+            }
+        );
+        assert_throws(
+            'InvalidArgumentException',
+            function () {
+                $this->db->createQuery()
+                    ->insert(self::TABLE, array('`name`', 'email'))
+                    ->run(array(
+                        array('`name`' => 'Dup Tick 1A', 'name' => 'Dup Tick 1B', 'email' => 'dup_tick1@example.com'),
+                        array('name' => 'Dup Tick 2', 'email' => 'dup_tick2@example.com'),
                     ));
             }
         );

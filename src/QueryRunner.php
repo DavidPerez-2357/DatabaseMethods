@@ -141,18 +141,28 @@ class QueryRunner
     {
         $normalized = array();
         foreach ($identifiers as $identifier) {
-            if (!is_string($identifier)) {
-                throw new InvalidArgumentException('Field identifiers must be strings.');
-            }
-            SqlValidator::assertColumnIdentifier($identifier, 'INSERT/UPDATE field');
-            $first = substr($identifier, 0, 1);
-            if ($first === '"' || $first === '`') {
-                $normalized[] = substr($identifier, 1, -1);
-                continue;
-            }
-            $normalized[] = $identifier;
+            $normalized[] = $this->normalizeIdentifier($identifier);
         }
         return $normalized;
+    }
+
+    /**
+     * @param mixed $identifier
+     * @return string
+     */
+    private function normalizeIdentifier($identifier)
+    {
+        if (!is_string($identifier)) {
+            throw new InvalidArgumentException('Field identifiers must be strings.');
+        }
+        SqlValidator::assertColumnIdentifier($identifier, 'INSERT/UPDATE field');
+
+        $first = substr($identifier, 0, 1);
+        if ($first === '"' || $first === '`') {
+            return substr($identifier, 1, -1);
+        }
+
+        return $identifier;
     }
 
     /**
@@ -224,8 +234,7 @@ class QueryRunner
     {
         $normalizedToRaw = array();
         foreach ($row as $rawKey => $value) {
-            $normalizedKey = $this->normalizeIdentifiers(array($rawKey));
-            $normalizedKey = $normalizedKey[0];
+            $normalizedKey = $this->normalizeIdentifier($rawKey);
 
             if (isset($normalizedToRaw[$normalizedKey])) {
                 throw new InvalidArgumentException(
