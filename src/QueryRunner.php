@@ -145,7 +145,7 @@ class QueryRunner
         $normalized = array();
         foreach ($identifiers as $identifier) {
             if (!is_string($identifier)) {
-                throw new InvalidArgumentException('INSERT field identifiers must be strings.');
+                throw new InvalidArgumentException('Field identifiers must be strings.');
             }
             SqlValidator::assertColumnIdentifier($identifier, 'INSERT/UPDATE field');
             $first = substr($identifier, 0, 1);
