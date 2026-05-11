@@ -100,6 +100,19 @@ class QueryRunTests
         );
         assert_equals(2, count($batchRows));
 
+        $quotedBatchInsertResult = $this->db->createQuery()
+            ->insert(self::TABLE, array('"name"', 'email'))
+            ->run(array(
+                array('"name"' => 'Quoted 1', 'email' => 'quoted1@example.com'),
+                array('name' => 'Quoted 2', 'email' => 'quoted2@example.com'),
+            ));
+        assert_equals(0, $quotedBatchInsertResult);
+        $quotedBatchRows = $this->db->plainSelect(
+            'SELECT id FROM ' . self::TABLE . ' WHERE name IN (:a, :b)',
+            array('a' => 'Quoted 1', 'b' => 'Quoted 2')
+        );
+        assert_equals(2, count($quotedBatchRows));
+
         assert_throws(
             'InvalidArgumentException',
             function () {
@@ -129,6 +142,17 @@ class QueryRunTests
                         'name' => 'Extra Field',
                         'email' => 'extra@example.com',
                         'extra' => 'x',
+                    ));
+            }
+        );
+        assert_throws(
+            'InvalidArgumentException',
+            function () {
+                $this->db->createQuery()
+                    ->insert(self::TABLE, array('"name"', 'email'))
+                    ->run(array(
+                        array('"name"' => 'Dup 1', 'name' => 'Dup 1', 'email' => 'dup1@example.com'),
+                        array('name' => 'Dup 2', 'email' => 'dup2@example.com'),
                     ));
             }
         );

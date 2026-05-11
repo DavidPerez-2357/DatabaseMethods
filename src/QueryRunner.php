@@ -66,10 +66,7 @@ class QueryRunner
             $existingFields = $query->getFields();
             $fields = !empty($existingFields) ? $existingFields : array_keys($rows[0]);
             if (!empty($existingFields)) {
-                $normalizedFields = $this->normalizeIdentifiers($fields);
-                foreach ($rows as $rowIndex => $row) {
-                    $this->assertInsertRowMatchesFields($row, $normalizedFields, $rowIndex);
-                }
+                $rows = $this->normalizeInsertRowsToFields($rows, $fields);
             }
             $query->fields($fields)->valuesCount(count($rows));
             $this->database->runPlainQuery((string) $query, PdoParameterBuilder::buildInsertParams($rows));
@@ -188,5 +185,62 @@ class QueryRunner
         }
 
         throw new InvalidArgumentException($message);
+    }
+
+    /**
+     * Re-keys each row to the raw field names declared in the query so
+     * validation and parameter binding use a consistent key set.
+     *
+     * @param array $rows
+     * @param array $fields
+     * @return array
+     */
+    private function normalizeInsertRowsToFields(array $rows, array $fields)
+    {
+        $normalizedFields = $this->normalizeIdentifiers($fields);
+        $normalizedRows = array();
+
+        foreach ($rows as $rowIndex => $row) {
+            $this->assertInsertRowMatchesFields($row, $normalizedFields, $rowIndex);
+            $normalizedRows[] = $this->normalizeInsertRowToFields(
+                $row,
+                $fields,
+                $normalizedFields,
+                $rowIndex
+            );
+        }
+
+        return $normalizedRows;
+    }
+
+    /**
+     * @param array $row
+     * @param array $fields
+     * @param array $normalizedFields
+     * @param int   $rowIndex
+     * @return array
+     */
+    private function normalizeInsertRowToFields(array $row, array $fields, array $normalizedFields, $rowIndex)
+    {
+        $normalizedToRaw = array();
+        foreach ($row as $rawKey => $value) {
+            $normalizedKey = $this->normalizeIdentifiers(array($rawKey));
+            $normalizedKey = $normalizedKey[0];
+
+            if (isset($normalizedToRaw[$normalizedKey])) {
+                throw new InvalidArgumentException(
+                    'INSERT row ' . ($rowIndex + 1)
+                    . " contains duplicate normalized field key '{$normalizedKey}'."
+                );
+            }
+            $normalizedToRaw[$normalizedKey] = $rawKey;
+        }
+
+        $normalizedRow = array();
+        foreach ($normalizedFields as $index => $normalizedField) {
+            $normalizedRow[$fields[$index]] = $row[$normalizedToRaw[$normalizedField]];
+        }
+
+        return $normalizedRow;
     }
 }
