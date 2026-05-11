@@ -45,6 +45,7 @@ Connect once, then select, insert, update, delete, count, and run transactions w
 ```php
 $db = new Mysql(['serverName' => 'localhost', 'username' => 'root', 'password' => '', 'DB' => 'mydb']);
 
+$query = Query::select(['id', 'name'])->from('users')->where('active = :active');
 $users = $db->select($query, ['active' => 1]);
 $lastId = $db->insert('users', ['name' => 'Alice', 'email' => 'alice@example.com']);
 $rows = $db->update('users', ['name' => 'Bob'], 'id = :id', ['id' => $lastId]);

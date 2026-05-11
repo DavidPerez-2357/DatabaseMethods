@@ -65,6 +65,12 @@ class QueryRunner
             $rows = $data;
             $existingFields = $query->getFields();
             $fields = !empty($existingFields) ? $existingFields : array_keys($rows[0]);
+            if (!empty($existingFields)) {
+                $normalizedFields = $this->normalizeIdentifiers($fields);
+                foreach ($rows as $rowIndex => $row) {
+                    $this->assertInsertRowMatchesFields($row, $normalizedFields, $rowIndex);
+                }
+            }
             $query->fields($fields)->valuesCount(count($rows));
             $this->database->runPlainQuery((string) $query, PdoParameterBuilder::buildInsertParams($rows));
             return 0;
@@ -76,6 +82,9 @@ class QueryRunner
         }
         $existingFields = $query->getFields();
         $fields = !empty($existingFields) ? $existingFields : array_keys($data);
+        if (!empty($existingFields)) {
+            $this->assertInsertRowMatchesFields($data, $this->normalizeIdentifiers($fields));
+        }
         $query->fields($fields)->valuesCount(1);
         $this->database->runPlainQuery((string) $query, PdoParameterBuilder::buildInsertParams(array($data)));
         return $this->database->getLastInsertId();
@@ -128,5 +137,54 @@ class QueryRunner
     public function runDelete(Query $query, array $data = array())
     {
         return (int) $this->database->runPlainQuery((string) $query, $data);
+    }
+
+    /**
+     * @param array $identifiers
+     * @return array
+     */
+    private function normalizeIdentifiers(array $identifiers)
+    {
+        $normalized = array();
+        foreach ($identifiers as $identifier) {
+            if (!is_string($identifier)) {
+                $normalized[] = $identifier;
+                continue;
+            }
+            $normalized[] = preg_replace('/^(["\'`])(.*)\1$/', '$2', $identifier);
+        }
+        return $normalized;
+    }
+
+    /**
+     * @param array      $row
+     * @param array      $expectedKeys
+     * @param int|null   $rowIndex
+     * @throws InvalidArgumentException
+     */
+    private function assertInsertRowMatchesFields(array $row, array $expectedKeys, $rowIndex = null)
+    {
+        $actualKeys = $this->normalizeIdentifiers(array_keys($row));
+
+        $missing = array_values(array_diff($expectedKeys, $actualKeys));
+        $extra = array_values(array_diff($actualKeys, $expectedKeys));
+        if (empty($missing) && empty($extra)) {
+            return;
+        }
+
+        $prefix = 'INSERT data keys do not match query fields';
+        if ($rowIndex !== null) {
+            $prefix .= ' for row ' . ($rowIndex + 1);
+        }
+        $message = $prefix . '.';
+
+        if (!empty($missing)) {
+            $message .= ' Missing: ' . implode(', ', $missing) . '.';
+        }
+        if (!empty($extra)) {
+            $message .= ' Extra: ' . implode(', ', $extra) . '.';
+        }
+
+        throw new InvalidArgumentException($message);
     }
 }
