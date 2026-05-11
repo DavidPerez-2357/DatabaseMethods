@@ -105,10 +105,7 @@ class QueryRunner
         }
 
         // Derive the un-quoted key for each field so we can split $data correctly.
-        $fieldKeys = array();
-        foreach ($fields as $field) {
-            $fieldKeys[] = preg_replace('/^(["\'`])(.*)\1$/', '$2', $field);
-        }
+        $fieldKeys = $this->normalizeIdentifiers($fields);
 
         $fieldsToUpdate = array_intersect_key($data, array_flip($fieldKeys));
         if (empty($fieldsToUpdate)) {
@@ -150,13 +147,9 @@ class QueryRunner
             if (!is_string($identifier)) {
                 throw new InvalidArgumentException('INSERT field identifiers must be strings.');
             }
+            SqlValidator::assertColumnIdentifier($identifier, 'INSERT/UPDATE field');
             $first = substr($identifier, 0, 1);
-            if ($first === '"' || $first === '\'' || $first === '`') {
-                if (strlen($identifier) < 2 || substr($identifier, -1) !== $first) {
-                    throw new InvalidArgumentException(
-                        'INSERT field identifier has unmatched quote: ' . $identifier
-                    );
-                }
+            if ($first === '"' || $first === '`') {
                 $normalized[] = substr($identifier, 1, -1);
                 continue;
             }

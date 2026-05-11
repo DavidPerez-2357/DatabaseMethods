@@ -5,7 +5,8 @@
  *
  * Minimal test runner - no external libraries required.
  * Runs SqlValidatorTests (unit tests), SqlDialectTests (unit tests), QueryTests (unit tests),
- * PdoParameterBuilderTests (unit tests), and DatabaseTest (integration tests).
+ * PdoParameterBuilderTests (unit tests), DatabaseTest (integration tests),
+ * and QueryRunTests (integration tests).
  *
  * Usage:
  *   php tests/run.php
