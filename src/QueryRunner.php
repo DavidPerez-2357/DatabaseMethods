@@ -150,18 +150,15 @@ class QueryRunner
             if (!is_string($identifier)) {
                 throw new InvalidArgumentException('INSERT field identifiers must be strings.');
             }
-            $length = strlen($identifier);
-            if ($length >= 1) {
-                $first = substr($identifier, 0, 1);
-                if ($first === '"' || $first === '\'' || $first === '`') {
-                    if ($length < 2 || substr($identifier, -1) !== $first) {
-                        throw new InvalidArgumentException(
-                            'INSERT field identifier has unmatched quote: ' . $identifier
-                        );
-                    }
-                    $normalized[] = substr($identifier, 1, -1);
-                    continue;
+            $first = substr($identifier, 0, 1);
+            if ($first === '"' || $first === '\'' || $first === '`') {
+                if (strlen($identifier) < 2 || substr($identifier, -1) !== $first) {
+                    throw new InvalidArgumentException(
+                        'INSERT field identifier has unmatched quote: ' . $identifier
+                    );
                 }
+                $normalized[] = substr($identifier, 1, -1);
+                continue;
             }
             $normalized[] = $identifier;
         }
@@ -178,8 +175,8 @@ class QueryRunner
     {
         $actualKeys = $this->normalizeIdentifiers(array_keys($row));
 
-        $missing = array_values(array_diff($expectedKeys, $actualKeys));
-        $extra = array_values(array_diff($actualKeys, $expectedKeys));
+        $missing = array_diff($expectedKeys, $actualKeys);
+        $extra = array_diff($actualKeys, $expectedKeys);
         if (empty($missing) && empty($extra)) {
             return;
         }

@@ -126,6 +126,18 @@ class QueryRunTests
                 $this->db->createQuery()
                     ->insert(self::TABLE, array('name', 'email'))
                     ->run(array(
+                        'name' => 'Extra Field',
+                        'email' => 'extra@example.com',
+                        'extra' => 'x',
+                    ));
+            }
+        );
+        assert_throws(
+            'InvalidArgumentException',
+            function () {
+                $this->db->createQuery()
+                    ->insert(self::TABLE, array('name', 'email'))
+                    ->run(array(
                         array('name' => 'Row 1', 'email' => 'row1@example.com'),
                         array('name' => 'Row 2', 'email' => 'row2@example.com', 'extra' => 'x'),
                     ));
