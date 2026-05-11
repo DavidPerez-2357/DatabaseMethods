@@ -148,10 +148,22 @@ class QueryRunner
         $normalized = array();
         foreach ($identifiers as $identifier) {
             if (!is_string($identifier)) {
-                $normalized[] = $identifier;
-                continue;
+                throw new InvalidArgumentException('INSERT field identifiers must be strings.');
             }
-            $normalized[] = preg_replace('/^(["\'`])(.*)\1$/', '$2', $identifier);
+            $length = strlen($identifier);
+            if ($length >= 1) {
+                $first = substr($identifier, 0, 1);
+                if ($first === '"' || $first === '\'' || $first === '`') {
+                    if ($length < 2 || substr($identifier, -1) !== $first) {
+                        throw new InvalidArgumentException(
+                            'INSERT field identifier has unmatched quote: ' . $identifier
+                        );
+                    }
+                    $normalized[] = substr($identifier, 1, -1);
+                    continue;
+                }
+            }
+            $normalized[] = $identifier;
         }
         return $normalized;
     }
