@@ -49,10 +49,7 @@ class QueryRunner
         if (empty($query->getTable())) {
             throw new InvalidArgumentException('INSERT query requires a table.');
         }
-
-        if (!$query->isValidationEnabled()) {
-            return $this->runInsertWithoutValidationAndNormalization($query, $data);
-        }
+        $validationEnabled = $query->isValidationEnabled();
 
         $isMultiRow = $this->isSequentialListOfArrays($data);
 
@@ -60,7 +57,7 @@ class QueryRunner
             $rows = $data;
             $existingFields = $query->getFields();
             $fields = !empty($existingFields) ? $existingFields : array_keys($rows[0]);
-            if (!empty($existingFields)) {
+            if ($validationEnabled && !empty($existingFields)) {
                 $rows = $this->normalizeInsertRowsToFields($rows, $fields);
             }
             $query->fields($fields)->valuesCount(count($rows));
@@ -69,12 +66,12 @@ class QueryRunner
         }
 
         // Single row
-        if (empty($data)) {
+        if ($validationEnabled && empty($data)) {
             throw new InvalidArgumentException('INSERT operation requires non-empty row data.');
         }
         $existingFields = $query->getFields();
         $fields = !empty($existingFields) ? $existingFields : array_keys($data);
-        if (!empty($existingFields)) {
+        if ($validationEnabled && !empty($existingFields)) {
             $this->assertInsertRowMatchesFields($data, $this->normalizeIdentifiers($fields));
         }
         $query->fields($fields)->valuesCount(1);
@@ -91,74 +88,22 @@ class QueryRunner
      */
     public function runUpdate(Query $query, array $data = array())
     {
-        if (!$query->isValidationEnabled()) {
-            return $this->runUpdateWithoutValidationAndNormalization($query, $data);
-        }
-
+        $validationEnabled = $query->isValidationEnabled();
         $fields = $query->getFields();
-        if (empty($fields)) {
+        if ($validationEnabled && empty($fields)) {
             throw new InvalidArgumentException('UPDATE query requires at least one field.');
         }
 
-        // Derive the un-quoted key for each field so we can split $data correctly.
-        $fieldKeys = $this->normalizeIdentifiers($fields);
+        // Derive the key set used to split $data into SET/WHERE.
+        $fieldKeys = $validationEnabled ? $this->normalizeIdentifiers($fields) : $fields;
 
         $fieldsToUpdate = array_intersect_key($data, array_flip($fieldKeys));
-        if (empty($fieldsToUpdate)) {
+        if ($validationEnabled && empty($fieldsToUpdate)) {
             throw new InvalidArgumentException(
                 'UPDATE operation: no data bindings match the specified fields.'
             );
         }
         $whereData = array_diff_key($data, array_flip($fieldKeys));
-
-        $placeholders = PdoParameterBuilder::buildNamedParams($fieldsToUpdate);
-        $placeholders = array_merge(
-            $placeholders,
-            PdoParameterBuilder::normalizeNamedWhereBindings($whereData, $placeholders)
-        );
-
-        return (int) $this->database->runPlainQuery((string) $query, $placeholders);
-    }
-
-    /**
-     * Fast path used when query-level run-time validation/normalization is disabled.
-     *
-     * @param Query $query
-     * @param array $data
-     * @return int
-     */
-    private function runInsertWithoutValidationAndNormalization(Query $query, array $data = array())
-    {
-        $isMultiRow = $this->isSequentialListOfArrays($data);
-
-        if ($isMultiRow) {
-            $rows = $data;
-            $existingFields = $query->getFields();
-            $fields = !empty($existingFields) ? $existingFields : array_keys($rows[0]);
-            $query->fields($fields)->valuesCount(count($rows));
-            $this->database->runPlainQuery((string) $query, PdoParameterBuilder::buildInsertParams($rows));
-            return 0;
-        }
-
-        $existingFields = $query->getFields();
-        $fields = !empty($existingFields) ? $existingFields : array_keys($data);
-        $query->fields($fields)->valuesCount(1);
-        $this->database->runPlainQuery((string) $query, PdoParameterBuilder::buildInsertParams(array($data)));
-        return $this->database->getLastInsertId();
-    }
-
-    /**
-     * Fast path used when query-level run-time validation/normalization is disabled.
-     *
-     * @param Query $query
-     * @param array $data
-     * @return int
-     */
-    private function runUpdateWithoutValidationAndNormalization(Query $query, array $data = array())
-    {
-        $fields = $query->getFields();
-        $fieldsToUpdate = array_intersect_key($data, array_flip($fields));
-        $whereData = array_diff_key($data, array_flip($fields));
 
         $placeholders = PdoParameterBuilder::buildNamedParams($fieldsToUpdate);
         $placeholders = array_merge(
