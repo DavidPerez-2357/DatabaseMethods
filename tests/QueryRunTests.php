@@ -250,13 +250,15 @@ class QueryRunTests
             }
         );
 
-        assert_throws(
-            'InvalidArgumentException',
-            function () {
-                $this->db->createQuery()
-                    ->insert(self::TABLE, array('name'))
-                    ->disableRunValidationAndNormalization('yes');
-            }
-        );
+        try {
+            $this->db->createQuery()
+                ->insert(self::TABLE, array('name'))
+                ->disableRunValidationAndNormalization('yes');
+            throw new TestAssertionException(
+                'Expected InvalidArgumentException when disableRunValidationAndNormalization() receives non-boolean.'
+            );
+        } catch (InvalidArgumentException $e) {
+            assert_contains('expects a boolean argument', $e->getMessage());
+        }
     }
 }

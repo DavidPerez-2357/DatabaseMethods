@@ -54,16 +54,7 @@ class QueryRunner
             return $this->runInsertWithoutValidationAndNormalization($query, $data);
         }
 
-        // Detect multi-row: sequential numeric-keyed array whose every element is an array.
-        $isList = !empty($data) && (array_keys($data) === range(0, count($data) - 1));
-        $allArrays = true;
-        foreach ($data as $item) {
-            if (!is_array($item)) {
-                $allArrays = false;
-                break;
-            }
-        }
-        $isMultiRow = $isList && $allArrays;
+        $isMultiRow = $this->isSequentialListOfArrays($data);
 
         if ($isMultiRow) {
             $rows = $data;
@@ -138,15 +129,7 @@ class QueryRunner
      */
     private function runInsertWithoutValidationAndNormalization(Query $query, array $data = array())
     {
-        $isList = !empty($data) && (array_keys($data) === range(0, count($data) - 1));
-        $allArrays = true;
-        foreach ($data as $item) {
-            if (!is_array($item)) {
-                $allArrays = false;
-                break;
-            }
-        }
-        $isMultiRow = $isList && $allArrays;
+        $isMultiRow = $this->isSequentialListOfArrays($data);
 
         if ($isMultiRow) {
             $rows = $data;
@@ -316,5 +299,24 @@ class QueryRunner
         }
 
         return $normalizedRow;
+    }
+
+    /**
+     * @param array $data
+     * @return bool
+     */
+    private function isSequentialListOfArrays(array $data)
+    {
+        if (empty($data) || array_keys($data) !== range(0, count($data) - 1)) {
+            return false;
+        }
+
+        foreach ($data as $item) {
+            if (!is_array($item)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
