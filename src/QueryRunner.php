@@ -50,7 +50,7 @@ class QueryRunner
             throw new InvalidArgumentException('INSERT query requires a table.');
         }
 
-        if ($query->isRunValidationAndNormalizationDisabled()) {
+        if (!$query->isValidationEnabled()) {
             return $this->runInsertWithoutValidationAndNormalization($query, $data);
         }
 
@@ -91,7 +91,7 @@ class QueryRunner
      */
     public function runUpdate(Query $query, array $data = array())
     {
-        if ($query->isRunValidationAndNormalizationDisabled()) {
+        if (!$query->isValidationEnabled()) {
             return $this->runUpdateWithoutValidationAndNormalization($query, $data);
         }
 

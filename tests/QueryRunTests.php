@@ -116,7 +116,7 @@ class QueryRunTests
 
         $fastInsertId = $this->db->createQuery()
             ->insert(self::TABLE, array('"name"', 'email'))
-            ->disableRunValidationAndNormalization()
+            ->validation(false)
             ->run(array('"name"' => 'Fast Quoted', 'email' => 'fast@example.com'));
         assert_true(is_int($fastInsertId));
         assert_true($fastInsertId > 0);
@@ -128,8 +128,8 @@ class QueryRunTests
 
         $toggleBackToValidatedResult = $this->db->createQuery()
             ->insert(self::TABLE, array('"name"', 'email'))
-            ->disableRunValidationAndNormalization()
-            ->disableRunValidationAndNormalization(false)
+            ->validation(false)
+            ->validation(true)
             ->run(array(
                 array('"name"' => 'Toggle OnOff 1', 'email' => 'toggle1@example.com'),
                 array('name' => 'Toggle OnOff 2', 'email' => 'toggle2@example.com'),
@@ -158,7 +158,7 @@ class QueryRunTests
             function () {
                 $this->db->createQuery()
                     ->insert(self::TABLE, array('"name"', 'email'))
-                    ->disableRunValidationAndNormalization()
+                    ->validation(false)
                     ->run(array(
                         array('"name"' => 'No Normalize 1', 'email' => 'no_norm1@example.com'),
                         array('name' => 'No Normalize 2', 'email' => 'no_norm2@example.com'),
@@ -268,9 +268,9 @@ class QueryRunTests
         try {
             $this->db->createQuery()
                 ->insert(self::TABLE, array('name'))
-                ->disableRunValidationAndNormalization('yes');
+                ->validation('yes');
             throw new TestAssertionException(
-                'Expected InvalidArgumentException when disableRunValidationAndNormalization() is called with a non-boolean argument.'
+                'Expected InvalidArgumentException when validation() is called with a non-boolean argument.'
             );
         } catch (InvalidArgumentException $e) {
             assert_contains('expects a boolean argument', $e->getMessage());

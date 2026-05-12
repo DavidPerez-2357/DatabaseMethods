@@ -43,7 +43,7 @@ class Query
     /** @var QueryRunner|null */
     private $queryRunner;
     /** @var bool */
-    private $runValidationAndNormalizationDisabled;
+    private $validationEnabled;
 
     /**
      * Creates a Query instance.
@@ -65,7 +65,7 @@ class Query
         $this->dialect = new DefaultSqlDialect();
         $this->database = null;
         $this->queryRunner = null;
-        $this->runValidationAndNormalizationDisabled = false;
+        $this->validationEnabled = true;
         $this->data = $queryData;
         if (!empty($queryData)) {
             $this->query = $this->buildQuery();
@@ -703,14 +703,32 @@ class Query
     }
 
     /**
-     * Enables/disables extra run-time validations and key normalizations done by QueryRunner.
+     * Enables/disables query validation and normalization behavior.
      *
-     * When disabled, QueryRunner uses a faster execution path and expects provided bindings
-     * to already match the query field names exactly (including quote style).
+     * This setting affects Query internals and QueryRunner execution behavior.
+     * Use `validation(false)` for a faster execution path in Query::run().
      *
-     * @param bool $disabled true to disable extra run-time checks/normalizations.
+     * @param bool $enabled true to keep validation enabled; false to disable it.
      * @return $this
-     * @throws InvalidArgumentException If $disabled is not boolean.
+     * @throws InvalidArgumentException If $enabled is not boolean.
+     */
+    public function validation($enabled = true)
+    {
+        if (!is_bool($enabled)) {
+            throw new InvalidArgumentException(
+                'validation() expects a boolean argument.'
+            );
+        }
+
+        $this->validationEnabled = $enabled;
+        return $this;
+    }
+
+    /**
+     * Backward-compatible alias.
+     *
+     * @param bool $disabled
+     * @return $this
      */
     public function disableRunValidationAndNormalization($disabled = true)
     {
@@ -720,16 +738,25 @@ class Query
             );
         }
 
-        $this->runValidationAndNormalizationDisabled = $disabled;
-        return $this;
+        return $this->validation(!$disabled);
     }
 
     /**
      * @return bool
      */
+    public function isValidationEnabled()
+    {
+        return $this->validationEnabled;
+    }
+
+    /**
+     * Backward-compatible alias.
+     *
+     * @return bool
+     */
     public function isRunValidationAndNormalizationDisabled()
     {
-        return $this->runValidationAndNormalizationDisabled === true;
+        return !$this->isValidationEnabled();
     }
 
     /**
