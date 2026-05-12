@@ -645,8 +645,15 @@ class Database
     private function normalizeFastPathPlaceholder($placeholder)
     {
         if (is_string($placeholder) && $placeholder !== '' && $placeholder[0] !== ':') {
-            return ':' . $placeholder;
+            $placeholder = ':' . $placeholder;
         }
+
+        if (is_string($placeholder) && !preg_match('/^:[A-Za-z_][A-Za-z0-9_]*$/', $placeholder)) {
+            throw new InvalidArgumentException(
+                "Invalid named placeholder '{$placeholder}' in Database fast validation path."
+            );
+        }
+
         return $placeholder;
     }
 
