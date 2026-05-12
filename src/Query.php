@@ -42,6 +42,8 @@ class Query
     private $database;
     /** @var QueryRunner|null */
     private $queryRunner;
+    /** @var bool */
+    private $runValidationAndNormalizationDisabled;
 
     /**
      * Creates a Query instance.
@@ -63,6 +65,7 @@ class Query
         $this->dialect = new DefaultSqlDialect();
         $this->database = null;
         $this->queryRunner = null;
+        $this->runValidationAndNormalizationDisabled = false;
         $this->data = $queryData;
         if (!empty($queryData)) {
             $this->query = $this->buildQuery();
@@ -697,6 +700,36 @@ class Query
         $this->queryRunner = null;
         $this->setDialect($database->getDialect());
         return $this;
+    }
+
+    /**
+     * Enables/disables extra run-time validations and key normalizations done by QueryRunner.
+     *
+     * When disabled, QueryRunner uses a faster execution path and expects provided bindings
+     * to already match the query field names exactly (including quote style).
+     *
+     * @param bool $disabled true to disable extra run-time checks/normalizations.
+     * @return $this
+     * @throws InvalidArgumentException If $disabled is not boolean.
+     */
+    public function disableRunValidationAndNormalization($disabled = true)
+    {
+        if (!is_bool($disabled)) {
+            throw new InvalidArgumentException(
+                'disableRunValidationAndNormalization() expects a boolean argument.'
+            );
+        }
+
+        $this->runValidationAndNormalizationDisabled = $disabled;
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isRunValidationAndNormalizationDisabled()
+    {
+        return $this->runValidationAndNormalizationDisabled === true;
     }
 
     /**

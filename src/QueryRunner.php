@@ -50,6 +50,10 @@ class QueryRunner
             throw new InvalidArgumentException('INSERT query requires a table.');
         }
 
+        if ($query->isRunValidationAndNormalizationDisabled()) {
+            return $this->runInsertWithoutValidationAndNormalization($query, $data);
+        }
+
         // Detect multi-row: sequential numeric-keyed array whose every element is an array.
         $isList = !empty($data) && (array_keys($data) === range(0, count($data) - 1));
         $allArrays = true;
@@ -96,6 +100,10 @@ class QueryRunner
      */
     public function runUpdate(Query $query, array $data = array())
     {
+        if ($query->isRunValidationAndNormalizationDisabled()) {
+            return $this->runUpdateWithoutValidationAndNormalization($query, $data);
+        }
+
         $fields = $query->getFields();
         if (empty($fields)) {
             throw new InvalidArgumentException('UPDATE query requires at least one field.');
@@ -111,6 +119,63 @@ class QueryRunner
             );
         }
         $whereData = array_diff_key($data, array_flip($fieldKeys));
+
+        $placeholders = PdoParameterBuilder::buildNamedParams($fieldsToUpdate);
+        $placeholders = array_merge(
+            $placeholders,
+            PdoParameterBuilder::normalizeNamedWhereBindings($whereData, $placeholders)
+        );
+
+        return (int) $this->database->runPlainQuery((string) $query, $placeholders);
+    }
+
+    /**
+     * Fast path used when query-level run-time validation/normalization is disabled.
+     *
+     * @param Query $query
+     * @param array $data
+     * @return int
+     */
+    private function runInsertWithoutValidationAndNormalization(Query $query, array $data = array())
+    {
+        $isList = !empty($data) && (array_keys($data) === range(0, count($data) - 1));
+        $allArrays = true;
+        foreach ($data as $item) {
+            if (!is_array($item)) {
+                $allArrays = false;
+                break;
+            }
+        }
+        $isMultiRow = $isList && $allArrays;
+
+        if ($isMultiRow) {
+            $rows = $data;
+            $existingFields = $query->getFields();
+            $fields = !empty($existingFields) ? $existingFields : array_keys($rows[0]);
+            $query->fields($fields)->valuesCount(count($rows));
+            $this->database->runPlainQuery((string) $query, PdoParameterBuilder::buildInsertParams($rows));
+            return 0;
+        }
+
+        $existingFields = $query->getFields();
+        $fields = !empty($existingFields) ? $existingFields : array_keys($data);
+        $query->fields($fields)->valuesCount(1);
+        $this->database->runPlainQuery((string) $query, PdoParameterBuilder::buildInsertParams(array($data)));
+        return $this->database->getLastInsertId();
+    }
+
+    /**
+     * Fast path used when query-level run-time validation/normalization is disabled.
+     *
+     * @param Query $query
+     * @param array $data
+     * @return int
+     */
+    private function runUpdateWithoutValidationAndNormalization(Query $query, array $data = array())
+    {
+        $fields = $query->getFields();
+        $fieldsToUpdate = array_intersect_key($data, array_flip($fields));
+        $whereData = array_diff_key($data, array_flip($fields));
 
         $placeholders = PdoParameterBuilder::buildNamedParams($fieldsToUpdate);
         $placeholders = array_merge(

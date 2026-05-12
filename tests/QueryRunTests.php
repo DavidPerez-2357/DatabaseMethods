@@ -114,6 +114,18 @@ class QueryRunTests
         );
         assert_equals(2, count($quotedBatchRows));
 
+        $fastInsertId = $this->db->createQuery()
+            ->insert(self::TABLE, array('"name"', 'email'))
+            ->disableRunValidationAndNormalization()
+            ->run(array('"name"' => 'Fast Quoted', 'email' => 'fast@example.com'));
+        assert_true(is_int($fastInsertId));
+        assert_true($fastInsertId > 0);
+        $fastRows = $this->db->plainSelect(
+            'SELECT id FROM ' . self::TABLE . ' WHERE name = :name',
+            array('name' => 'Fast Quoted')
+        );
+        assert_equals(1, count($fastRows));
+
         assert_throws(
             'InvalidArgumentException',
             function () {
@@ -124,6 +136,18 @@ class QueryRunTests
             'InvalidArgumentException',
             function () {
                 $this->db->createQuery()->insert(self::TABLE, array('name'))->run(array());
+            }
+        );
+        assert_throws(
+            'InvalidArgumentException',
+            function () {
+                $this->db->createQuery()
+                    ->insert(self::TABLE, array('"name"', 'email'))
+                    ->disableRunValidationAndNormalization()
+                    ->run(array(
+                        array('"name"' => 'No Normalize 1', 'email' => 'no_norm1@example.com'),
+                        array('name' => 'No Normalize 2', 'email' => 'no_norm2@example.com'),
+                    ));
             }
         );
         assert_throws(
@@ -223,6 +247,15 @@ class QueryRunTests
             'InvalidArgumentException',
             function () use ($emptyQuery) {
                 $emptyQuery->run();
+            }
+        );
+
+        assert_throws(
+            'InvalidArgumentException',
+            function () {
+                $this->db->createQuery()
+                    ->insert(self::TABLE, array('name'))
+                    ->disableRunValidationAndNormalization('yes');
             }
         );
     }
