@@ -22,6 +22,7 @@ class Database
     private $conn; // connection variable
     private $json_encode = false; // Default value for json_encode
     private $keywordCheckEnabled = true; // Default value for keyword checking
+    private $validationEnabled = true; // Default value for validation checks
     private $dialect; // SQL dialect used for Query rendering
 
     /**
@@ -144,6 +145,37 @@ class Database
     {
         $this->keywordCheckEnabled = (bool) $bool;
         return $this;
+    }
+
+    /**
+     * Enables or disables Database-level validation checks.
+     *
+     * Validation is enabled by default.
+     *
+     * @param bool $enabled True to enable validation, false to disable.
+     * @return $this
+     * @throws InvalidArgumentException If $enabled is not a boolean.
+     */
+    public function validation($enabled = true)
+    {
+        if (!is_bool($enabled)) {
+            throw new InvalidArgumentException(
+                'Database::validation() expects a boolean argument.'
+            );
+        }
+
+        $this->validationEnabled = $enabled;
+        return $this;
+    }
+
+    /**
+     * Returns whether Database-level validation checks are enabled.
+     *
+     * @return bool
+     */
+    public function isValidationEnabled()
+    {
+        return $this->validationEnabled;
     }
 
     /**
@@ -589,6 +621,17 @@ class Database
      */
     private function bindNamedParams($stmt, $params)
     {
+        if (!$this->validationEnabled) {
+            foreach ($params as $key => $value) {
+                $placeholder = $key;
+                if (is_string($placeholder) && $placeholder !== '' && $placeholder[0] !== ':') {
+                    $placeholder = ':' . $placeholder;
+                }
+                $this->bindOneValue($stmt, $placeholder, $value);
+            }
+            return;
+        }
+
         $normalizedParams = PdoParameterBuilder::normalizeNamedBindings($params);
 
         foreach ($normalizedParams as $normalizedKey => $value) {

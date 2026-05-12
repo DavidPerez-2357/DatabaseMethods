@@ -89,6 +89,7 @@ $db->createQuery()
 ```
 
 `validation()` is chainable and throws `InvalidArgumentException` when the argument is not a boolean.
+When set to `false`, `run()` also disables `Database` validation for that execution only, then restores the previous Database validation state.
 
 ---
 

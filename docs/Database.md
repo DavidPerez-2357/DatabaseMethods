@@ -106,6 +106,28 @@ $database->enableKeywordCkeck(true); // re-enable when done
 
 &emsp;
 
+## Validation mode
+
+`Database` validation is enabled by default.
+
+Use `validation(false)` to disable Database-side validation checks, and `validation(true)` to enable them again:
+
+```php
+$database->validation(false);
+// ... execute performance-sensitive operations
+$database->validation(true);
+```
+
+`validation()` is chainable and throws `InvalidArgumentException` when the argument is not a boolean.
+
+Use `isValidationEnabled()` to inspect the current state.
+
+> [!NOTE]
+> When a query is executed through `createQuery()->...->validation(false)->run(...)`,
+> Database validation is disabled only for that run call and then automatically restored.
+
+&emsp;
+
 ## Methods
 
 ### `runPlainQuery($query, $data = [])`

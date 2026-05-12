@@ -814,23 +814,39 @@ class Query
             $this->queryRunner = new QueryRunner($this->database);
         }
 
-        switch ($method) {
-            case 'SELECT':
-                return $this->queryRunner->runSelect($this, $data);
+        $restoreDatabaseValidation = false;
+        $previousDatabaseValidationState = true;
+        if (!$this->isValidationEnabled()) {
+            $previousDatabaseValidationState = $this->database->isValidationEnabled();
+            if ($previousDatabaseValidationState) {
+                $this->database->validation(false);
+                $restoreDatabaseValidation = true;
+            }
+        }
 
-            case 'INSERT':
-                return $this->queryRunner->runInsert($this, $data);
+        try {
+            switch ($method) {
+                case 'SELECT':
+                    return $this->queryRunner->runSelect($this, $data);
 
-            case 'UPDATE':
-                return $this->queryRunner->runUpdate($this, $data);
+                case 'INSERT':
+                    return $this->queryRunner->runInsert($this, $data);
 
-            case 'DELETE':
-                return $this->queryRunner->runDelete($this, $data);
+                case 'UPDATE':
+                    return $this->queryRunner->runUpdate($this, $data);
 
-            default:
-                throw new InvalidArgumentException(
-                    "run() does not support query method '{$this->data['method']}'."
-                );
+                case 'DELETE':
+                    return $this->queryRunner->runDelete($this, $data);
+
+                default:
+                    throw new InvalidArgumentException(
+                        "run() does not support query method '{$this->data['method']}'."
+                    );
+            }
+        } finally {
+            if ($restoreDatabaseValidation) {
+                $this->database->validation($previousDatabaseValidationState);
+            }
         }
     }
 

@@ -5,6 +5,18 @@
  *
  * Focused integration tests for Query::run(), kept intentionally minimal.
  */
+class QueryRunSqliteSpy extends Sqlite
+{
+    /** @var array */
+    public $validationTransitions = array();
+
+    public function validation($enabled = true)
+    {
+        $this->validationTransitions[] = $enabled;
+        return parent::validation($enabled);
+    }
+}
+
 class QueryRunTests
 {
     /** @var Database */
@@ -25,7 +37,7 @@ class QueryRunTests
             . uniqid('', true)
             . '.sqlite';
 
-        $this->db = new Sqlite(array('DB' => $this->dbFile));
+        $this->db = new QueryRunSqliteSpy(array('DB' => $this->dbFile));
         $this->db->runPlainQuery(
             'CREATE TABLE ' . self::TABLE . ' (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -120,6 +132,11 @@ class QueryRunTests
             ->run(array('"name"' => 'Fast Quoted', 'email' => 'fast@example.com'));
         assert_true(is_int($fastInsertId));
         assert_true($fastInsertId > 0);
+        assert_true($this->db->isValidationEnabled());
+        $transitions = $this->db->validationTransitions;
+        assert_true(count($transitions) >= 2);
+        assert_equals(false, $transitions[count($transitions) - 2]);
+        assert_equals(true, $transitions[count($transitions) - 1]);
         $fastRows = $this->db->plainSelect(
             'SELECT id FROM ' . self::TABLE . ' WHERE name = :name',
             array('name' => 'Fast Quoted')
