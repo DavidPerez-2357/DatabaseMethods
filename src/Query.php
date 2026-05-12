@@ -727,7 +727,7 @@ class Query
     /**
      * Backward-compatible alias.
      *
-     * @param bool $disabled
+     * @param bool $disabled true to disable validation; false to enable it.
      * @return $this
      */
     public function disableRunValidationAndNormalization($disabled = true)
@@ -752,7 +752,7 @@ class Query
     /**
      * Backward-compatible alias.
      *
-     * @return bool
+     * @return bool true when validation is disabled; false when enabled.
      */
     public function isRunValidationAndNormalizationDisabled()
     {
