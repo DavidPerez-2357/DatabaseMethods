@@ -725,38 +725,11 @@ class Query
     }
 
     /**
-     * Backward-compatible alias.
-     *
-     * @param bool $disabled true to disable validation; false to enable it.
-     * @return $this
-     */
-    public function disableRunValidationAndNormalization($disabled = true)
-    {
-        if (!is_bool($disabled)) {
-            throw new InvalidArgumentException(
-                'disableRunValidationAndNormalization() expects a boolean argument.'
-            );
-        }
-
-        return $this->validation(!$disabled);
-    }
-
-    /**
      * @return bool
      */
     public function isValidationEnabled()
     {
         return $this->validationEnabled;
-    }
-
-    /**
-     * Backward-compatible alias.
-     *
-     * @return bool true when validation is disabled; false when enabled.
-     */
-    public function isRunValidationAndNormalizationDisabled()
-    {
-        return !$this->isValidationEnabled();
     }
 
     /**
