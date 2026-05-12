@@ -126,6 +126,21 @@ class QueryRunTests
         );
         assert_equals(1, count($fastRows));
 
+        $toggleBackToValidatedResult = $this->db->createQuery()
+            ->insert(self::TABLE, array('"name"', 'email'))
+            ->disableRunValidationAndNormalization()
+            ->disableRunValidationAndNormalization(false)
+            ->run(array(
+                array('"name"' => 'Toggle OnOff 1', 'email' => 'toggle1@example.com'),
+                array('name' => 'Toggle OnOff 2', 'email' => 'toggle2@example.com'),
+            ));
+        assert_equals(0, $toggleBackToValidatedResult);
+        $toggleRows = $this->db->plainSelect(
+            'SELECT id FROM ' . self::TABLE . ' WHERE name IN (:a, :b)',
+            array('a' => 'Toggle OnOff 1', 'b' => 'Toggle OnOff 2')
+        );
+        assert_equals(2, count($toggleRows));
+
         assert_throws(
             'InvalidArgumentException',
             function () {
