@@ -255,7 +255,7 @@ class QueryRunTests
                 ->insert(self::TABLE, array('name'))
                 ->disableRunValidationAndNormalization('yes');
             throw new TestAssertionException(
-                'Expected InvalidArgumentException when disableRunValidationAndNormalization() receives non-boolean.'
+                'Expected InvalidArgumentException when disableRunValidationAndNormalization() is called with a non-boolean argument.'
             );
         } catch (InvalidArgumentException $e) {
             assert_contains('expects a boolean argument', $e->getMessage());
