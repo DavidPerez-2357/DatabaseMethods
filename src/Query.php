@@ -815,7 +815,7 @@ class Query
         }
 
         $restoreDatabaseValidation = false;
-        $previousDatabaseValidationState = null;
+        $previousDatabaseValidationState = false;
         if (!$this->isValidationEnabled()) {
             $previousDatabaseValidationState = $this->database->isValidationEnabled();
             if ($previousDatabaseValidationState) {

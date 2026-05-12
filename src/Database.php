@@ -623,10 +623,7 @@ class Database
     {
         if (!$this->validationEnabled) {
             foreach ($params as $key => $value) {
-                $placeholder = $key;
-                if (is_string($placeholder) && $placeholder !== '' && $placeholder[0] !== ':') {
-                    $placeholder = ':' . $placeholder;
-                }
+                $placeholder = $this->normalizeFastPathPlaceholder($key);
                 $this->bindOneValue($stmt, $placeholder, $value);
             }
             return;
@@ -637,6 +634,20 @@ class Database
         foreach ($normalizedParams as $normalizedKey => $value) {
             $this->bindOneValue($stmt, $normalizedKey, $value);
         }
+    }
+
+    /**
+     * Normalizes a placeholder key for fast-path named binding when validation is disabled.
+     *
+     * @param mixed $placeholder
+     * @return mixed
+     */
+    private function normalizeFastPathPlaceholder($placeholder)
+    {
+        if (is_string($placeholder) && $placeholder !== '' && $placeholder[0] !== ':') {
+            return ':' . $placeholder;
+        }
+        return $placeholder;
     }
 
     /**
