@@ -5,7 +5,7 @@
  *
  * Focused integration tests for Query::run(), kept intentionally minimal.
  */
-class QueryRunSqliteSpy extends Sqlite
+class TestSqliteSpy extends Sqlite
 {
     /** @var array */
     public $validationTransitions = array();
@@ -37,7 +37,7 @@ class QueryRunTests
             . uniqid('', true)
             . '.sqlite';
 
-        $this->db = new QueryRunSqliteSpy(array('DB' => $this->dbFile));
+        $this->db = new TestSqliteSpy(array('DB' => $this->dbFile));
         $this->db->runPlainQuery(
             'CREATE TABLE ' . self::TABLE . ' (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
