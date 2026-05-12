@@ -64,6 +64,34 @@ $db->createQuery()
 
 Multi-row inserts return `0` (last-insert ID is undefined for batch operations across all drivers).
 
+---
+
+## `Query::validation(bool $enabled = true)`
+
+Controls whether `run()` validates and normalises its inputs before executing.
+
+| `$enabled` | Behaviour |
+|------------|-----------|
+| `true` (default) | INSERT rejects empty data and mismatched field keys; UPDATE requires at least one field and at least one matching binding in `$data`. Multi-row INSERT rows are re-keyed to the declared field list. |
+| `false` | All validation and normalisation steps are skipped. Field keys in `$data` are matched to the field list as-is, without identifier unquoting. Use this only when you are certain the inputs are already correct and you need maximum throughput. |
+
+```php
+// Validation enabled (default) — safe for general use
+$db->createQuery()
+    ->insert('logs', ['level', 'message'])
+    ->run(['level' => 'info', 'message' => 'started']);
+
+// Validation disabled — skips checks, faster for bulk operations
+$db->createQuery()
+    ->insert('events', ['type', 'payload'])
+    ->validation(false)
+    ->run(['type' => 'click', 'payload' => '{}']);
+```
+
+`validation()` is chainable and throws `InvalidArgumentException` when the argument is not a boolean.
+
+---
+
 ## Error handling
 
 - `run()` throws `RuntimeException` when the query has no linked database.
